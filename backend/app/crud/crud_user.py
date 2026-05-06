@@ -12,8 +12,12 @@ def get_user(user_id: int, db: Session):
         user_obj = db.query(User).filter(User.user_id == user_id).first()
         return user_obj
 
-def create_user(db: Session, user_in: UserCreate):
-    db_obj = User(**user_in.model_dump(exclude={"password"}), hashed_password=get_password_hash(user_in.password))
+def create_user(db: Session, user_in: UserCreate, hashed_ip: Optional[str] = None):
+    db_obj = User(
+        **user_in.model_dump(exclude={"password"}),
+        hashed_password=get_password_hash(user_in.password),
+        hashed_ip=hashed_ip
+    )
     db.add(db_obj)
     db.commit()
     db.refresh(db_obj)

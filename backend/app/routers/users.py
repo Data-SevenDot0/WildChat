@@ -1,7 +1,7 @@
 from app.schemas.user_schema import User_schema
 from app.crud import crud_user
 from app.db.session import get_db
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from app.schemas.user_schema import UserCreate
 
@@ -20,7 +20,7 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
     return user_obj
 
 @user_router.post("/", response_model=User_schema, status_code=status.HTTP_201_CREATED)
-def create_user(user_in: UserCreate, db: Session = Depends(get_db)):
+def create_user(user_in: UserCreate, request: Request, db: Session = Depends(get_db)):
     """
     Create a new user (Registration).
     """
@@ -39,8 +39,11 @@ def create_user(user_in: UserCreate, db: Session = Depends(get_db)):
             status_code=400,
             detail="A user with this email already exists.",
         )
-        
-    return crud_user.create_user(db, user_in=user_in)
+    
+    # 3. Capture client IP
+    client_ip = request.client.host if request.client else None
+    
+    return crud_user.create_user(db, user_in=user_in, hashed_ip=client_ip)
 
 @user_router.post("/login", response_model=User_schema)
 def login(user_in: UserCreate, db: Session = Depends(get_db)):

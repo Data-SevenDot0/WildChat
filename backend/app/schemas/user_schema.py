@@ -11,8 +11,7 @@ class UserCreate(UserBase):
 
 class User_schema(UserBase):
     user_id: int
-    history: object
-    settings: object
-    ip: str
+    hashed_ip: Optional[str] = None
+    histories: Optional[list] = None
     
     model_config = ConfigDict(from_attributes=True)
