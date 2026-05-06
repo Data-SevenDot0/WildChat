@@ -1,191 +1,215 @@
 """
-translate_pipeline.py
+translate_pipeline.py  —  Helsinki-NLP edition
 
-Mini-pipeline per parquet partition:
-  1. Drop moderation columns
-  2. Translate non-English conversations via Anthropic Batch API
-  3. Write output with conversation_en immediately after conversation
+Drops moderation columns, translates non-English conversations locally using
+Helsinki-NLP opus-mt models on Apple Silicon MPS, and writes output parquet
+with conversation_en immediately after conversation.
 
-Usage (from notebook or CLI):
+Usage:
     from translate_pipeline import run
     run("data/WildChatData/s2_workfile_cleaned.parquet/part-00000-*.parquet",
-        "data/WildChatData/translated/part-00000.parquet",
-        spark)
+        "data/WildChatData/translated/part-00000.parquet", spark)
 """
 
 import json
-import re
-import time
+from collections import defaultdict
 from pathlib import Path
 
-import anthropic
+import torch
+from transformers import MarianMTModel, MarianTokenizer
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, lit, monotonically_increasing_id, to_json, from_json
 from pyspark.sql.types import StringType
 
 
-# ---------------------------------------------------------------------------
-# Prompt
-# ---------------------------------------------------------------------------
+# ── Device ───────────────────────────────────────────────────────────────────
 
-_PROMPT = (
-    "Translate every message in this conversation to English. "
-    "Return ONLY a valid JSON array with the exact same structure — "
-    "each object must have 'role' and 'content' keys. "
-    "Preserve code blocks, URLs, proper nouns, and all formatting exactly. "
-    "No explanation. No markdown fences. No preamble."
+DEVICE = (
+    "mps"  if torch.backends.mps.is_available()  else
+    "cuda" if torch.cuda.is_available()          else
+    "cpu"
 )
+print(f"[translate_pipeline] Using device: {DEVICE}")
+
+BATCH_SIZE = 32  # messages per inference batch — reduce if you hit OOM
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+# ── Language → Helsinki model map ────────────────────────────────────────────
+# WildChat stores full language names. Anything not listed falls back to
+# opus-mt-mul-en, which covers most European languages.
 
-def _strip_fences(text: str) -> str:
-    """Remove markdown code fences if the model adds them anyway."""
-    text = text.strip()
-    m = re.search(r"```(?:json)?\s*([\s\S]+?)```", text)
-    return m.group(1).strip() if m else text
-
-
-def _submit_batch(client: anthropic.Anthropic, rows: list[dict], max_retries: int = 5) -> str:
-    """rows: list of {custom_id, conversation_json}. Returns batch_id."""
-    requests = [
-        {
-            "custom_id": r["custom_id"],
-            "params": {
-                "model": "claude-haiku-4-5-20251001",
-                "max_tokens": 8192,
-                "messages": [
-                    {"role": "user", "content": f"{_PROMPT}\n\n{r['conversation_json']}"}
-                ],
-            },
-        }
-        for r in rows
-    ]
-    for attempt in range(max_retries):
-        try:
-            batch = client.messages.batches.create(requests=requests, timeout=120)
-            return batch.id
-        except (anthropic.InternalServerError, anthropic.APITimeoutError, anthropic.APIConnectionError) as e:
-            wait = 2 ** attempt
-            print(f"  Attempt {attempt + 1}/{max_retries} failed — retrying in {wait}s: {e}")
-            time.sleep(wait)
-    raise RuntimeError(f"Batch submission failed after {max_retries} attempts")
+_LANG_MODELS: dict[str, str] = {
+    "Chinese":             "Helsinki-NLP/opus-mt-zh-en",
+    "Chinese Simplified":  "Helsinki-NLP/opus-mt-zh-en",
+    "Chinese Traditional": "Helsinki-NLP/opus-mt-zh-en",
+    "Japanese":            "Helsinki-NLP/opus-mt-ja-en",
+    "Korean":              "Helsinki-NLP/opus-mt-ko-en",
+    "Arabic":              "Helsinki-NLP/opus-mt-ar-en",
+    "Russian":             "Helsinki-NLP/opus-mt-ru-en",
+    "Spanish":             "Helsinki-NLP/opus-mt-es-en",
+    "French":              "Helsinki-NLP/opus-mt-fr-en",
+    "German":              "Helsinki-NLP/opus-mt-de-en",
+    "Portuguese":          "Helsinki-NLP/opus-mt-pt-en",
+    "Italian":             "Helsinki-NLP/opus-mt-it-en",
+    "Dutch":               "Helsinki-NLP/opus-mt-nl-en",
+    "Turkish":             "Helsinki-NLP/opus-mt-tr-en",
+    "Vietnamese":          "Helsinki-NLP/opus-mt-vi-en",
+    "Polish":              "Helsinki-NLP/opus-mt-pl-en",
+    "Ukrainian":           "Helsinki-NLP/opus-mt-uk-en",
+    "Indonesian":          "Helsinki-NLP/opus-mt-id-en",
+    "Romanian":            "Helsinki-NLP/opus-mt-ro-en",
+    "Czech":               "Helsinki-NLP/opus-mt-cs-en",
+    "Swedish":             "Helsinki-NLP/opus-mt-sv-en",
+    "Hebrew":              "Helsinki-NLP/opus-mt-he-en",
+    "Persian":             "Helsinki-NLP/opus-mt-fa-en",
+    "Hindi":               "Helsinki-NLP/opus-mt-hi-en",
+    "Thai":                "Helsinki-NLP/opus-mt-th-en",
+}
+_DEFAULT_MODEL = "Helsinki-NLP/opus-mt-mul-en"
 
 
-def _wait_for_batch(client: anthropic.Anthropic, batch_id: str, poll_secs: int = 30) -> tuple[dict, dict]:
-    """Poll until complete. Returns (results, errors) both keyed by custom_id."""
-    print(f"  Polling batch {batch_id} every {poll_secs}s ...")
-    while True:
-        batch = client.messages.batches.retrieve(batch_id)
-        c = batch.request_counts
-        print(f"    {batch.processing_status} — "
-              f"succeeded={c.succeeded}  errored={c.errored}  processing={c.processing}")
-        if batch.processing_status == "ended":
-            break
-        time.sleep(poll_secs)
+# ── Translation core ─────────────────────────────────────────────────────────
 
-    results, errors = {}, {}
-    for item in client.messages.batches.results(batch_id):
-        if item.result.type == "succeeded":
-            results[item.custom_id] = item.result.message.content[0].text
-        else:
-            errors[item.custom_id] = str(item.result.error)
+def _run_model(texts: list[str], model_id: str) -> list[str]:
+    """Load model → translate in batches → unload. Returns same-length list."""
+    tokenizer = MarianTokenizer.from_pretrained(model_id)
+    model = MarianMTModel.from_pretrained(model_id).to(DEVICE)
+    model.eval()
 
-    return results, errors
+    results = []
+    for i in range(0, len(texts), BATCH_SIZE):
+        chunk = texts[i : i + BATCH_SIZE]
+        inputs = tokenizer(
+            chunk, return_tensors="pt", padding=True,
+            truncation=True, max_length=512
+        ).to(DEVICE)
+        with torch.no_grad():
+            translated = model.generate(**inputs, max_new_tokens=512)
+        results.extend(tokenizer.batch_decode(translated, skip_special_tokens=True))
+
+    del model, tokenizer
+    if DEVICE == "mps":
+        torch.mps.empty_cache()
+    return results
 
 
-# ---------------------------------------------------------------------------
-# Main entry point
-# ---------------------------------------------------------------------------
+def _translate_all(rows: list[dict]) -> tuple[dict, dict]:
+    """
+    Translate all non-English conversations, grouped by model.
+
+    rows     — list of {"_id": str, "language": str, "conv_json": str}
+    returns  — (translated, truncated)
+        translated : {_id: [msg_dict, ...]}  — rebuilt conversation
+        truncated  : {_id: [msg_indices]}    — messages that likely got cut off
+    """
+    groups: dict[str, list] = defaultdict(list)
+    for row in rows:
+        model_id = _LANG_MODELS.get(row["language"], _DEFAULT_MODEL)
+        groups[model_id].append(row)
+
+    translated: dict[str, list] = {}
+    truncated:  dict[str, list] = {}
+
+    for model_id, group in groups.items():
+        langs = {r["language"] for r in group}
+        print(f"  {model_id}  →  {len(group):,} conversations  {langs}")
+
+        # Flatten every message across all conversations in this group
+        flat_keys:   list[tuple[int, int]] = []   # (row_idx, msg_idx)
+        flat_texts:  list[str]             = []
+        parsed_convs: list[list[dict]]     = []
+
+        for row_idx, row in enumerate(group):
+            msgs = json.loads(row["conv_json"])
+            parsed_convs.append(msgs)
+            for msg_idx, msg in enumerate(msgs):
+                flat_keys.append((row_idx, msg_idx))
+                flat_texts.append(msg.get("content") or "")
+
+        translated_texts = _run_model(flat_texts, model_id)
+
+        # Flag likely truncation: translated output < 20% the length of source
+        for (row_idx, msg_idx), src, tgt in zip(flat_keys, flat_texts, translated_texts):
+            if src and len(src) > 50 and len(tgt) < len(src) * 0.2:
+                row_id = group[row_idx]["_id"]
+                truncated.setdefault(row_id, []).append(msg_idx)
+
+        # Rebuild conversations — preserve every original field, only swap content
+        rebuilt: dict[int, dict[int, str]] = defaultdict(dict)
+        for (row_idx, msg_idx), text in zip(flat_keys, translated_texts):
+            rebuilt[row_idx][msg_idx] = text
+
+        for row_idx, row in enumerate(group):
+            msgs = parsed_convs[row_idx]
+            new_msgs = []
+            for msg_idx, msg in enumerate(msgs):
+                new_msg = dict(msg)
+                new_msg["content"] = rebuilt[row_idx].get(msg_idx, msg.get("content"))
+                new_msgs.append(new_msg)
+            translated[row["_id"]] = new_msgs
+
+    return translated, truncated
+
+
+# ── Pipeline entry point ─────────────────────────────────────────────────────
 
 def run(input_path: str, output_path: str, spark: SparkSession) -> None:
-    client = anthropic.Anthropic()  # reads ANTHROPIC_API_KEY from env
     out_dir = Path(output_path).parent
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # ── 1. Read ──────────────────────────────────────────────────────────
-    print(f"\n[1/6] Reading {input_path}")
+    # 1. Read
+    print(f"\n[1/5] Reading   {input_path}")
     df = spark.read.parquet(input_path)
 
-    # ── 2. Drop moderation columns ───────────────────────────────────────
+    # 2. Drop moderation
     mod_cols = [c for c in df.columns if "moderation" in c.lower()]
     df = df.drop(*mod_cols)
-    print(f"[2/6] Dropped moderation columns: {mod_cols}")
+    print(f"[2/5] Dropped   {mod_cols or 'none'}")
 
     conv_schema = df.schema["conversation"].dataType
 
-    # ── 3. Split English / non-English ───────────────────────────────────
-    # Use a stable synthetic key so we can join results back without
-    # relying on conversation_hash uniqueness guarantees.
+    # 3. Split English / non-English
     df = df.withColumn("_id", monotonically_increasing_id().cast(StringType()))
-
-    eng_df = (
-        df.filter(col("language") == "English")
-          .withColumn("conversation_en", lit(None).cast(conv_schema))
-    )
+    eng_df     = (df.filter(col("language") == "English")
+                    .withColumn("conversation_en", lit(None).cast(conv_schema)))
     foreign_df = df.filter(col("language") != "English")
-    n_foreign = foreign_df.count()
-    print(f"[3/6] Non-English rows to translate: {n_foreign:,}")
+    n_foreign  = foreign_df.count()
+    print(f"[3/5] To translate: {n_foreign:,}")
 
     if n_foreign == 0:
-        print("  Nothing to translate — writing as-is.")
-        _write(eng_df.drop("_id"), conv_schema, output_path)
+        _write(eng_df.drop("_id"), output_path)
+        print("  Nothing to translate — done.")
         return
 
-    # ── 4. Collect and submit batch ──────────────────────────────────────
-    print("[4/6] Collecting conversations for batch submission ...")
+    # 4. Collect and translate locally
+    print("[4/5] Translating locally ...")
     payload = (
         foreign_df
-        .select("_id", "conversation_hash", to_json(col("conversation")).alias("conv_json"))
+        .select("_id", "language", to_json(col("conversation")).alias("conv_json"))
         .collect()
     )
-    id_to_hash = {r["_id"]: r["conversation_hash"] for r in payload}
-    rows = [{"custom_id": r["_id"], "conversation_json": r["conv_json"]} for r in payload]
+    rows = [{"_id": r["_id"], "language": r["language"], "conv_json": r["conv_json"]}
+            for r in payload]
 
-    print(f"  Submitting {len(rows):,} requests ...")
-    batch_id = _submit_batch(client, rows)
-    # Persist batch ID so you can recover results if the process dies
-    batch_id_file = out_dir / "batch_id.txt"
-    batch_id_file.write_text(batch_id)
-    print(f"  Batch ID: {batch_id}  (saved to {batch_id_file})")
+    translated, truncated = _translate_all(rows)
 
-    # ── 5. Wait and collect results ──────────────────────────────────────
-    print("[5/6] Waiting for batch to complete ...")
-    results, api_errors = _wait_for_batch(client, batch_id)
+    # Surface every anomaly — nothing silent
+    if truncated:
+        f = out_dir / "truncation_warnings.json"
+        f.write_text(json.dumps(truncated, indent=2))
+        print(f"  !! {len(truncated):,} messages likely truncated — {f}")
 
-    # Surface every failure — nothing silent
-    if api_errors:
-        err_out = {id_to_hash.get(k, k): v for k, v in api_errors.items()}
-        err_file = out_dir / "translation_errors.json"
-        err_file.write_text(json.dumps(err_out, indent=2))
-        print(f"\n  !! {len(api_errors):,} API failures — see {err_file}")
+    failed = {r["_id"]: r["language"] for r in rows if r["_id"] not in translated}
+    if failed:
+        f = out_dir / "translation_failures.json"
+        f.write_text(json.dumps(failed, indent=2))
+        print(f"  !! {len(failed):,} conversations failed entirely — {f}")
 
-    # Validate JSON in every successful response
-    clean, parse_errors = [], {}
-    for custom_id, raw in results.items():
-        cleaned = _strip_fences(raw)
-        try:
-            json.loads(cleaned)
-            clean.append((custom_id, cleaned))
-        except json.JSONDecodeError as exc:
-            parse_errors[id_to_hash.get(custom_id, custom_id)] = (
-                f"JSONDecodeError: {exc} | raw[:300]: {raw[:300]}"
-            )
+    print(f"  translated={len(translated):,}  truncated={len(truncated):,}  failed={len(failed):,}")
 
-    if parse_errors:
-        pe_file = out_dir / "translation_parse_errors.json"
-        pe_file.write_text(json.dumps(parse_errors, indent=2))
-        print(f"  !! {len(parse_errors):,} JSON parse failures — see {pe_file}")
-
-    print(f"\n  Summary: {len(clean):,} clean  |  "
-          f"{len(api_errors):,} API errors  |  "
-          f"{len(parse_errors):,} parse errors  |  "
-          f"{n_foreign - len(clean) - len(api_errors) - len(parse_errors):,} other")
-
-    # ── 6. Rebuild DataFrame and write ──────────────────────────────────
-    print("[6/6] Joining translations and writing output ...")
+    # 5. Join back into Spark and write
+    print(f"[5/5] Writing   {output_path}")
+    clean = [(row_id, json.dumps(msgs)) for row_id, msgs in translated.items()]
 
     trans_df = (
         spark.createDataFrame(clean, ["_id", "_conv_en_json"])
@@ -193,18 +217,14 @@ def run(input_path: str, output_path: str, spark: SparkSession) -> None:
              .drop("_conv_en_json")
     )
 
-    # Left join so rows with failed translations keep conversation_en = null
-    # (explicit null is visible; nothing is silently dropped)
     foreign_translated = foreign_df.join(trans_df, on="_id", how="left").drop("_id")
     combined = foreign_translated.unionByName(eng_df.drop("_id"))
+    _write(combined, output_path)
+    print("  Done.\n")
 
-    _write(combined, conv_schema, output_path)
-    print(f"  Written to {output_path}\n")
 
-
-def _write(df, conv_schema, output_path: str) -> None:
-    """Reorder columns so conversation_en is adjacent to conversation, then write."""
+def _write(df, output_path: str) -> None:
     cols = [c for c in df.columns if c != "conversation_en"]
-    idx = cols.index("conversation")
+    idx  = cols.index("conversation")
     ordered = cols[: idx + 1] + ["conversation_en"] + cols[idx + 1 :]
     df.select(ordered).write.mode("overwrite").parquet(output_path)
