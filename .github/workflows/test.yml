@@ -1,0 +1,47 @@
+name: WildChat ETL Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.9', '3.10', '3.11']
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyspark delta-spark flask pytest pytest-cov
+
+    - name: Test schema imports
+      run: |
+        python -c "import schemas; print('✓ schemas imported')"
+        python -c "import schema_utils; print('✓ schema_utils imported')"
+        python -c "import clean_dataset; print('✓ clean_dataset imported')"
+        python -c "import aggregate_metrics; print('✓ aggregate_metrics imported')"
+        python -c "import cluster_topics; print('✓ cluster_topics imported')"
+        python -c "import ingest_translated; print('✓ ingest_translated imported')"
+        python -c "import ingest_annotations; print('✓ ingest_annotations imported')"
+        python -c "import delta_merge; print('✓ delta_merge imported')"
+        python -c "import api; print('✓ api imported')"
+
+    - name: Run unit tests
+      run: pytest tests/test_etl.py -v --cov=. --cov-report=xml
+
+    - name: Upload coverage
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
