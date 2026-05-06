@@ -7,6 +7,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.routers import (
     users
     )
+import app.models  # Import all models for SQLAlchemy registration
 
 
 # ── App ────────────────────────────────────────────────────────────────────────
@@ -61,7 +62,7 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
             "error": "Internal Server Error",
-            "detail": "An unexpected error occurred in the ScouterFRC engine.",
+            "detail": "An unexpected error occurred in the engine.",
         },
     )
 
