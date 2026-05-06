@@ -5,12 +5,15 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+from datetime import datetime
+import uuid
 
 from pyspark.sql import SparkSession, functions as F
 from pyspark.sql.window import Window
 
 from conversation_genre import conversation_text_column, infer_genre
 from data_quality import add_data_quality_flags
+from schemas import SCHEMA_VERSION, get_schema
 
 
 def parse_args() -> argparse.Namespace:
@@ -26,6 +29,22 @@ def parse_args() -> argparse.Namespace:
         "--output",
         default="./data/cleaned",
         help="Directory where the cleaned parquet output will be written.",
+    )
+    parser.add_argument(
+        "--write-table",
+        action="store_true",
+        help="Also write the cleaned dataset into a Spark metastore table",
+    )
+    parser.add_argument(
+        "--table-name",
+        default="wildchat.cleaned_wildchat",
+        help="Target metastore table name to write cleaned dataset into (db.table)",
+    )
+    parser.add_argument(
+        "--table-mode",
+        default="overwrite",
+        choices=["overwrite", "append", "ignore"],
+        help="Write mode when saving to metastore table",
     )
     return parser.parse_args()
 
@@ -46,6 +65,24 @@ def clean_dataset(input_dir: str, output_dir: str) -> None:
     spark.sparkContext.setLogLevel("WARN")
     parquet_files = build_file_list(input_dir)
 
+    run_id = str(uuid.uuid4())
+    pipeline_name = "clean_dataset"
+    started_at = datetime.utcnow()
+    etl_log = {
+        "run_id": run_id,
+        "pipeline_name": pipeline_name,
+        "input_path": input_dir,
+        "output_path": output_dir,
+        "schema_version": SCHEMA_VERSION,
+        "started_at": started_at,
+        "finished_at": None,
+        "status": "running",
+        "input_row_count": None,
+        "output_row_count": None,
+        "error_row_count": None,
+        "notes": None,
+    }
+
     print(f"Found {len(parquet_files)} parquet files")
     print("=" * 80)
 
@@ -55,6 +92,7 @@ def clean_dataset(input_dir: str, output_dir: str) -> None:
             return
 
         df = spark.read.parquet(*parquet_files)
+        etl_log["input_row_count"] = int(df.count())
 
         required_columns = {"timestamp", "conversation", "turn", "model", "country", "hashed_ip", "toxic", "redacted", "openai_moderation", "detoxify_moderation"}
         missing_columns = sorted(required_columns - set(df.columns))
@@ -108,8 +146,53 @@ def clean_dataset(input_dir: str, output_dir: str) -> None:
         cleaned.show(5, truncate=False)
 
         print(f"\nWriting cleaned dataset to {output_dir}...")
+        # always write parquet to preserve current behavior
         cleaned.write.mode("overwrite").parquet(output_dir)
         print("Cleaned dataset saved!")
+
+        # optionally write into metastore table
+        # parse args from CLI if present
+        import sys
+        args = parse_args()
+        if args.write_table:
+            table_name = args.table_name
+            # ensure database exists if provided
+            if "." in table_name:
+                db_name = table_name.split(".", 1)[0]
+                spark.sql(f"CREATE DATABASE IF NOT EXISTS {db_name}")
+
+            print(f"Writing cleaned dataset to metastore table {table_name} (mode={args.table_mode})")
+            cleaned.write.mode(args.table_mode).saveAsTable(table_name)
+            print("Table write complete")
+
+        etl_log["output_row_count"] = int(cleaned.count())
+        etl_log["finished_at"] = datetime.utcnow()
+        etl_log["status"] = "success"
+
+        # write ETL run log to metastore if table exists
+        try:
+            log_table = "wildchat.etl_run_log"
+            # create dataframe for log entry and append
+            log_schema = get_schema("etl_run_log")
+            log_df = spark.createDataFrame([etl_log], schema=log_schema)
+            log_df.write.mode("append").saveAsTable(log_table)
+            print(f"Wrote ETL run log to {log_table}")
+        except Exception as exc:
+            print("Warning: failed to write ETL run log:", exc)
+    except Exception:
+        etl_log["finished_at"] = datetime.utcnow()
+        etl_log["status"] = "failed"
+        etl_log["notes"] = "Exception during clean_dataset"
+        try:
+            from pyspark.sql import SparkSession
+
+            # attempt to write failure log if spark is available
+            spark2 = SparkSession.builder.getOrCreate()
+            log_schema = get_schema("etl_run_log")
+            spark2.createDataFrame([etl_log], schema=log_schema).write.mode("append").saveAsTable("wildchat.etl_run_log")
+        except Exception:
+            pass
+        raise
     finally:
         spark.stop()
 
