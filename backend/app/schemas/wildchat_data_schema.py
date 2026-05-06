@@ -11,6 +11,8 @@ class WildChatRecord(BaseModel):
     conversation: str  # or List[str] if it's a list of messages
     turn: int
     language: str
+    toxic: bool
+    redacted: bool
     state: str
     country: str
     hashed_ip: str
@@ -26,6 +28,8 @@ class WildChatRecord(BaseModel):
                 "language": "en",
                 "state": "CA",
                 "country": "US",
+                "toxic": False,
+                "redacted": False
             }
         }
 
