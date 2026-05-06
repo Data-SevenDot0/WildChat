@@ -9,6 +9,9 @@ from pathlib import Path
 
 from pyspark.sql import SparkSession, functions as F
 
+from schemas import get_schema, SCHEMA_VERSION
+from schema_utils import validate_schema
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -63,6 +66,18 @@ def run_connector_route(input_dir: str, output_dir: str) -> None:
 
         print("\nSummary Statistics:")
         df.describe().show()
+
+        # validate against cleaned schema if schema was applied upstream
+        print(f"\nSchema version: {SCHEMA_VERSION}")
+        print("Attempting schema validation for cleaned_wildchat (informational only)...")
+        expected_schema = get_schema("cleaned_wildchat")
+        is_valid, issues = validate_schema(df, expected_schema, strict=False)
+        if is_valid:
+            print("✓ DataFrame matches cleaned_wildchat schema")
+        else:
+            print("✗ DataFrame has schema mismatches (not enforced for aggregation):")
+            for issue in issues:
+                print(f"  - {issue}")
 
         if "timestamp" not in df.columns:
             raise ValueError("Input parquet files do not contain a timestamp column")
