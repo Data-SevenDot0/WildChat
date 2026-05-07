@@ -6,7 +6,9 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.routers import (
     users,
-    wilddata
+    wilddata,
+    tags,
+    translations,
     )
 
 # ── App ────────────────────────────────────────────────────────────────────────
@@ -14,8 +16,8 @@ from app.routers import (
 app = FastAPI()
 
 origins = [
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
+    "http://localhost:8001",
+    "http://127.0.0.1:8001",
 ]
 
 app.add_middleware(
@@ -70,3 +72,5 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 app.include_router(users.user_router)
 app.include_router(wilddata.data_router)
+app.include_router(tags.tag_router)
+app.include_router(translations.translation_router)

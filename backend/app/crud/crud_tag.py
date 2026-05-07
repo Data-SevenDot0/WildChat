@@ -4,13 +4,14 @@ from app.core.security import verify_password, get_password_hash
 from typing import Optional
 from app.schemas.tag_schema import TagBase
 from app.models.tag import Tag
+from app.models.user import User
 
 def get_tag(db: Session, tag_id: int):
         tag = db.query(Tag).filter(Tag.tag_id == tag_id).first()
         return tag
 
-def create_tag(db: Session, name: str, keywords: Optional[str] = None):
-    tag = Tag(name=name, keywords=keywords)
+def create_tag(db: Session, name: str, keywords: Optional[str] = None, user_id: Optional[int] = None):
+    tag = Tag(name=name, keywords=keywords, user_id=user_id)
     db.add(tag)
     db.commit()
     db.refresh(tag)

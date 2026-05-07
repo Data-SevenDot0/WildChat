@@ -12,3 +12,4 @@ class Tag(Base):
     tag_id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(50), unique=True, index=True)
     keywords: Mapped[list[str]] = mapped_column(String(500))  # Comma-separated keywords
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.user_id"), nullable=False)
