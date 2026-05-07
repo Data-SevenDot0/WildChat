@@ -5,16 +5,16 @@ export default {
     extend: {
       colors: {
         bg: {
-          deep: "#141414",
+          deep: "#111111",
           card: "#1e1e1e",
           panel: "#181818",
           row: "#1a1a1a",
-          hover: "#272727",
+          hover: "#1c1500",
         },
         accent: {
-          green: "#f59e0b",
-          teal: "#d97706",
-          gold: "#fbbf24",
+          green: "#f59e0b",   /* amber-500 — primary accent */
+          teal: "#d97706",    /* amber-600 — darker accent */
+          gold: "#fbbf24",    /* amber-400 — highlight */
         },
         text: {
           primary: "#e0e0e0",
@@ -22,7 +22,7 @@ export default {
           muted: "#555555",
         },
         border: {
-          base: "#303030",
+          base: "#2d2d2d",
           subtle: "#252525",
         },
       },

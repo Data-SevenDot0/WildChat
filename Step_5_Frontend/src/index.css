@@ -15,12 +15,13 @@ body,
 }
 
 body {
-  background-color: #141414;
-  color: #e0e0e0;
+  background-color: #111111;
+  color: #e8e8e8;
   font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
   font-size: 13px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  transition: font-size 0.2s ease;
 }
 
 ::-webkit-scrollbar {
@@ -28,10 +29,10 @@ body {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #141414;
+  background: #111111;
 }
 ::-webkit-scrollbar-thumb {
-  background: #303030;
+  background: #2d2d2d;
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
@@ -40,7 +41,7 @@ body {
 
 .card {
   background: #1e1e1e;
-  border: 1px solid #303030;
+  border: 1px solid #2d2d2d;
   border-radius: 6px;
 }
 
@@ -49,7 +50,7 @@ body {
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #888888;
+  color: #6b7280;
 }
 
 .tag-pill {
@@ -60,8 +61,8 @@ body {
   border-radius: 3px;
   font-size: 11px;
   font-weight: 500;
-  background: #303030;
-  color: #f59e0b;
+  background: #1c1500;
+  color: #fbbf24;
   cursor: default;
 }
 
@@ -69,7 +70,7 @@ body {
   cursor: pointer;
 }
 .tag-pill.removable:hover {
-  background: #3a3a3a;
+  background: #261b00;
 }
 
 .model-badge {
@@ -79,12 +80,12 @@ body {
   font-family: "JetBrains Mono", monospace;
   font-size: 11px;
   font-weight: 500;
-  background: #303030;
+  background: #1c1500;
   color: #f59e0b;
 }
 
 .model-badge.gpt4 {
-  background: #2a1f00;
+  background: #201800;
   color: #fbbf24;
 }
 
@@ -95,7 +96,7 @@ body {
   border-radius: 50%;
 }
 .status-dot.ok {
-  background: #22c55e;
+  background: #f59e0b;
 }
 .status-dot.redacted {
   background: #ef4444;
@@ -109,7 +110,7 @@ body {
   padding: 5px 12px;
   border-radius: 4px;
   font-size: 12px;
-  color: #888888;
+  color: #6b7280;
   cursor: pointer;
   transition: all 0.12s;
   white-space: nowrap;
@@ -117,11 +118,11 @@ body {
   text-overflow: ellipsis;
 }
 .sidebar-link:hover {
-  background: #272727;
-  color: #e0e0e0;
+  background: #1c1500;
+  color: #e8e8e8;
 }
 .sidebar-link.active {
-  background: #272727;
+  background: #1c1500;
   color: #f59e0b;
   font-weight: 500;
 }
@@ -141,8 +142,8 @@ body {
   border-radius: 4px;
   font-size: 12px;
   background: #1e1e1e;
-  border: 1px solid #303030;
-  color: #e0e0e0;
+  border: 1px solid #2d2d2d;
+  color: #e8e8e8;
   cursor: pointer;
   transition: border-color 0.12s;
   white-space: nowrap;
@@ -167,16 +168,16 @@ body {
   align-items: center;
 }
 .conv-row:hover {
-  background: #272727;
+  background: #1c1500;
 }
 .conv-row.selected {
-  background: #2a2a2a;
+  background: #201800;
   border-left: 2px solid #f59e0b;
 }
 
 .bar-track {
   height: 6px;
-  background: #303030;
+  background: #2d2d2d;
   border-radius: 3px;
   overflow: hidden;
 }
@@ -190,7 +191,7 @@ body {
 .spinner {
   width: 20px;
   height: 20px;
-  border: 2px solid #303030;
+  border: 2px solid #2d2d2d;
   border-top-color: #f59e0b;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;

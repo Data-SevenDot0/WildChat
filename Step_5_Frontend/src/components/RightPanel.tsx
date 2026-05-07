@@ -18,7 +18,7 @@ interface AnnotationNote {
 
 type AnnotationsMap = Record<string, AnnotationNote[]>;
 
-const TURN_COLORS = ["#f59e0b", "#d97706", "#fbbf24", "#b45309", "#e0e0e0", "#888888"];
+const TURN_COLORS = ["#f59e0b", "#d97706", "#fbbf24", "#b45309", "#e0e0e0", "#6b7280"];
 
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -244,8 +244,8 @@ export default function RightPanel({ selected, presets = [], activityLog = [], o
           ) : (
             <div className="flex flex-col gap-1.5">
               {[
-                { color: "#22c55e", text: "Possible prompt injection — flag" },
-                { color: "#f59e0b", text: "Topic shifts mid-conversation" },
+                { color: "#f59e0b", text: "Possible prompt injection — flag" },
+                { color: "#fbbf24", text: "Topic shifts mid-conversation" },
               ].map(({ color, text }) => (
                 <div key={text} className="flex items-center gap-2">
                   <span className="status-dot flex-shrink-0" style={{ background: color }} />
@@ -269,7 +269,7 @@ export default function RightPanel({ selected, presets = [], activityLog = [], o
                   className="flex items-center gap-2 cursor-pointer flex-1"
                   onClick={() => onApplyPreset && onApplyPreset(p)}
                 >
-                  <span className="status-dot" style={{ background: "#f59e0b", opacity: 0.5 }} />
+                  <span className="status-dot" style={{ background: "#f59e0b", opacity: 0.6 }} />
                   <span className="text-xs text-text-primary group-hover:text-accent-green">{p.name}</span>
                 </div>
                 <button

@@ -3,6 +3,7 @@ import {
   ComposableMap,
   Geographies,
   Geography,
+  Sphere,
 } from "react-simple-maps";
 import type { CountryItem } from "../types";
 
@@ -71,11 +72,11 @@ const NUM_TO_COUNTRY: Record<number, string> = Object.fromEntries(
 
 function getVolumeColor(pct: number): string {
   if (pct > 15) return "#d97706";
-  if (pct > 8) return "#b86200";
-  if (pct > 4) return "#9a5000";
-  if (pct > 2) return "#7a3f00";
+  if (pct > 8)  return "#b86200";
+  if (pct > 4)  return "#9a5000";
+  if (pct > 2)  return "#7a3f00";
   if (pct > 0.5) return "#572d00";
-  if (pct > 0) return "#3d1f00";
+  if (pct > 0)  return "#3d1f00";
   return "#1e1e1e";
 }
 
@@ -138,6 +139,7 @@ export default function WorldMap({ countries, onCountryClick, activeCountry }: P
           style={{ width: "100%", height: "auto" }}
           projectionConfig={{ scale: 140 }}
         >
+          <Sphere id="ocean" fill="#1a3a5c" stroke="#0d2440" strokeWidth={0.5} />
           <Geographies geography={GEO_URL}>
             {({ geographies }) =>
               geographies.map((geo) => {
@@ -149,8 +151,8 @@ export default function WorldMap({ countries, onCountryClick, activeCountry }: P
                     key={geo.rsmKey}
                     geography={geo}
                     fill={getColor(numId)}
-                    stroke="#141414"
-                    strokeWidth={0.4}
+                    stroke="#4a4030"
+                    strokeWidth={0.7}
                     style={{
                       default: { outline: "none" },
                       hover: { fill: "#f59e0b", outline: "none", cursor: countryName ? "pointer" : "default" },

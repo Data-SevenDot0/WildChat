@@ -77,6 +77,18 @@ export default function TopBar({
   presets = [], onSavePreset, onApplyPreset, onDeletePreset,
 }: Props) {
   const [presetsOpen, setPresetsOpen] = useState(false);
+  const FONT_SIZES = [
+    { label: "A",  title: "Normal",  size: "13px" },
+    { label: "A+", title: "Large",   size: "15px" },
+    { label: "A⁺⁺", title: "X-Large", size: "18px" },
+  ];
+  const [fontIdx, setFontIdx] = useState(0);
+
+  function cycleFontSize() {
+    const next = (fontIdx + 1) % FONT_SIZES.length;
+    setFontIdx(next);
+    document.body.style.fontSize = FONT_SIZES[next].size;
+  }
 
   const activeCount = [
     filters.model, filters.language, filters.country,
@@ -168,6 +180,14 @@ export default function TopBar({
       )}
 
       <div className="ml-auto flex items-center gap-2 relative">
+        <button
+          className="filter-btn"
+          title={`Font size: ${FONT_SIZES[fontIdx].title} — click to increase`}
+          onClick={cycleFontSize}
+          style={{ fontWeight: 600, minWidth: 40, letterSpacing: "0.02em" }}
+        >
+          {FONT_SIZES[fontIdx].label}
+        </button>
         <button className="filter-btn" onClick={() => setPresetsOpen((o) => !o)}>
           ⊞ Presets{presets.length > 0 ? ` (${presets.length})` : ""} ▾
         </button>
