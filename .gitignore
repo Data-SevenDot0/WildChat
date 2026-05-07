@@ -219,5 +219,6 @@ __marimo__/
 # Project-specific
 data/
 Data/
+Step_0_Data/
 node_modules/
 *.db
