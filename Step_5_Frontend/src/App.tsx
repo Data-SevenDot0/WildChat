@@ -27,6 +27,9 @@ import ConversationList from "./components/ConversationList";
 import EtlLog from "./components/EtlLog";
 import SummaryStatsPanel from "./components/SummaryStats";
 import RightPanel from "./components/RightPanel";
+import GeographicView from "./components/GeographicView";
+import LanguageView from "./components/LanguageView";
+import ModelView from "./components/ModelView";
 
 type View = "overview" | "explorer" | "geographic" | "language" | "model";
 
@@ -108,27 +111,57 @@ export default function App() {
 
           {/* Scrollable content */}
           <main className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
-            {/* Stat cards */}
-            <StatCards overview={overview} loading={loadingOverview} />
 
-            {/* Map + Topic clustering */}
-            <div className="grid gap-3" style={{ gridTemplateColumns: "1fr 320px" }}>
-              <WorldMap countries={countries} />
-              <TopicClustering topics={topics} loading={loadingTopics} />
-            </div>
+            {/* ── Overview ───────────────────────────────────────────── */}
+            {view === "overview" && (
+              <>
+                <StatCards overview={overview} loading={loadingOverview} />
+                <div className="grid gap-3" style={{ gridTemplateColumns: "1fr 320px" }}>
+                  <WorldMap countries={countries} />
+                  <TopicClustering topics={topics} loading={loadingTopics} />
+                </div>
+                <ConversationList
+                  filters={filters}
+                  onSelect={setSelectedConv}
+                  selectedHash={selectedConv?.full_hash ?? null}
+                />
+                <div className="grid gap-3" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                  <EtlLog overview={overview} />
+                  <SummaryStatsPanel stats={summaryStats} loading={loadingOverview} />
+                </div>
+              </>
+            )}
 
-            {/* Conversation list */}
-            <ConversationList
-              filters={filters}
-              onSelect={setSelectedConv}
-              selectedHash={selectedConv?.full_hash ?? null}
-            />
+            {/* ── Conversation Explorer ───────────────────────────────── */}
+            {view === "explorer" && (
+              <>
+                <StatCards overview={overview} loading={loadingOverview} />
+                <ConversationList
+                  filters={filters}
+                  onSelect={setSelectedConv}
+                  selectedHash={selectedConv?.full_hash ?? null}
+                />
+              </>
+            )}
 
-            {/* ETL log + summary stats */}
-            <div className="grid gap-3" style={{ gridTemplateColumns: "1fr 1fr" }}>
-              <EtlLog overview={overview} />
-              <SummaryStatsPanel stats={summaryStats} loading={loadingOverview} />
-            </div>
+            {/* ── Geographic Breakdown ────────────────────────────────── */}
+            {view === "geographic" && (
+              <>
+                <StatCards overview={overview} loading={loadingOverview} />
+                <GeographicView countries={countries} />
+              </>
+            )}
+
+            {/* ── Language Analysis ───────────────────────────────────── */}
+            {view === "language" && (
+              <LanguageView languages={languages} stats={summaryStats} />
+            )}
+
+            {/* ── Model Comparison ────────────────────────────────────── */}
+            {view === "model" && (
+              <ModelView models={models} />
+            )}
+
           </main>
         </div>
 

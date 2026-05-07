@@ -13,21 +13,22 @@ const NAV: { label: string; view: View }[] = [
   { label: "Model comparison", view: "model" },
 ];
 
-const TOOLS = [
-  "ETL run log",
-  "Turn depth compare",
-  "Time / date slider",
-  "Search refinement",
-  "Filters & combinations",
-  "Conversation preview",
-  "User tracking history",
-  "Conversation flow",
-  "Saved filter presets",
-  "Session history",
-  "Interactive map",
-  "Topic clustering",
-  "Summary statistics",
-  "Annotation tool",
+// Each tool maps to the view that contains it.
+const TOOLS: { label: string; view: View }[] = [
+  { label: "ETL run log",           view: "overview"   },
+  { label: "Topic clustering",      view: "overview"   },
+  { label: "Summary statistics",    view: "overview"   },
+  { label: "Interactive map",       view: "geographic" },
+  { label: "Turn depth compare",    view: "model"      },
+  { label: "Search refinement",     view: "explorer"   },
+  { label: "Filters & combinations",view: "explorer"   },
+  { label: "Conversation preview",  view: "explorer"   },
+  { label: "Conversation flow",     view: "explorer"   },
+  { label: "Annotation tool",       view: "explorer"   },
+  { label: "Saved filter presets",  view: "explorer"   },
+  { label: "User tracking history", view: "explorer"   },
+  { label: "Session history",       view: "explorer"   },
+  { label: "Time / date slider",    view: "explorer"   },
 ];
 
 export default function Sidebar({ activeView, onSelect }: Props) {
@@ -65,10 +66,15 @@ export default function Sidebar({ activeView, onSelect }: Props) {
       {/* Tools */}
       <div className="px-2 pt-3 pb-4">
         <div className="label px-2 mb-2">Tools</div>
-        {TOOLS.map((t) => (
-          <span key={t} className="sidebar-link">
-            {t}
-          </span>
+        {TOOLS.map(({ label, view }) => (
+          <button
+            key={label}
+            className={`sidebar-link w-full text-left ${activeView === view && false ? "active" : ""}`}
+            onClick={() => onSelect(view)}
+            title={`Go to ${view} view`}
+          >
+            {label}
+          </button>
         ))}
       </div>
     </aside>

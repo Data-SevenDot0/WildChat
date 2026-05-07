@@ -1,15 +1,18 @@
 """
 WildChat data endpoints — reads combined_data_tagged.parquet.
 Slim DataFrame (no conversation text) is loaded once at first request and cached.
-Individual conversation detail is fetched on-demand via PyArrow predicate filter.
+Individual conversation detail is fetched on-demand via a row-group index that maps
+each conversation_hash to its row group, so only 1/14th of the file is read per
+detail lookup instead of the entire 3 GB file.
 """
 import json
 import threading
-from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
 import pandas as pd
+import pyarrow as pa
+import pyarrow.compute as pc
 import pyarrow.parquet as pq
 from fastapi import APIRouter, HTTPException, Query
 
@@ -73,6 +76,30 @@ _TAG_TO_CATEGORY: dict[str, str] = {
 _df: Optional[pd.DataFrame] = None
 _lock = threading.Lock()
 _stats_cache: dict = {}
+
+# Row-group index: maps conversation_hash → row-group number.
+# Built once on first detail request. Reading only the hash column (~20 MB)
+# across all row groups takes ~1-2 s and allows every subsequent detail lookup
+# to read exactly ONE row group (1/14th of the file) instead of all 14.
+_hash_to_rg: dict[str, int] = {}
+_rg_lock = threading.Lock()
+
+
+def _build_rg_index() -> None:
+    """Populate _hash_to_rg lazily (thread-safe, runs once)."""
+    global _hash_to_rg
+    if _hash_to_rg:
+        return
+    with _rg_lock:
+        if _hash_to_rg:
+            return
+        pf = pq.ParquetFile(PARQUET_PATH)
+        index: dict[str, int] = {}
+        for rg_idx in range(pf.metadata.num_row_groups):
+            batch = pf.read_row_group(rg_idx, columns=["conversation_hash"])
+            for h in batch.column("conversation_hash").to_pylist():
+                index[h] = rg_idx
+        _hash_to_rg = index
 
 
 def _load_df() -> pd.DataFrame:
@@ -260,13 +287,24 @@ def get_conversations(
 
 @data_router.get("/conversations/{hash}")
 def get_conversation(hash: str):
+    # Build the row-group index on first call (~1-2 s, then cached forever).
+    _build_rg_index()
+
+    rg_idx = _hash_to_rg.get(hash)
+    if rg_idx is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
     try:
-        table = pq.read_table(
-            PARQUET_PATH,
-            filters=[("conversation_hash", "=", hash)],
-            columns=["conversation_hash", "conversation", "model", "language",
-                     "turn", "country", "redacted", "toxic", "timestamp", "tags"],
-        )
+        DETAIL_COLS = [
+            "conversation_hash", "conversation", "model", "language",
+            "turn", "country", "redacted", "toxic", "timestamp", "tags",
+        ]
+        pf = pq.ParquetFile(PARQUET_PATH)
+        # Read only the single row group that contains this hash (~35 MB vs ~490 MB).
+        table = pf.read_row_group(rg_idx, columns=DETAIL_COLS)
+        # Narrow to the exact row.
+        table = table.filter(pc.equal(table.column("conversation_hash"), hash))
+
         if table.num_rows == 0:
             raise HTTPException(status_code=404, detail="Conversation not found")
 
@@ -283,6 +321,7 @@ def get_conversation(hash: str):
         ts = row["timestamp"][0]
         return {
             "conversation_hash": row["conversation_hash"][0],
+            "full_hash": row["conversation_hash"][0],
             "model": row["model"][0],
             "language": row["language"][0],
             "turns": int(row["turn"][0]),
