@@ -20,11 +20,7 @@ echo "[1/6] Applying schema..."
 "${PSQL_CMD[@]}" -f "$SEED_DIR/postgres_seed.sql"
 echo "✓ Schema applied"
 
-echo "[2/6] Loading CSV data with \"\copy\" (client-side)"
-
-"${PSQL_CMD[@]}" -c "\copy wildchat.cleaned_wildchat(event_timestamp,event_date,country_clean,state,hash_map_id,moderation_flag,turns,conversation_type,toxicity_factor,model,language,redacted,hashed_ip,conversation_text,has_missing_values,valid_timestamp,valid_country,long_conversation,short_conversation,excessive_turns,moderation_present) FROM '$SEED_DIR/cleaned_wildchat.csv' CSV HEADER"
-
-echo "✓ Loaded cleaned_wildchat"
+echo "[2/5] Loading CSV data with \"\copy\" (client-side)"
 
 "${PSQL_CMD[@]}" -c "\copy wildchat.country_daily_metrics(event_date,country_clean,state,language,model,conversation_count,turn_count,avg_turn_depth,gpt35_count,gpt4_count,redacted_count,toxic_count,adoption_rate,source_run_id,created_at,updated_at) FROM '$SEED_DIR/country_daily_metrics.csv' CSV HEADER"
 
@@ -40,20 +36,20 @@ echo "✓ Loaded conversation_annotation"
 echo "✓ Loaded topic_cluster"
 
 # Load new part-1 and part-2 tables
-echo "[3/6] Loading part_1..."
+echo "[3/5] Loading part_1..."
 "${PSQL_CMD[@]}" -c "\copy wildchat.part_1(conversation_id,model,timestamp,turn,language,toxicity_flag,redacted,state,country,hashed_ip,conversation_text,first_role) FROM '$SEED_DIR/part_1.csv' CSV HEADER"
 
 echo "✓ Loaded part_1"
 
-echo "[4/6] Loading part_2..."
+echo "[4/5] Loading part_2..."
 "${PSQL_CMD[@]}" -c "\copy wildchat.part_2(conversation_id,model,timestamp,turn,language,toxicity_flag,redacted,state,country,hashed_ip,conversation_text,first_role) FROM '$SEED_DIR/part_2.csv' CSV HEADER"
 
 echo "✓ Loaded part_2"
 
-echo "[5/6] Verifying data loads..."
-"${PSQL_CMD[@]}" -c "SELECT 'cleaned_wildchat' as table_name, COUNT(*) as row_count FROM wildchat.cleaned_wildchat UNION SELECT 'country_daily_metrics', COUNT(*) FROM wildchat.country_daily_metrics UNION SELECT 'conversation_annotation', COUNT(*) FROM wildchat.conversation_annotation UNION SELECT 'topic_cluster', COUNT(*) FROM wildchat.topic_cluster UNION SELECT 'part_1', COUNT(*) FROM wildchat.part_1 UNION SELECT 'part_2', COUNT(*) FROM wildchat.part_2;"
+echo "[5/5] Verifying data loads..."
+"${PSQL_CMD[@]}" -c "SELECT 'country_daily_metrics' as table_name, COUNT(*) as row_count FROM wildchat.country_daily_metrics UNION SELECT 'conversation_annotation', COUNT(*) FROM wildchat.conversation_annotation UNION SELECT 'topic_cluster', COUNT(*) FROM wildchat.topic_cluster UNION SELECT 'part_1', COUNT(*) FROM wildchat.part_1 UNION SELECT 'part_2', COUNT(*) FROM wildchat.part_2;"
 
-echo "[6/6] Done. Loaded seed into database '$DB'"
+echo "Done. Loaded seed into database '$DB'"
 
 echo "Tip: set PGHOST, PGPORT, PGUSER and PGPASSWORD (or .pgpass) for remote databases."
 

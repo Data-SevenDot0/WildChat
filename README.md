@@ -86,6 +86,13 @@ python generate_seed_data.py --size large --output ./seed_data --postgres-compat
 
 This writes CSV exports and a `postgres_seed.sql` file under `./seed_data/postgres/`.
 
+For the team seed I added in this branch, use the Postgres seed schema and loader under `seed_data_pg_test/postgres/` and `scripts/`.
+That seed is based on the new `part_1` and `part_2` data only and does not include the cleaned dataset.
+
+```bash
+./scripts/load_postgres_seed.sh wildchat
+```
+
 Example PostgreSQL load flow:
 
 ```bash
