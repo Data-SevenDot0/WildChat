@@ -52,7 +52,7 @@ for c in configs:
 
     half        = c["n"] // 2
     James   = sample.limit(half)
-    Ethan   = sample.subtract(partner_1)
+    Ethan   = sample.subtract(James)
 
     p1_path = f"data/sample_data/{label}_part1"
     p2_path = f"data/sample_data/{label}_part2"
