@@ -1,8 +1,8 @@
 from sqlalchemy.orm import Session
-from app.models import User
+from app.models import translation
 from app.core.security import verify_password, get_password_hash
 from typing import Optional
-from app.schemas.user_schema import UserCreate
+from app.schemas.translation_schema import TranslationBase
 from app.models.translation import Translation
 
 def get_translation(db: Session, conversation_hash: str):
