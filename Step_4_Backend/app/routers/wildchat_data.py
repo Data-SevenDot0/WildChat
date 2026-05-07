@@ -108,7 +108,8 @@ def _load_df() -> pd.DataFrame:
         with _lock:
             if _df is None:
                 _df = pd.read_parquet(PARQUET_PATH, columns=SLIM_COLS)
-                _df["timestamp"] = pd.to_datetime(_df["timestamp"], utc=True)
+                # Timestamps in the parquet are naive (no timezone) — keep them as-is
+                _df["timestamp"] = pd.to_datetime(_df["timestamp"])
     return _df
 
 
@@ -228,9 +229,9 @@ def get_countries(
     # Filter the slim df by date range and recompute country counts
     df = _load_df().copy()
     if date_from:
-        df = df[df["timestamp"] >= pd.Timestamp(date_from, tz="UTC")]
+        df = df[df["timestamp"] >= pd.Timestamp(date_from)]
     if date_to:
-        df = df[df["timestamp"] <= pd.Timestamp(date_to, tz="UTC")]
+        df = df[df["timestamp"] <= pd.Timestamp(date_to)]
 
     total = max(len(df), 1)
     country_counts = df["country"].value_counts()
@@ -271,9 +272,9 @@ def get_conversations(
     if redacted_only:
         df = df[df["redacted"]]
     if date_from:
-        df = df[df["timestamp"] >= pd.Timestamp(date_from, tz="UTC")]
+        df = df[df["timestamp"] >= pd.Timestamp(date_from)]
     if date_to:
-        df = df[df["timestamp"] <= pd.Timestamp(date_to, tz="UTC")]
+        df = df[df["timestamp"] <= pd.Timestamp(date_to)]
     if search:
         df = df[df["conversation_hash"].str.contains(search, case=False, na=False)]
     if topic_filter:
