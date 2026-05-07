@@ -69,3 +69,34 @@ CREATE TABLE IF NOT EXISTS wildchat.topic_cluster (
   created_at TIMESTAMP,
   updated_at TIMESTAMP
 );
+
+-- New tables for part-1 and part-2 data forms
+CREATE TABLE IF NOT EXISTS wildchat.part_1 (
+  conversation_id TEXT PRIMARY KEY,
+  model TEXT,
+  timestamp TIMESTAMP,
+  turn INTEGER,
+  language TEXT,
+  toxicity_flag BOOLEAN,
+  redacted BOOLEAN,
+  state TEXT,
+  country TEXT,
+  hashed_ip TEXT,
+  conversation_text TEXT,
+  first_role TEXT
+);
+
+CREATE TABLE IF NOT EXISTS wildchat.part_2 (
+  conversation_id TEXT PRIMARY KEY,
+  model TEXT,
+  timestamp TIMESTAMP,
+  turn INTEGER,
+  language TEXT,
+  toxicity_flag BOOLEAN,
+  redacted BOOLEAN,
+  state TEXT,
+  country TEXT,
+  hashed_ip TEXT,
+  conversation_text TEXT,
+  first_role TEXT
+);
