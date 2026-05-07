@@ -12,7 +12,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
-BASE        = Path(__file__).parent.parent / "Data" / "WildChatData"
+BASE        = Path(__file__).parent.parent / "Step_0_Data" / "WildChatData"
 INPUT_FILES = sorted(BASE.glob("[0-9][0-9][0-9][0-9].parquet"))
 OUT_PARQ    = BASE / "combined_data_tagged.parquet"
 

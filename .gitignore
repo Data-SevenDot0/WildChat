@@ -216,4 +216,8 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
+# Project-specific
 data/
+Data/
+node_modules/
+*.db

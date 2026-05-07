@@ -4,9 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.routers import (
-    users
-    )
+from app.routers import users
+from app.routers.wildchat_data import data_router
 import app.models  # Import all models for SQLAlchemy registration
 
 
@@ -17,6 +16,8 @@ app = FastAPI()
 origins = [
     "http://localhost:8000",
     "http://127.0.0.1:8000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
 ]
 
 app.add_middleware(
@@ -70,3 +71,4 @@ async def global_exception_handler(request: Request, exc: Exception):
 # ── Routers ───────────────────────────────────────────────────────────────────
 
 app.include_router(users.user_router)
+app.include_router(data_router)
