@@ -13,9 +13,9 @@ def create_admin() -> User:
     db = SessionLocal()
     try:
         user = User(
-            username="admin",
-            email="admin@scouterfrc.local",
-            hashed_password=get_password_hash("123"),
+            username="WildN8",
+            email="N8@wildchat.com",
+            hashed_password=get_password_hash("WildpassN8"),
             hashed_ip="127.0.0.1",
         )
         db.add(user)
