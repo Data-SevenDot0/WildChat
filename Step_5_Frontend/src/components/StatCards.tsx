@@ -57,7 +57,7 @@ export default function StatCards({ overview, loading }: Props) {
           <div className="label mb-2">{label}</div>
           <div
             className="text-2xl font-semibold mb-1"
-            style={{ color: accent ? "#ef4444" : "#cdd9e5" }}
+            style={{ color: accent ? "#ef4444" : "#e0e0e0" }}
           >
             {value}
           </div>

@@ -104,7 +104,7 @@ export default function TopBar({ overview, models, languages, countries, filters
         <button className="filter-btn">⊞ Presets ▾</button>
         <button
           className="filter-btn"
-          style={{ background: "#1ea882", borderColor: "#2ecc9e", color: "#fff" }}
+          style={{ background: "#d97706", borderColor: "#f59e0b", color: "#fff" }}
         >
           ↗ Share
         </button>

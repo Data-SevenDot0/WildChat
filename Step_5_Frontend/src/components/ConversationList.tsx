@@ -105,7 +105,7 @@ export default function ConversationList({ filters, onSelect, selectedHash }: Pr
       {/* Header */}
       <div
         className="conv-row text-text-secondary border-b border-border-base"
-        style={{ background: "#0e1a28", cursor: "default" }}
+        style={{ background: "#181818", cursor: "default" }}
       >
         <span className="label">Hash</span>
         <span className="label">Model</span>

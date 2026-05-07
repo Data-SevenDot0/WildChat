@@ -65,13 +65,13 @@ const COUNTRY_TO_NUM: Record<string, number> = {
 };
 
 function getColor(pct: number): string {
-  if (pct > 15) return "#1ea882";
-  if (pct > 8) return "#27a87a";
-  if (pct > 4) return "#2ba870";
-  if (pct > 2) return "#1e7a5e";
-  if (pct > 0.5) return "#165c46";
-  if (pct > 0) return "#0f3d2e";
-  return "#111e2e";
+  if (pct > 15) return "#d97706";
+  if (pct > 8) return "#b86200";
+  if (pct > 4) return "#9a5000";
+  if (pct > 2) return "#7a3f00";
+  if (pct > 0.5) return "#572d00";
+  if (pct > 0) return "#3d1f00";
+  return "#1e1e1e";
 }
 
 interface Props {
@@ -104,11 +104,11 @@ export default function WorldMap({ countries }: Props) {
                     key={geo.rsmKey}
                     geography={geo}
                     fill={getColor(pct)}
-                    stroke="#0c1520"
+                    stroke="#141414"
                     strokeWidth={0.4}
                     style={{
                       default: { outline: "none" },
-                      hover: { fill: "#2ecc9e", outline: "none" },
+                      hover: { fill: "#f59e0b", outline: "none" },
                       pressed: { outline: "none" },
                     }}
                   />
@@ -125,7 +125,7 @@ export default function WorldMap({ countries }: Props) {
           className="flex-1 h-2 rounded"
           style={{
             background:
-              "linear-gradient(90deg, #0f3d2e, #165c46, #1e7a5e, #2ba870, #1ea882)",
+              "linear-gradient(90deg, #3d1f00, #572d00, #7a3f00, #b86200, #d97706)",
           }}
         />
         <span className="text-text-secondary text-xs">high</span>

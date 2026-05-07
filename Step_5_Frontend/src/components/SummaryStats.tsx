@@ -21,7 +21,7 @@ export default function SummaryStatsPanel({ stats, loading }: Props) {
       {loading || !stats ? (
         <div className="grid grid-cols-2 gap-3">
           {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="animate-pulse text-center p-3 rounded" style={{ background: "#0e1a28" }}>
+            <div key={i} className="animate-pulse text-center p-3 rounded" style={{ background: "#181818" }}>
               <div className="h-6 bg-bg-hover rounded w-12 mx-auto mb-1" />
               <div className="h-3 bg-bg-hover rounded w-20 mx-auto" />
             </div>
@@ -33,7 +33,7 @@ export default function SummaryStatsPanel({ stats, loading }: Props) {
             <div
               key={label}
               className="text-center p-3 rounded"
-              style={{ background: "#0e1a28", border: "1px solid #162438" }}
+              style={{ background: "#181818", border: "1px solid #252525" }}
             >
               <div className="text-lg font-semibold text-text-primary">{value}</div>
               <div className="text-xs text-text-secondary mt-1">{label}</div>

@@ -33,7 +33,7 @@ type View = "overview" | "explorer" | "geographic" | "language" | "model";
 function LoadingBanner() {
   return (
     <div className="flex items-center gap-3 px-4 py-2 border-b border-border-base text-xs text-text-secondary"
-         style={{ background: "#0c1a2a" }}>
+         style={{ background: "#141414" }}>
       <div className="spinner" style={{ width: 14, height: 14, borderWidth: 1.5 }} />
       Loading dataset… This may take 30–60 seconds on first load while the server indexes 838k rows.
     </div>

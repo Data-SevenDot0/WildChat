@@ -6,7 +6,7 @@ interface Props {
   selected: ConversationRow | null;
 }
 
-const TURN_COLORS = ["#2ecc9e", "#3b82f6", "#a78bfa", "#f59e0b", "#06b6d4", "#ec4899"];
+const TURN_COLORS = ["#f59e0b", "#d97706", "#fbbf24", "#b45309", "#e0e0e0", "#888888"];
 
 const SAVED_PRESETS = [
   "Russian · GPT-4 · 6+ turns",
@@ -91,7 +91,7 @@ export default function RightPanel({ selected }: Props) {
               <div key={i} className="mb-2">
                 <div
                   className="text-xs font-medium mb-0.5"
-                  style={{ color: msg.role === "user" ? "#2ecc9e" : "#a78bfa" }}
+                  style={{ color: msg.role === "user" ? "#f59e0b" : "#e0e0e0" }}
                 >
                   {msg.role === "user" ? "User" : "Assistant"}:
                 </div>
@@ -142,7 +142,7 @@ export default function RightPanel({ selected }: Props) {
             {[
               { color: "#22c55e", text: "Possible prompt injection — flag for review" },
               { color: "#f59e0b", text: "Topic shifts mid-conversation" },
-              { color: "#3b82f6", text: "Long-form coding session" },
+              { color: "#f59e0b", text: "Long-form coding session" },
             ].map(({ color, text }) => (
               <div key={text} className="flex items-center gap-2">
                 <span className="status-dot flex-shrink-0" style={{ background: color }} />
@@ -162,7 +162,7 @@ export default function RightPanel({ selected }: Props) {
         {SAVED_PRESETS.map((p) => (
           <div key={p} className="flex items-center justify-between py-1.5 cursor-pointer hover:text-accent-green group">
             <div className="flex items-center gap-2">
-              <span className="status-dot" style={{ background: "#2ecc9e", opacity: 0.5 }} />
+              <span className="status-dot" style={{ background: "#f59e0b", opacity: 0.5 }} />
               <span className="text-xs text-text-primary group-hover:text-accent-green">{p}</span>
             </div>
             <span className="text-text-muted text-xs">↺</span>

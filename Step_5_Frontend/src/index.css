@@ -15,8 +15,8 @@ body,
 }
 
 body {
-  background-color: #0c1520;
-  color: #cdd9e5;
+  background-color: #141414;
+  color: #e0e0e0;
   font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
   font-size: 13px;
   line-height: 1.5;
@@ -28,19 +28,19 @@ body {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #0c1520;
+  background: #141414;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1a2f45;
+  background: #303030;
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #2ecc9e40;
+  background: #f59e0b40;
 }
 
 .card {
-  background: #111e2e;
-  border: 1px solid #1a2f45;
+  background: #1e1e1e;
+  border: 1px solid #303030;
   border-radius: 6px;
 }
 
@@ -49,7 +49,7 @@ body {
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #6b8fa8;
+  color: #888888;
 }
 
 .tag-pill {
@@ -60,8 +60,8 @@ body {
   border-radius: 3px;
   font-size: 11px;
   font-weight: 500;
-  background: #1a2f45;
-  color: #2ecc9e;
+  background: #303030;
+  color: #f59e0b;
   cursor: default;
 }
 
@@ -69,7 +69,7 @@ body {
   cursor: pointer;
 }
 .tag-pill.removable:hover {
-  background: #1e3a54;
+  background: #3a3a3a;
 }
 
 .model-badge {
@@ -79,13 +79,13 @@ body {
   font-family: "JetBrains Mono", monospace;
   font-size: 11px;
   font-weight: 500;
-  background: #1a2f45;
-  color: #2ecc9e;
+  background: #303030;
+  color: #f59e0b;
 }
 
 .model-badge.gpt4 {
-  background: #2b1f4a;
-  color: #a78bfa;
+  background: #2a1f00;
+  color: #fbbf24;
 }
 
 .status-dot {
@@ -109,7 +109,7 @@ body {
   padding: 5px 12px;
   border-radius: 4px;
   font-size: 12px;
-  color: #6b8fa8;
+  color: #888888;
   cursor: pointer;
   transition: all 0.12s;
   white-space: nowrap;
@@ -117,12 +117,12 @@ body {
   text-overflow: ellipsis;
 }
 .sidebar-link:hover {
-  background: #172436;
-  color: #cdd9e5;
+  background: #272727;
+  color: #e0e0e0;
 }
 .sidebar-link.active {
-  background: #172436;
-  color: #2ecc9e;
+  background: #272727;
+  color: #f59e0b;
   font-weight: 500;
 }
 .sidebar-link::before {
@@ -140,20 +140,20 @@ body {
   padding: 4px 10px;
   border-radius: 4px;
   font-size: 12px;
-  background: #111e2e;
-  border: 1px solid #1a2f45;
-  color: #cdd9e5;
+  background: #1e1e1e;
+  border: 1px solid #303030;
+  color: #e0e0e0;
   cursor: pointer;
   transition: border-color 0.12s;
   white-space: nowrap;
 }
 .filter-btn:hover {
-  border-color: #2ecc9e60;
-  color: #2ecc9e;
+  border-color: #f59e0b60;
+  color: #f59e0b;
 }
 .filter-btn.active {
-  border-color: #2ecc9e;
-  color: #2ecc9e;
+  border-color: #f59e0b;
+  color: #f59e0b;
 }
 
 .conv-row {
@@ -161,37 +161,37 @@ body {
   grid-template-columns: 120px 130px 90px 60px 130px 90px;
   gap: 0;
   padding: 7px 14px;
-  border-bottom: 1px solid #162438;
+  border-bottom: 1px solid #252525;
   cursor: pointer;
   transition: background 0.1s;
   align-items: center;
 }
 .conv-row:hover {
-  background: #172436;
+  background: #272727;
 }
 .conv-row.selected {
-  background: #1e3650;
-  border-left: 2px solid #2ecc9e;
+  background: #2a2a2a;
+  border-left: 2px solid #f59e0b;
 }
 
 .bar-track {
   height: 6px;
-  background: #1a2f45;
+  background: #303030;
   border-radius: 3px;
   overflow: hidden;
 }
 .bar-fill {
   height: 100%;
   border-radius: 3px;
-  background: linear-gradient(90deg, #1ea882, #2ecc9e);
+  background: linear-gradient(90deg, #d97706, #f59e0b);
   transition: width 0.5s ease;
 }
 
 .spinner {
   width: 20px;
   height: 20px;
-  border: 2px solid #1a2f45;
-  border-top-color: #2ecc9e;
+  border: 2px solid #303030;
+  border-top-color: #f59e0b;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }

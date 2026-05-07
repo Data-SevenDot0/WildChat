@@ -6,12 +6,12 @@ interface Props {
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
-  "Research / info": "#2ecc9e",
-  "Coding / tech": "#3b82f6",
-  "Writing": "#a78bfa",
-  "Math / science": "#f59e0b",
-  "Translation": "#06b6d4",
-  "Other": "#6b8fa8",
+  "Research / info": "#f59e0b",
+  "Coding / tech":   "#d97706",
+  "Writing":         "#fbbf24",
+  "Math / science":  "#f59e0b",
+  "Translation":     "#b45309",
+  "Other":           "#888888",
 };
 
 export default function TopicClustering({ topics, loading }: Props) {
@@ -40,7 +40,7 @@ export default function TopicClustering({ topics, loading }: Props) {
                 <span className="text-text-primary text-xs">{category}</span>
                 <span
                   className="text-xs font-mono font-medium"
-                  style={{ color: CATEGORY_COLORS[category] ?? "#6b8fa8" }}
+                  style={{ color: CATEGORY_COLORS[category] ?? "#888888" }}
                 >
                   {pct}%
                 </span>
@@ -50,7 +50,7 @@ export default function TopicClustering({ topics, loading }: Props) {
                   className="bar-fill"
                   style={{
                     width: `${pct}%`,
-                    background: `linear-gradient(90deg, ${CATEGORY_COLORS[category] ?? "#2ecc9e"}88, ${CATEGORY_COLORS[category] ?? "#2ecc9e"})`,
+                    background: `linear-gradient(90deg, ${CATEGORY_COLORS[category] ?? "#f59e0b"}88, ${CATEGORY_COLORS[category] ?? "#f59e0b"})`,
                   }}
                 />
               </div>
