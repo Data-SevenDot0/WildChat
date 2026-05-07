@@ -1,0 +1,101 @@
+event_timestamp,event_date,country_clean,state,hash_map_id,moderation_flag,turns,conversation_type,toxicity_factor,model,language,redacted,hashed_ip,conversation_text,has_missing_values,valid_timestamp,valid_country,long_conversation,short_conversation,excessive_turns,moderation_present
+2025-12-22 10:09:34.939325,2025-12-22,DE,CA,conv_00000000,False,7,support,0.17,claude-2,zh,True,ip_2450,Explain quantum computing in simple terms,False,True,True,True,False,True,True
+2025-11-06 10:09:34.939402,2025-11-06,FR,MI,conv_00000001,True,20,general,0.35,gpt-4-turbo,fr,False,ip_1659,How do I write unit tests effectively?,False,True,True,True,False,False,False
+2026-02-15 10:09:34.939413,2026-02-15,MX,CA,conv_00000002,True,6,creative,0.26,claude-2,zh,False,ip_5891,Recommend a good book on data science,False,True,True,True,False,True,False
+2025-12-16 10:09:34.939418,2025-12-16,FR,GA,conv_00000003,True,11,general,0.3,gpt-4,ko,True,ip_6575,What's the difference between SQL and NoSQL databases?,False,True,True,False,False,False,False
+2025-10-08 10:09:34.939424,2025-10-08,MX,NC,conv_00000004,False,2,education,0.39,llama-2,ko,True,ip_1695,How do I optimize my Python code for performance?,False,True,True,True,False,False,False
+2025-06-27 10:09:34.939429,2025-06-27,IN,MI,conv_00000005,False,41,education,0.44,llama-2,ja,True,ip_7312,How do I write unit tests effectively?,False,True,True,True,False,False,True
+2025-12-05 10:09:34.939434,2025-12-05,BR,TX,conv_00000006,False,17,support,0.27,gpt-4,en,True,ip_7397,Explain quantum computing in simple terms,False,True,True,True,False,False,False
+2025-06-06 10:09:34.939439,2025-06-06,US,IL,conv_00000007,True,13,support,0.0,gpt-3.5-turbo,de,True,ip_5507,What's the difference between SQL and NoSQL databases?,False,True,True,False,False,False,False
+2026-02-17 10:09:34.939444,2026-02-17,MX,NC,conv_00000008,True,27,research,0.36,gpt-3.5-turbo,ko,False,ip_4357,Explain quantum computing in simple terms,False,True,True,True,False,False,True
+2025-11-25 10:09:34.939449,2025-11-25,AU,OH,conv_00000009,True,19,general,0.2,gpt-4-turbo,de,False,ip_1353,Help me debug this JavaScript error,False,True,True,True,True,True,True
+2026-01-15 10:09:34.939454,2026-01-15,FR,NY,conv_00000010,True,46,general,0.16,gpt-4-turbo,en,False,ip_2260,How do I deploy a containerized application?,False,True,True,True,False,False,False
+2025-08-24 10:09:34.939460,2025-08-24,GB,OH,conv_00000011,True,8,general,0.33,gpt-4-turbo,zh,True,ip_6923,What are the best practices for API design?,False,True,True,False,False,True,True
+2025-11-01 10:09:34.939464,2025-11-01,MX,PA,conv_00000012,True,45,general,0.47,llama-2,ko,False,ip_9144,What are microservices and when should I use them?,False,True,True,True,False,False,False
+2025-11-02 10:09:34.939469,2025-11-02,CA,FL,conv_00000013,True,5,education,0.38,gpt-3.5-turbo,hi,False,ip_6952,What's the difference between SQL and NoSQL databases?,False,True,True,True,False,False,False
+2025-07-08 10:09:34.939474,2025-07-08,AU,OH,conv_00000014,False,45,creative,0.07,gpt-4-turbo,ja,True,ip_9858,How do I deploy a containerized application?,False,True,True,True,False,False,True
+2025-05-26 10:09:34.939479,2025-05-26,BR,TX,conv_00000015,True,49,creative,0.25,llama-2,pt,True,ip_3244,Explain quantum computing in simple terms,False,True,True,True,False,False,True
+2025-11-16 10:09:34.939484,2025-11-16,AU,GA,conv_00000016,False,27,general,0.05,llama-2,ko,False,ip_2383,How do I write unit tests effectively?,False,True,True,False,False,False,True
+2025-05-19 10:09:34.939489,2025-05-19,JP,PA,conv_00000017,False,30,creative,0.01,claude-2,de,False,ip_6921,What's the difference between SQL and NoSQL databases?,False,True,True,True,False,False,False
+2025-05-18 10:09:34.939494,2025-05-18,US,TX,conv_00000018,True,14,research,0.38,gpt-4-turbo,fr,False,ip_9461,Help me debug this JavaScript error,False,True,True,True,False,False,False
+2026-02-27 10:09:34.939498,2026-02-27,FR,NC,conv_00000019,True,42,general,0.46,gpt-3.5-turbo,fr,True,ip_3911,How do I deploy a containerized application?,False,True,True,False,False,True,True
+2025-10-10 10:09:34.939504,2025-10-10,BR,CA,conv_00000020,True,32,research,0.17,claude-2,hi,False,ip_3743,How do I write unit tests effectively?,False,True,True,True,False,False,True
+2025-12-21 10:09:34.939509,2025-12-21,CA,TX,conv_00000021,False,20,creative,0.19,gpt-3.5-turbo,zh,False,ip_7076,How do I optimize my Python code for performance?,False,True,True,False,False,False,False
+2025-09-19 10:09:34.939513,2025-09-19,JP,NY,conv_00000022,True,7,research,0.23,gpt-4,ko,False,ip_8194,What are the best practices for API design?,False,True,True,False,False,False,True
+2025-09-08 10:09:34.939518,2025-09-08,AU,TX,conv_00000023,True,1,creative,0.02,llama-2,zh,True,ip_6241,What are microservices and when should I use them?,False,True,True,True,False,False,False
+2026-05-01 10:09:34.939523,2026-05-01,GB,TX,conv_00000024,False,48,support,0.07,gpt-3.5-turbo,en,True,ip_6595,What are the best practices for API design?,False,True,True,True,False,True,True
+2025-08-25 10:09:34.939528,2025-08-25,MX,PA,conv_00000025,True,22,research,0.09,gpt-4-turbo,es,True,ip_6129,How do I deploy a containerized application?,False,True,True,True,False,False,False
+2026-03-05 10:09:34.939533,2026-03-05,IN,CA,conv_00000026,False,13,support,0.23,claude-2,ja,True,ip_3563,How do I optimize my Python code for performance?,False,True,True,False,False,False,False
+2025-10-22 10:09:34.939537,2025-10-22,BR,NY,conv_00000027,True,28,education,0.3,claude-2,ja,True,ip_4041,Recommend a good book on data science,False,True,True,False,False,True,True
+2025-05-13 10:09:34.939542,2025-05-13,CA,OH,conv_00000028,True,17,general,0.01,llama-2,ja,False,ip_4577,How do I deploy a containerized application?,False,True,True,False,True,False,True
+2026-01-17 10:09:34.939547,2026-01-17,GB,NY,conv_00000029,True,34,support,0.11,llama-2,ko,False,ip_4962,Explain quantum computing in simple terms,False,True,True,False,False,False,True
+2025-12-14 10:09:34.939551,2025-12-14,IN,NC,conv_00000030,False,34,support,0.49,gpt-4-turbo,ja,True,ip_9980,How do I deploy a containerized application?,False,True,True,False,False,False,True
+2026-03-10 10:09:34.939559,2026-03-10,IN,FL,conv_00000031,False,4,support,0.19,gpt-4-turbo,ko,False,ip_6483,Help me debug this JavaScript error,False,True,True,True,False,False,True
+2025-10-09 10:09:34.939564,2025-10-09,FR,PA,conv_00000032,False,5,research,0.28,llama-2,zh,True,ip_9672,Explain quantum computing in simple terms,False,True,True,True,False,False,False
+2025-05-26 10:09:34.939569,2025-05-26,AU,OH,conv_00000033,True,39,research,0.2,gpt-3.5-turbo,hi,False,ip_3554,Explain quantum computing in simple terms,False,True,True,True,False,False,True
+2026-04-27 10:09:34.939574,2026-04-27,MX,OH,conv_00000034,True,48,general,0.29,gpt-3.5-turbo,hi,False,ip_9523,What are microservices and when should I use them?,False,True,True,True,False,False,True
+2025-06-30 10:09:34.939580,2025-06-30,US,CA,conv_00000035,True,26,general,0.21,claude-2,de,False,ip_5089,Help me debug this JavaScript error,False,True,True,True,False,False,False
+2025-07-12 10:09:34.939595,2025-07-12,US,NY,conv_00000036,True,18,education,0.07,claude-2,es,False,ip_9104,How do I write unit tests effectively?,False,True,True,False,False,False,True
+2025-10-02 10:09:34.939600,2025-10-02,MX,OH,conv_00000037,False,35,education,0.44,gpt-4,hi,False,ip_1499,How do I deploy a containerized application?,False,True,True,True,False,False,True
+2025-07-21 10:09:34.939605,2025-07-21,JP,CA,conv_00000038,True,34,general,0.29,gpt-4-turbo,ko,True,ip_3129,Explain quantum computing in simple terms,False,True,True,True,False,False,False
+2025-09-05 10:09:34.939609,2025-09-05,IN,PA,conv_00000039,True,19,support,0.41,gpt-3.5-turbo,fr,True,ip_6573,Help me debug this JavaScript error,False,True,True,False,False,False,True
+2025-10-01 10:09:34.939614,2025-10-01,AU,NC,conv_00000040,True,43,creative,0.33,llama-2,hi,True,ip_5887,What are the best practices for API design?,False,True,True,False,False,False,False
+2025-05-29 10:09:34.939623,2025-05-29,BR,NY,conv_00000041,False,2,support,0.27,gpt-4-turbo,pt,False,ip_9649,How do I write unit tests effectively?,False,True,True,True,False,False,True
+2026-03-01 10:09:34.939628,2026-03-01,BR,GA,conv_00000042,True,46,creative,0.4,llama-2,es,True,ip_8543,Help me debug this JavaScript error,False,True,True,True,False,False,True
+2025-08-25 10:09:34.939633,2025-08-25,BR,OH,conv_00000043,True,38,general,0.27,llama-2,fr,True,ip_5733,What are microservices and when should I use them?,False,True,True,True,False,True,False
+2025-12-04 10:09:34.939638,2025-12-04,CA,OH,conv_00000044,False,5,research,0.13,llama-2,fr,False,ip_9238,How do I optimize my Python code for performance?,False,True,True,False,False,True,True
+2025-08-03 10:09:34.939642,2025-08-03,FR,IL,conv_00000045,True,20,research,0.29,gpt-4,fr,False,ip_6120,How do I deploy a containerized application?,False,True,True,True,False,True,True
+2025-08-15 10:09:34.939646,2025-08-15,CA,OH,conv_00000046,True,44,creative,0.02,gpt-4,de,True,ip_3976,What are the best practices for API design?,False,True,True,False,False,False,False
+2025-08-17 10:09:34.939651,2025-08-17,FR,NY,conv_00000047,False,24,general,0.02,gpt-3.5-turbo,en,True,ip_5553,How do I write unit tests effectively?,False,True,True,True,False,True,True
+2025-10-08 10:09:34.939656,2025-10-08,IN,GA,conv_00000048,True,47,support,0.38,claude-2,ko,False,ip_3183,What's the difference between SQL and NoSQL databases?,False,True,True,True,True,True,True
+2026-04-07 10:09:34.939661,2026-04-07,AU,MI,conv_00000049,False,28,education,0.48,gpt-4-turbo,ko,False,ip_3118,What are microservices and when should I use them?,False,True,True,False,False,True,False
+2025-12-28 10:09:34.939665,2025-12-28,MX,IL,conv_00000050,False,10,education,0.15,gpt-4,zh,True,ip_7188,Help me debug this JavaScript error,False,True,True,True,False,True,False
+2026-04-23 10:09:34.939670,2026-04-23,DE,CA,conv_00000051,False,20,support,0.04,gpt-3.5-turbo,es,False,ip_3398,Recommend a good book on data science,False,True,True,True,False,False,False
+2025-07-09 10:09:34.939674,2025-07-09,DE,PA,conv_00000052,False,8,education,0.23,claude-2,zh,False,ip_7974,How do I optimize my Python code for performance?,False,True,True,True,False,False,False
+2025-05-10 10:09:34.939685,2025-05-10,GB,NC,conv_00000053,False,5,creative,0.46,gpt-4,ko,True,ip_9185,What are the best practices for API design?,False,True,True,False,False,True,False
+2025-10-22 10:09:34.939691,2025-10-22,BR,FL,conv_00000054,True,29,creative,0.26,llama-2,en,False,ip_9725,What are the best practices for API design?,False,True,True,False,False,True,True
+2026-02-24 10:09:34.939695,2026-02-24,DE,OH,conv_00000055,False,50,education,0.06,claude-2,pt,True,ip_5307,How do I deploy a containerized application?,False,True,True,True,False,True,True
+2025-06-11 10:09:34.939700,2025-06-11,DE,IL,conv_00000056,True,20,support,0.04,gpt-4-turbo,fr,True,ip_4699,Can you help me understand machine learning algorithms?,False,True,True,True,False,True,True
+2025-12-04 10:09:34.939705,2025-12-04,DE,IL,conv_00000057,True,40,general,0.48,gpt-4-turbo,fr,False,ip_2277,What's the difference between SQL and NoSQL databases?,False,True,True,True,False,False,False
+2026-04-04 10:09:34.939710,2026-04-04,FR,PA,conv_00000058,False,42,education,0.01,gpt-4-turbo,ko,True,ip_7924,How do I optimize my Python code for performance?,False,True,True,False,False,False,True
+2025-10-18 10:09:34.939714,2025-10-18,GB,IL,conv_00000059,True,34,general,0.07,llama-2,de,False,ip_8688,How do I deploy a containerized application?,False,True,True,True,False,True,False
+2025-05-18 10:09:34.939719,2025-05-18,IN,TX,conv_00000060,True,45,research,0.12,llama-2,es,True,ip_1375,Can you help me understand machine learning algorithms?,False,True,True,True,False,False,True
+2025-06-07 10:09:34.939723,2025-06-07,IN,NY,conv_00000061,True,13,education,0.48,gpt-4,zh,True,ip_7754,Help me debug this JavaScript error,False,True,True,True,False,False,False
+2026-02-10 10:09:34.939728,2026-02-10,IN,GA,conv_00000062,True,5,research,0.11,gpt-4-turbo,fr,True,ip_4695,What's the difference between SQL and NoSQL databases?,False,True,True,False,False,True,True
+2026-04-10 10:09:34.939732,2026-04-10,AU,NY,conv_00000063,True,8,education,0.45,gpt-4-turbo,pt,False,ip_2848,What's the difference between SQL and NoSQL databases?,False,True,True,True,False,False,False
+2025-12-07 10:09:34.939737,2025-12-07,US,FL,conv_00000064,False,47,general,0.02,claude-2,de,False,ip_9076,How do I optimize my Python code for performance?,False,True,True,False,False,False,False
+2026-01-14 10:09:34.939743,2026-01-14,US,FL,conv_00000065,True,40,general,0.16,gpt-3.5-turbo,es,True,ip_4550,Explain quantum computing in simple terms,False,True,True,True,False,False,True
+2026-03-15 10:09:34.939748,2026-03-15,GB,PA,conv_00000066,True,5,education,0.15,gpt-3.5-turbo,en,False,ip_5434,What are the best practices for API design?,False,True,True,True,True,False,False
+2025-11-13 10:09:34.939753,2025-11-13,CA,PA,conv_00000067,False,38,support,0.07,gpt-3.5-turbo,ja,True,ip_7393,How do I write unit tests effectively?,False,True,True,False,False,False,False
+2025-06-24 10:09:34.939758,2025-06-24,FR,NC,conv_00000068,True,26,creative,0.09,gpt-4,de,True,ip_9732,What are microservices and when should I use them?,False,True,True,False,False,True,True
+2025-09-25 10:09:34.939763,2025-09-25,CA,FL,conv_00000069,True,29,research,0.23,gpt-4,es,True,ip_2329,Recommend a good book on data science,False,True,True,False,False,True,False
+2025-12-27 10:09:34.939767,2025-12-27,BR,OH,conv_00000070,False,10,general,0.48,gpt-3.5-turbo,de,False,ip_5489,Recommend a good book on data science,False,True,True,False,False,True,True
+2025-08-25 10:09:34.939772,2025-08-25,BR,PA,conv_00000071,True,34,general,0.31,gpt-3.5-turbo,ja,True,ip_7692,Help me debug this JavaScript error,False,True,True,False,False,True,True
+2025-09-26 10:09:34.939776,2025-09-26,CA,IL,conv_00000072,False,2,research,0.38,gpt-4,ja,False,ip_2413,How do I optimize my Python code for performance?,False,True,True,False,False,True,False
+2025-11-29 10:09:34.939781,2025-11-29,US,NC,conv_00000073,False,36,research,0.2,gpt-4-turbo,pt,False,ip_1812,Can you help me understand machine learning algorithms?,False,True,True,True,False,True,False
+2026-03-13 10:09:34.939786,2026-03-13,JP,NC,conv_00000074,False,34,research,0.02,llama-2,fr,False,ip_9142,Can you help me understand machine learning algorithms?,False,True,True,True,False,False,True
+2025-10-09 10:09:34.939792,2025-10-09,US,MI,conv_00000075,False,41,support,0.28,claude-2,fr,False,ip_4079,What are the best practices for API design?,False,True,True,True,False,False,False
+2025-10-31 10:09:34.939797,2025-10-31,FR,NC,conv_00000076,False,49,creative,0.08,gpt-4-turbo,en,False,ip_2679,Explain quantum computing in simple terms,False,True,True,False,False,False,False
+2025-11-23 10:09:34.939803,2025-11-23,US,MI,conv_00000077,False,27,creative,0.07,gpt-4,ko,False,ip_2550,What are the best practices for API design?,False,True,True,False,False,True,False
+2025-05-30 10:09:34.939808,2025-05-30,MX,NC,conv_00000078,True,35,support,0.46,claude-2,fr,False,ip_2316,What's the difference between SQL and NoSQL databases?,False,True,True,True,False,False,True
+2026-02-16 10:09:34.939814,2026-02-16,DE,PA,conv_00000079,False,12,research,0.32,claude-2,ja,False,ip_2197,Help me debug this JavaScript error,False,True,True,True,False,False,True
+2025-06-14 10:09:34.939819,2025-06-14,IN,FL,conv_00000080,True,35,general,0.19,gpt-3.5-turbo,zh,True,ip_9830,Recommend a good book on data science,False,True,True,False,False,False,True
+2025-06-12 10:09:34.939824,2025-06-12,MX,NC,conv_00000081,True,27,creative,0.44,gpt-4,ko,False,ip_1742,What are the best practices for API design?,False,True,True,True,False,False,False
+2026-01-02 10:09:34.939829,2026-01-02,MX,NC,conv_00000082,True,20,general,0.43,claude-2,zh,False,ip_3212,How do I optimize my Python code for performance?,False,True,True,False,False,True,False
+2025-06-09 10:09:34.939833,2025-06-09,BR,NC,conv_00000083,False,14,creative,0.23,gpt-4,en,False,ip_6448,Help me debug this JavaScript error,False,True,True,True,False,True,False
+2025-05-19 10:09:34.939838,2025-05-19,JP,CA,conv_00000084,True,20,creative,0.1,gpt-3.5-turbo,hi,False,ip_3522,What's the difference between SQL and NoSQL databases?,False,True,True,True,False,False,False
+2025-07-23 10:09:34.939843,2025-07-23,JP,GA,conv_00000085,False,27,education,0.19,gpt-3.5-turbo,fr,True,ip_5747,Recommend a good book on data science,False,True,True,False,False,False,False
+2025-08-25 10:09:34.939848,2025-08-25,GB,TX,conv_00000086,True,5,support,0.11,llama-2,fr,False,ip_7994,What's the difference between SQL and NoSQL databases?,False,True,True,True,False,False,True
+2025-08-08 10:09:34.939852,2025-08-08,AU,NY,conv_00000087,True,40,support,0.1,claude-2,hi,True,ip_3197,Help me debug this JavaScript error,False,True,True,True,False,False,False
+2026-01-01 10:09:34.939856,2026-01-01,US,FL,conv_00000088,True,25,education,0.42,llama-2,zh,True,ip_2243,What are the best practices for API design?,False,True,True,False,False,True,False
+2025-07-30 10:09:34.939861,2025-07-30,IN,GA,conv_00000089,False,45,support,0.03,gpt-3.5-turbo,de,False,ip_9588,How do I write unit tests effectively?,False,True,True,False,False,False,False
+2025-10-13 10:09:34.939866,2025-10-13,GB,NC,conv_00000090,True,21,general,0.07,llama-2,ko,False,ip_3877,Explain quantum computing in simple terms,False,True,True,False,False,False,False
+2026-02-08 10:09:34.939870,2026-02-08,IN,OH,conv_00000091,False,34,general,0.23,llama-2,pt,False,ip_9333,How do I deploy a containerized application?,False,True,True,True,True,True,True
+2025-09-06 10:09:34.939875,2025-09-06,IN,NY,conv_00000092,False,32,general,0.34,gpt-4-turbo,de,False,ip_5415,What are the best practices for API design?,False,True,True,False,False,True,False
+2026-04-21 10:09:34.939888,2026-04-21,GB,CA,conv_00000093,False,31,research,0.45,gpt-4-turbo,pt,False,ip_4461,Help me debug this JavaScript error,False,True,True,True,False,False,False
+2025-11-13 10:09:34.939892,2025-11-13,JP,MI,conv_00000094,True,14,research,0.25,llama-2,de,False,ip_3668,Recommend a good book on data science,False,True,True,True,False,False,True
+2025-06-28 10:09:34.939897,2025-06-28,MX,NY,conv_00000095,False,27,general,0.42,gpt-4-turbo,de,True,ip_3240,Can you help me understand machine learning algorithms?,False,True,True,False,False,False,True
+2025-09-15 10:09:34.939903,2025-09-15,BR,GA,conv_00000096,False,20,education,0.18,gpt-4,en,True,ip_1676,What are microservices and when should I use them?,False,True,True,False,False,False,True
+2025-11-29 10:09:34.939907,2025-11-29,BR,NC,conv_00000097,True,50,education,0.25,gpt-4,zh,False,ip_6213,Can you help me understand machine learning algorithms?,False,True,True,False,False,True,True
+2025-11-18 10:09:34.939912,2025-11-18,DE,GA,conv_00000098,False,46,education,0.34,claude-2,pt,False,ip_1844,Explain quantum computing in simple terms,False,True,True,True,False,False,False
+2025-05-23 10:09:34.939916,2025-05-23,FR,MI,conv_00000099,True,3,education,0.11,gpt-3.5-turbo,es,False,ip_5443,Explain quantum computing in simple terms,False,True,True,True,False,False,False

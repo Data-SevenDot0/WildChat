@@ -218,3 +218,13 @@ __marimo__/
 .streamlit/secrets.toml
 
 data/
+
+# Local Spark metastore and warehouse (do not commit local Derby DB or generated warehouse files)
+metastore_db/
+metastore_db/*
+spark-warehouse/
+spark-warehouse/*
+derby.log
+service.properties
+*.lck
+.hive-staging*

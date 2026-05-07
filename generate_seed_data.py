@@ -15,6 +15,7 @@ import random
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from pyspark.sql import DataFrame
 from pyspark.sql import SparkSession, functions as F
 from pyspark.sql.types import (
     StructType, StructField, StringType, IntegerType, DoubleType,
@@ -28,6 +29,8 @@ def parse_args():
     p.add_argument("--size", default="large", choices=["small", "medium", "large"],
                    help="Dataset size")
     p.add_argument("--rows", type=int, help="Override row count")
+    p.add_argument("--postgres-compatible", action="store_true",
+                   help="Also write flat CSV exports that are easy to load into PostgreSQL")
     return p.parse_args()
 
 
@@ -37,7 +40,7 @@ def get_row_count(size: str, rows: int | None) -> int:
     return {"small": 100, "medium": 1000, "large": 10000}[size]
 
 
-def generate_conversations(spark, row_count: int) -> "pyspark.sql.DataFrame":
+def generate_conversations(spark, row_count: int) -> DataFrame:
     """Generate sample cleaned_wildchat data."""
     
     countries = ["US", "CA", "GB", "AU", "DE", "FR", "JP", "IN", "BR", "MX"]
@@ -115,7 +118,7 @@ def generate_conversations(spark, row_count: int) -> "pyspark.sql.DataFrame":
     return df.coalesce(1)
 
 
-def generate_metrics(spark, conversations_df) -> "pyspark.sql.DataFrame":
+def generate_metrics(spark, conversations_df) -> DataFrame:
     """Generate aggregated country_daily_metrics from conversations."""
     
     metrics = (
@@ -144,7 +147,7 @@ def generate_metrics(spark, conversations_df) -> "pyspark.sql.DataFrame":
     return metrics.coalesce(1)
 
 
-def generate_annotations(spark, row_count: int) -> "pyspark.sql.DataFrame":
+def generate_annotations(spark, row_count: int) -> DataFrame:
     """Generate sample conversation_annotation data."""
     
     annotation_types = ["sentiment", "topic", "quality", "bias", "accuracy"]
@@ -185,7 +188,7 @@ def generate_annotations(spark, row_count: int) -> "pyspark.sql.DataFrame":
     return df.coalesce(1)
 
 
-def generate_topics(spark, row_count: int) -> "pyspark.sql.DataFrame":
+def generate_topics(spark, row_count: int) -> DataFrame:
     """Generate sample topic_cluster data."""
     from pyspark.sql.types import ArrayType
     
@@ -232,6 +235,14 @@ def generate_topics(spark, row_count: int) -> "pyspark.sql.DataFrame":
     return df.coalesce(1)
 
 
+def write_postgres_csv(df: DataFrame, out_file: Path, keyword_join: bool = False) -> None:
+    pdf = df.toPandas()
+    if keyword_join and "keywords" in pdf.columns:
+        pdf["keywords"] = pdf["keywords"].apply(lambda value: "|".join(value) if isinstance(value, list) else value)
+    out_file.parent.mkdir(parents=True, exist_ok=True)
+    pdf.to_csv(out_file, index=False)
+
+
 def main():
     args = parse_args()
     row_count = get_row_count(args.size, args.rows)
@@ -272,11 +283,96 @@ def main():
         topics_path = output_path / "topic_clusters"
         topics.write.mode("overwrite").parquet(str(topics_path))
         print(f"✓ Saved {topics.count()} topics to {topics_path}")
+
+        if args.postgres_compatible:
+            pg_dir = output_path / "postgres"
+            print("Writing PostgreSQL-compatible CSV exports...")
+            write_postgres_csv(conversations, pg_dir / "cleaned_wildchat.csv")
+            write_postgres_csv(metrics, pg_dir / "country_daily_metrics.csv")
+            write_postgres_csv(annotations, pg_dir / "conversation_annotations.csv")
+            write_postgres_csv(topics, pg_dir / "topic_clusters.csv", keyword_join=True)
+
+            ddl = f"""-- PostgreSQL seed schema for WildChat
+CREATE SCHEMA IF NOT EXISTS wildchat;
+
+CREATE TABLE IF NOT EXISTS wildchat.cleaned_wildchat (
+  event_timestamp TIMESTAMP,
+  event_date DATE,
+  country_clean TEXT,
+  state TEXT,
+  hash_map_id TEXT PRIMARY KEY,
+  moderation_flag BOOLEAN,
+  turns INTEGER,
+  conversation_type TEXT,
+  toxicity_factor DOUBLE PRECISION,
+  model TEXT,
+  language TEXT,
+  redacted BOOLEAN,
+  hashed_ip TEXT,
+  conversation_text TEXT,
+  has_missing_values BOOLEAN,
+  valid_timestamp BOOLEAN,
+  valid_country BOOLEAN,
+  long_conversation BOOLEAN,
+  short_conversation BOOLEAN,
+  excessive_turns BOOLEAN,
+  moderation_present BOOLEAN
+);
+
+CREATE TABLE IF NOT EXISTS wildchat.country_daily_metrics (
+  event_date DATE,
+  country_clean TEXT,
+  state TEXT,
+  language TEXT,
+  model TEXT,
+  conversation_count BIGINT,
+  turn_count BIGINT,
+  avg_turn_depth DOUBLE PRECISION,
+  gpt35_count BIGINT,
+  gpt4_count BIGINT,
+  redacted_count BIGINT,
+  toxic_count BIGINT,
+  adoption_rate DOUBLE PRECISION,
+  source_run_id TEXT,
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS wildchat.conversation_annotation (
+  annotation_id TEXT PRIMARY KEY,
+  conversation_id TEXT,
+  turn_id INTEGER,
+  annotation_type TEXT,
+  annotation_label TEXT,
+  annotation_value DOUBLE PRECISION,
+  confidence DOUBLE PRECISION,
+  notes TEXT,
+  taxonomy_version TEXT,
+  created_at TIMESTAMP,
+  created_by TEXT
+);
+
+CREATE TABLE IF NOT EXISTS wildchat.topic_cluster (
+  cluster_id INTEGER PRIMARY KEY,
+  cluster_label TEXT,
+  cluster_description TEXT,
+  keywords TEXT,
+  language TEXT,
+  country_clean TEXT,
+  model_version TEXT,
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP
+);
+"""
+            (pg_dir / "postgres_seed.sql").write_text(ddl)
+            print(f"✓ Saved PostgreSQL CSV exports and DDL to {pg_dir}")
         
         print(f"\n✓ Seed data generated in {output_path}")
         print(f"\nTo load into metastore, run:")
         print(f"  python ingest_translated.py --incoming {conv_path} --type fact --apply")
         print(f"  python aggregate_metrics.py --input-dir {metrics_path} --apply")
+        if args.postgres_compatible:
+            print(f"\nTo load into PostgreSQL, run COPY commands against {output_path / 'postgres'}")
         
     finally:
         spark.stop()

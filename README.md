@@ -21,7 +21,7 @@ A complete data engineering pipeline for the WildChat-1M dataset: extract, trans
 cd /Users/bianca/projects/WildChat
 python -m venv venv
 source venv/bin/activate
-pip install pyspark delta-spark flask pytest
+pip install pyspark delta-spark flask pytest psycopg2-binary
 ```
 
 ### 2. Initialize Spark Metastore & Schemas
@@ -66,6 +66,33 @@ Open http://localhost:5000/api/v1/health and explore endpoints:
 - `GET /api/v1/conversations/search` — full-text search with filters
 - `GET /api/v1/filter-presets` — predefined filter sets
 - `GET /api/v1/tables/schema` — schema reference
+
+### PostgreSQL Backend
+
+If you want the API to read from PostgreSQL instead of Spark, set `POSTGRES_URL` or `DATABASE_URL` before starting `api.py`:
+
+```bash
+export POSTGRES_URL='postgresql://user:password@localhost:5432/wildchat'
+python api.py
+```
+
+The endpoints will automatically switch to PostgreSQL when that variable is present.
+
+To generate PostgreSQL-compatible seed files, run:
+
+```bash
+python generate_seed_data.py --size large --output ./seed_data --postgres-compatible
+```
+
+This writes CSV exports and a `postgres_seed.sql` file under `./seed_data/postgres/`.
+
+Example PostgreSQL load flow:
+
+```bash
+psql "$POSTGRES_URL" -f seed_data/postgres/postgres_seed.sql
+```
+
+Then load the CSVs with `COPY` or `\copy` into each table.
 
 ## Pipeline Architecture
 

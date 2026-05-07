@@ -1,0 +1,1620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WildChat Lens — Analytics Platform</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&family=Sora:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F4F6FA;
+    --surface: #FFFFFF;
+    --surface2: #F0F3F8;
+    --border: #E2E8F2;
+    --border2: #C8D3E8;
+    --text: #0F1C36;
+    --text2: #4A5872;
+    --text3: #8A96AE;
+    --accent: #1A5CFF;
+    --accent2: #0A3ECC;
+    --accent-soft: #EBF0FF;
+    --green: #00B67A;
+    --green-soft: #E6F9F2;
+    --orange: #FF8C00;
+    --orange-soft: #FFF4E5;
+    --red: #E8294E;
+    --red-soft: #FEE8ED;
+    --purple: #7B4FD4;
+    --purple-soft: #F1ECFD;
+    --teal: #00A3B4;
+    --teal-soft: #E5F7F9;
+    --gold: #D4A017;
+    --shadow: 0 1px 4px rgba(15,28,54,0.07), 0 4px 16px rgba(15,28,54,0.05);
+    --shadow-lg: 0 8px 32px rgba(15,28,54,0.12);
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  /* ── TOP NAV ── */
+  .topnav {
+    height: 56px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 1px 6px rgba(15,28,54,0.06);
+  }
+  .brand {
+    display: flex; align-items: center; gap: 10px; margin-right: 8px;
+    font-family: 'Sora', sans-serif; font-size: 16px; font-weight: 700;
+    color: var(--text);
+  }
+  .brand-dot {
+    width: 28px; height: 28px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent), #00AAFF);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 13px; font-weight: 700;
+  }
+  .nav-pill {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface); cursor: pointer; font-size: 12px;
+    font-weight: 500; color: var(--text2); transition: all .15s;
+    user-select: none;
+  }
+  .nav-pill:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  .nav-pill.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .nav-sep { width: 1px; height: 24px; background: var(--border); margin: 0 4px; }
+  .nav-spacer { flex: 1; }
+  .btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 7px 14px; border-radius: 8px; border: none;
+    cursor: pointer; font-size: 12px; font-weight: 600;
+    font-family: 'DM Sans', sans-serif; transition: all .15s;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent2); }
+  .btn-outline { background: var(--surface); border: 1px solid var(--border); color: var(--text2); }
+  .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── LAYOUT ── */
+  .layout { display: flex; height: calc(100vh - 56px); overflow: hidden; }
+
+  /* ── LEFT SIDEBAR ── */
+  .sidebar {
+    width: 220px; min-width: 220px; background: var(--surface);
+    border-right: 1px solid var(--border); overflow-y: auto;
+    display: flex; flex-direction: column;
+  }
+  .sidebar-section { padding: 16px 12px 6px; }
+  .sidebar-label {
+    font-size: 10px; font-weight: 700; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--text3); padding: 0 8px 8px;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; border-radius: var(--radius-sm);
+    cursor: pointer; font-size: 12.5px; font-weight: 500;
+    color: var(--text2); transition: all .12s; margin-bottom: 2px;
+  }
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .nav-item svg { opacity: .6; flex-shrink: 0; }
+  .nav-item.active svg { opacity: 1; }
+  .nav-badge {
+    margin-left: auto; background: var(--accent); color: #fff;
+    font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 10px;
+  }
+
+  /* ── MAIN CONTENT ── */
+  .main { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+
+  /* ── KPI ROW ── */
+  .kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+  .kpi-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px 18px;
+    box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 6px;
+    transition: box-shadow .15s;
+  }
+  .kpi-card:hover { box-shadow: var(--shadow-lg); }
+  .kpi-label { font-size: 10.5px; font-weight: 600; color: var(--text3); letter-spacing: .04em; text-transform: uppercase; }
+  .kpi-value { font-family: 'Sora', sans-serif; font-size: 26px; font-weight: 700; color: var(--text); line-height: 1; }
+  .kpi-sub { font-size: 11px; color: var(--text3); }
+  .kpi-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10.5px; font-weight: 600; padding: 3px 8px;
+    border-radius: 6px; width: fit-content;
+  }
+  .kpi-badge.green { background: var(--green-soft); color: var(--green); }
+  .kpi-badge.blue { background: var(--accent-soft); color: var(--accent); }
+  .kpi-badge.orange { background: var(--orange-soft); color: var(--orange); }
+  .kpi-badge.red { background: var(--red-soft); color: var(--red); }
+
+  /* ── FILTER TOOLBAR ── */
+  .filter-bar {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 12px 16px;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    box-shadow: var(--shadow);
+  }
+  .filter-search {
+    flex: 1; min-width: 200px; display: flex; align-items: center; gap: 8px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 7px 12px;
+  }
+  .filter-search input {
+    border: none; background: transparent; font-family: 'DM Sans', sans-serif;
+    font-size: 12.5px; color: var(--text); outline: none; width: 100%;
+  }
+  .filter-search input::placeholder { color: var(--text3); }
+  .filter-tag {
+    display: flex; align-items: center; gap: 5px;
+    background: var(--accent-soft); color: var(--accent);
+    border: 1px solid rgba(26,92,255,.2); border-radius: 6px;
+    padding: 4px 10px; font-size: 11.5px; font-weight: 600; cursor: pointer;
+  }
+  .filter-tag .remove { opacity: .6; font-size: 12px; }
+  .filter-tag:hover .remove { opacity: 1; }
+  .filter-tag.green { background: var(--green-soft); color: var(--green); border-color: rgba(0,182,122,.2); }
+  .filter-tag.purple { background: var(--purple-soft); color: var(--purple); border-color: rgba(123,79,212,.2); }
+  .filter-count { font-size: 11px; color: var(--text3); font-family: 'DM Mono', monospace; margin-left: auto; }
+  .presets-label { font-size: 11px; font-weight: 600; color: var(--text2); white-space: nowrap; }
+
+  /* ── DATE SLIDER ── */
+  .date-slider-bar {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 12px 18px;
+    display: flex; align-items: center; gap: 16px; box-shadow: var(--shadow);
+  }
+  .slider-label { font-size: 11px; font-weight: 600; color: var(--text3); white-space: nowrap; text-transform: uppercase; letter-spacing: .04em; }
+  .slider-wrap { flex: 1; position: relative; }
+  .range-track {
+    width: 100%; height: 4px; background: var(--border2); border-radius: 2px;
+    position: relative; cursor: pointer;
+  }
+  .range-fill {
+    position: absolute; height: 100%; background: var(--accent); border-radius: 2px;
+    left: 18%; width: 62%;
+  }
+  .range-thumb {
+    position: absolute; width: 14px; height: 14px; border-radius: 50%;
+    background: var(--accent); border: 2.5px solid #fff; box-shadow: 0 1px 6px rgba(26,92,255,.4);
+    top: 50%; transform: translate(-50%, -50%); cursor: ew-resize;
+  }
+  .range-thumb:nth-child(2) { left: 18%; }
+  .range-thumb:nth-child(3) { left: 80%; }
+  .slider-dates { display: flex; justify-content: space-between; margin-top: 4px; }
+  .slider-date { font-size: 10px; font-family: 'DM Mono', monospace; color: var(--text3); }
+  .slider-date.active { color: var(--accent); font-weight: 500; }
+  .date-range-display {
+    font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500;
+    color: var(--accent); background: var(--accent-soft);
+    padding: 5px 10px; border-radius: 6px; white-space: nowrap;
+  }
+
+  /* ── MID ROW ── */
+  .mid-row { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; }
+
+  /* ── MAP ── */
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+    overflow: hidden; display: flex; flex-direction: column;
+  }
+  .card-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 14px 18px; border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .card-title { font-size: 13px; font-weight: 700; color: var(--text); }
+  .card-sub { font-size: 11px; color: var(--text3); margin-left: 4px; }
+  .card-actions { margin-left: auto; display: flex; gap: 6px; }
+  .card-body { flex: 1; padding: 0; overflow: hidden; }
+  .card-body.padded { padding: 16px 18px; }
+
+  /* MAP SVG */
+  .map-container { position: relative; background: #EBF2FF; overflow: hidden; height: 280px; }
+  .map-svg { width: 100%; height: 100%; }
+  .map-bubble { cursor: pointer; transition: all .2s; }
+  .map-bubble:hover circle { filter: brightness(1.1); }
+  .map-controls {
+    position: absolute; bottom: 12px; left: 12px; display: flex; gap: 6px;
+  }
+  .map-btn {
+    width: 28px; height: 28px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 14px; box-shadow: var(--shadow);
+  }
+  .map-btn:hover { background: var(--accent-soft); }
+  .map-legend {
+    position: absolute; top: 12px; right: 12px;
+    background: rgba(255,255,255,.92); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 12px; font-size: 10px; color: var(--text2);
+  }
+  .legend-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .map-tooltip {
+    position: absolute; background: var(--text); color: #fff;
+    padding: 6px 10px; border-radius: 6px; font-size: 11px; font-weight: 500;
+    pointer-events: none; white-space: nowrap;
+    transition: opacity .15s;
+  }
+
+  /* ── TOPIC CLUSTERING ── */
+  .topic-list { padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; }
+  .topic-row { display: flex; align-items: center; gap: 10px; }
+  .topic-name { font-size: 12.5px; font-weight: 500; color: var(--text2); width: 120px; flex-shrink: 0; }
+  .topic-bar-wrap { flex: 1; background: var(--surface2); border-radius: 4px; height: 8px; overflow: hidden; }
+  .topic-bar { height: 100%; border-radius: 4px; transition: width .4s ease; }
+  .topic-pct { font-size: 11px; font-family: 'DM Mono', monospace; font-weight: 500; color: var(--text2); width: 32px; text-align: right; }
+
+  /* ── BOTTOM ROW ── */
+  .bottom-row { display: grid; grid-template-columns: 1.2fr 1fr 0.9fr; gap: 16px; }
+
+  /* CONVERSATION TABLE */
+  .conv-table { width: 100%; border-collapse: collapse; }
+  .conv-table th {
+    font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--text3); padding: 8px 14px; text-align: left;
+    border-bottom: 1px solid var(--border); background: var(--surface2);
+  }
+  .conv-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 12px; vertical-align: middle; }
+  .conv-table tr:hover td { background: var(--accent-soft); cursor: pointer; }
+  .conv-table tr.selected td { background: var(--accent-soft); border-left: 3px solid var(--accent); }
+  .hash-code { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text3); }
+  .model-tag {
+    display: inline-flex; padding: 2px 7px; border-radius: 4px;
+    font-size: 10px; font-weight: 600; font-family: 'DM Mono', monospace;
+  }
+  .model-tag.gpt35 { background: #E8F5E9; color: #2E7D32; }
+  .model-tag.gpt4 { background: #E3F2FD; color: #1565C0; }
+  .lang-tag {
+    display: inline-flex; padding: 2px 7px; border-radius: 4px;
+    font-size: 10.5px; font-weight: 500; background: var(--surface2); color: var(--text2);
+  }
+  .country-flag { font-size: 14px; margin-right: 4px; }
+  .status-dot {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 5px;
+  }
+  .status-dot::before { content:''; display:block; width:6px; height:6px; border-radius:50%; }
+  .status-dot.ok { color: var(--green); background: var(--green-soft); }
+  .status-dot.ok::before { background: var(--green); }
+  .status-dot.redacted { color: var(--red); background: var(--red-soft); }
+  .status-dot.redacted::before { background: var(--red); }
+
+  /* CONVERSATION PREVIEW */
+  .conv-preview { padding: 14px; display: flex; flex-direction: column; gap: 10px; flex: 1; overflow-y: auto; }
+  .conv-meta { display: flex; gap: 6px; flex-wrap: wrap; }
+  .conv-meta-chip {
+    font-size: 10.5px; font-weight: 600; padding: 3px 8px; border-radius: 5px;
+    background: var(--surface2); color: var(--text2);
+  }
+  .msg-bubble {
+    border-radius: 10px; padding: 10px 13px;
+    font-size: 12px; line-height: 1.55; max-width: 92%;
+  }
+  .msg-bubble.user { background: var(--accent-soft); color: var(--text); align-self: flex-end; }
+  .msg-bubble.assistant { background: var(--surface2); color: var(--text); }
+  .msg-role { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
+  .msg-role.user { color: var(--accent); }
+  .msg-role.assistant { color: var(--green); }
+  .conv-flow-dots { display: flex; gap: 6px; padding: 6px 14px; align-items: center; }
+  .flow-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .flow-label { font-size: 10px; color: var(--text3); margin-left: 4px; }
+  .topic-shift-note {
+    font-size: 10px; color: var(--orange); background: var(--orange-soft);
+    padding: 4px 10px; border-radius: 5px; margin: 0 14px;
+    font-weight: 600;
+  }
+
+  /* TRANSLATOR */
+  .translator-wrap { padding: 14px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
+  .translator-from-to { display: flex; align-items: center; gap: 6px; }
+  .lang-select {
+    flex: 1; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 10px; font-family: 'DM Sans', sans-serif;
+    font-size: 12px; color: var(--text); outline: none; cursor: pointer;
+  }
+  .swap-btn {
+    width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--surface); display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 14px; color: var(--text2); flex-shrink: 0;
+  }
+  .swap-btn:hover { background: var(--accent-soft); color: var(--accent); }
+  .trans-textarea {
+    width: 100%; border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px; font-family: 'DM Sans', sans-serif; font-size: 12px;
+    color: var(--text); background: var(--surface2); resize: none;
+    outline: none; min-height: 70px; line-height: 1.5;
+  }
+  .trans-textarea:focus { border-color: var(--accent); background: #fff; }
+  .trans-output {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px; font-size: 12px; color: var(--text);
+    min-height: 70px; line-height: 1.5; font-style: italic;
+  }
+  .trans-loading { color: var(--text3); font-style: normal; display: flex; align-items: center; gap: 6px; }
+  .spin { animation: spin 1s linear infinite; display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ETL LOG */
+  .etl-list { padding: 0; }
+  .etl-row {
+    display: flex; align-items: center; gap: 10px; padding: 10px 16px;
+    border-bottom: 1px solid var(--border); font-size: 12px;
+  }
+  .etl-row:last-child { border-bottom: none; }
+  .etl-time { font-family: 'DM Mono', monospace; font-size: 10.5px; color: var(--text3); width: 110px; flex-shrink: 0; }
+  .etl-rows { font-size: 11.5px; color: var(--text2); flex: 1; }
+  .etl-status {
+    padding: 2px 8px; border-radius: 5px; font-size: 10.5px; font-weight: 600;
+  }
+  .etl-status.success { background: var(--green-soft); color: var(--green); }
+  .etl-status.partial { background: var(--orange-soft); color: var(--orange); }
+  .etl-status.running { background: var(--accent-soft); color: var(--accent); }
+
+  /* ANNOTATION */
+  .annotation-list { padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+  .annotation-item {
+    display: flex; align-items: flex-start; gap: 8px;
+    background: var(--surface2); border-radius: 8px; padding: 10px 12px;
+    font-size: 12px; border-left: 3px solid var(--border2);
+  }
+  .annotation-item.flag { border-left-color: var(--red); }
+  .annotation-item.info { border-left-color: var(--accent); }
+  .annotation-item.warn { border-left-color: var(--orange); }
+  .ann-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+  .ann-text { color: var(--text); flex: 1; line-height: 1.45; }
+  .ann-add {
+    display: flex; align-items: center; gap: 6px;
+    color: var(--accent); font-size: 12px; font-weight: 600;
+    cursor: pointer; padding: 6px 12px; border-radius: 6px;
+    transition: background .12s;
+  }
+  .ann-add:hover { background: var(--accent-soft); }
+
+  /* PRESETS */
+  .presets-grid { padding: 14px; display: flex; flex-direction: column; gap: 6px; }
+  .preset-chip {
+    display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; cursor: pointer; transition: all .12s; font-size: 12px;
+  }
+  .preset-chip:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .preset-chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .preset-chip .icon { font-size: 14px; flex-shrink: 0; }
+  .preset-chip .label { font-weight: 600; flex: 1; }
+  .preset-chip .meta { font-size: 10.5px; opacity: .7; font-family: 'DM Mono', monospace; }
+
+  /* USER HISTORY */
+  .history-list { padding: 14px; display: flex; flex-direction: column; gap: 4px; }
+  .history-item {
+    display: flex; align-items: center; gap: 8px; padding: 7px 10px;
+    border-radius: 6px; font-size: 12px; color: var(--text2); cursor: pointer;
+    transition: background .12s;
+  }
+  .history-item:hover { background: var(--surface2); color: var(--text); }
+  .history-icon { font-size: 12px; opacity: .6; }
+
+  /* TURN DEPTH CHART */
+  .turn-chart { padding: 16px 18px; display: flex; gap: 3px; align-items: flex-end; height: 120px; }
+  .turn-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .turn-bar {
+    width: 100%; background: var(--accent); border-radius: 3px 3px 0 0;
+    transition: height .4s ease; cursor: pointer; position: relative;
+  }
+  .turn-bar:hover { background: var(--accent2); }
+  .turn-bar.gpt4 { background: var(--purple); }
+  .turn-bar.gpt4:hover { background: #5E35B1; }
+  .turn-xlabel { font-size: 9px; color: var(--text3); font-family: 'DM Mono', monospace; }
+  .chart-legend { display: flex; gap: 12px; padding: 0 18px 12px; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 10.5px; color: var(--text2); }
+  .legend-swatch { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+  /* SUMMARY STATS */
+  .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 14px; }
+  .stat-box {
+    background: var(--surface2); border-radius: 8px; padding: 12px 14px;
+    display: flex; flex-direction: column; gap: 3px; border: 1px solid var(--border);
+  }
+  .stat-box-val { font-family: 'Sora', sans-serif; font-size: 22px; font-weight: 700; color: var(--text); }
+  .stat-box-label { font-size: 10.5px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: .04em; }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  /* SECTION TABS */
+  .tab-row { display: flex; gap: 2px; }
+  .tab {
+    padding: 5px 12px; border-radius: 6px 6px 0 0; font-size: 11.5px;
+    font-weight: 600; cursor: pointer; color: var(--text3); border: 1px solid transparent;
+    border-bottom: none; transition: all .12s;
+  }
+  .tab.active {
+    background: var(--surface); color: var(--accent);
+    border-color: var(--border); border-bottom-color: var(--surface);
+  }
+  .tab:hover:not(.active) { color: var(--text2); }
+
+  /* RIGHT PANEL */
+  .right-panel {
+    width: 280px; min-width: 280px; background: var(--surface);
+    border-left: 1px solid var(--border); overflow-y: auto;
+    display: flex; flex-direction: column;
+  }
+  .rpanel-section {
+    border-bottom: 1px solid var(--border);
+  }
+  .rpanel-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 16px; cursor: pointer; user-select: none;
+  }
+  .rpanel-head-title { font-size: 12px; font-weight: 700; color: var(--text); flex: 1; }
+  .rpanel-chevron { font-size: 10px; color: var(--text3); transition: transform .2s; }
+  .rpanel-chevron.open { transform: rotate(90deg); }
+  .rpanel-body { }
+  .rpanel-body.hidden { display: none; }
+
+  /* GRAPH area when conversation selected */
+  .graph-area { padding: 14px; }
+  .mini-graph {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px; margin-bottom: 10px;
+  }
+  .mini-graph-title { font-size: 10.5px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 8px; }
+  .sparkline { display: flex; gap: 2px; align-items: flex-end; height: 40px; }
+  .spark-bar {
+    flex: 1; background: var(--accent); border-radius: 2px 2px 0 0; opacity: .8;
+    transition: opacity .15s;
+  }
+  .spark-bar:hover { opacity: 1; }
+  .spark-bar.low { background: var(--green); }
+  .spark-bar.med { background: var(--accent); }
+  .spark-bar.high { background: var(--purple); }
+  .pie-wrap { display: flex; align-items: center; gap: 10px; }
+  .pie-svg { flex-shrink: 0; }
+  .pie-labels { display: flex; flex-direction: column; gap: 4px; }
+  .pie-row { display: flex; align-items: center; gap: 6px; font-size: 10.5px; color: var(--text2); }
+  .pie-swatch { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  /* tooltip */
+  .tooltip {
+    position: fixed; background: rgba(15,28,54,.9); color: #fff;
+    padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 500;
+    pointer-events: none; z-index: 999; display: none; white-space: nowrap;
+  }
+
+  @media (max-width: 1200px) {
+    .kpi-row { grid-template-columns: repeat(3, 1fr); }
+    .bottom-row { grid-template-columns: 1fr 1fr; }
+    .right-panel { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div id="tooltip" class="tooltip"></div>
+
+<!-- TOP NAV -->
+<nav class="topnav">
+  <div class="brand">
+    <div class="brand-dot">W</div>
+    WildChat Lens
+  </div>
+  <div class="nav-sep"></div>
+  <div class="nav-pill active" onclick="setNav(this)">
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1" y="1" width="4" height="4" rx="1" fill="currentColor"/><rect x="7" y="1" width="4" height="4" rx="1" fill="currentColor"/><rect x="1" y="7" width="4" height="4" rx="1" fill="currentColor"/><rect x="7" y="7" width="4" height="4" rx="1" fill="currentColor"/></svg>
+    Overview
+  </div>
+  <div class="nav-pill" onclick="setNav(this)">
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4" stroke="currentColor" stroke-width="1.5"/><path d="M6 4v2l1.5 1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+    Live Feed
+  </div>
+  <div class="nav-pill" onclick="setNav(this)">
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 9 L4 5 L7 7 L11 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    Analytics
+  </div>
+  <div class="nav-pill" onclick="setNav(this)">
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="5" cy="5" r="3.5" stroke="currentColor" stroke-width="1.5"/><path d="M8.5 8.5L11 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    Explorer
+  </div>
+  <div class="nav-sep"></div>
+  <div class="nav-pill" onclick="setNav(this)">🌍 Geographic</div>
+  <div class="nav-pill" onclick="setNav(this)">📊 Models</div>
+  <div class="nav-spacer"></div>
+  <button class="btn btn-outline">⬇ Export</button>
+  <button class="btn btn-primary" onclick="showShare()">↗ Share</button>
+</nav>
+
+<!-- MAIN LAYOUT -->
+<div class="layout">
+
+  <!-- LEFT SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Navigation</div>
+      <div class="nav-item active" onclick="setActive(this)">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1.5" y="1.5" width="4" height="4" rx="1" fill="currentColor"/><rect x="8.5" y="1.5" width="4" height="4" rx="1" fill="currentColor"/><rect x="1.5" y="8.5" width="4" height="4" rx="1" fill="currentColor"/><rect x="8.5" y="8.5" width="4" height="4" rx="1" fill="currentColor"/></svg>
+        Overview
+      </div>
+      <div class="nav-item" onclick="setActive(this)">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 11 L5 7 L8 9 L12 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        Conversation Explorer
+      </div>
+      <div class="nav-item" onclick="setActive(this)">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.3"/><path d="M7 1.5 Q12.5 7 7 12.5" stroke="currentColor" stroke-width="1.1"/><path d="M1.5 7 H12.5" stroke="currentColor" stroke-width="1.1"/></svg>
+        Geographic Breakdown
+      </div>
+      <div class="nav-item" onclick="setActive(this)">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 3h8M3 7h5M3 11h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        Language Analysis
+      </div>
+      <div class="nav-item" onclick="setActive(this)">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="2" y="4" width="10" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M5 4V3a2 2 0 0 1 4 0v1" stroke="currentColor" stroke-width="1.3"/></svg>
+        Model Comparison
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Tools</div>
+      <div class="nav-item" onclick="setActive(this)">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1.5" y="3.5" width="11" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M4.5 3.5V2.5a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v1" stroke="currentColor" stroke-width="1.3"/><path d="M1.5 7.5h11" stroke="currentColor" stroke-width="1.1"/></svg>
+        ETL Run Log
+        <span class="nav-badge">4</span>
+      </div>
+      <div class="nav-item" onclick="setActive(this)">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.3"/><path d="M7 4v3l2 2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Turn Depth Compare
+      </div>
+      <div class="nav-item" onclick="setActive(this)">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7h10M5 4l-3 3 3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+        Time / Date Slider
+      </div>
+      <div class="nav-item" onclick="setActive(this)">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4" stroke="currentColor" stroke-width="1.4"/><path d="M9.5 9.5L12 12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+        Search Refinement
+      </div>
+      <div class="nav-item" onclick="setActive(this)">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 4h10M4 7h6M6 10h2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+        Filters & Combinations
+      </div>
+      <div class="nav-item" onclick="setActive(this)">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 10V4a1 1 0 0 1 1-1h3l1 2h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z" stroke="currentColor" stroke-width="1.3"/></svg>
+        Conversation Preview
+      </div>
+      <div class="nav-item" onclick="setActive(this)">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="4.5" r="2.5" stroke="currentColor" stroke-width="1.3"/><path d="M2 12c0-2.76 2.24-5 5-5s5 2.24 5 5" stroke="currentColor" stroke-width="1.3"/></svg>
+        User Tracking History
+      </div>
+      <div class="nav-item" onclick="setActive(this)">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="3" cy="7" r="1.5" fill="currentColor"/><circle cx="7" cy="4" r="1.5" fill="currentColor"/><circle cx="11" cy="7" r="1.5" fill="currentColor"/><path d="M4.5 7L5.5 4.5M8.5 4.5L9.5 7" stroke="currentColor" stroke-width="1.2"/></svg>
+        Conversation Flow
+      </div>
+      <div class="nav-item" onclick="setActive(this)">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="2" y="2" width="4" height="4" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="8" y="2" width="4" height="4" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="2" y="8" width="4" height="4" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="8" y="8" width="4" height="4" rx="1" stroke="currentColor" stroke-width="1.3"/></svg>
+        Saved Filter Presets
+        <span class="nav-badge" style="background:var(--purple)">7</span>
+      </div>
+      <div class="nav-item" onclick="setActive(this)">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 4h8M3 7h8M3 10h5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+        Session History
+      </div>
+      <div class="nav-item" onclick="setActive(this)">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.3"/><path d="M7 4V7l2 1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Interactive Map
+      </div>
+      <div class="nav-item" onclick="setActive(this)">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2L8.5 5.5L12 6L9.5 8.5L10 12L7 10.5L4 12L4.5 8.5L2 6L5.5 5.5z" stroke="currentColor" stroke-width="1.2"/></svg>
+        Topic Clustering
+      </div>
+      <div class="nav-item" onclick="setActive(this)">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 10V5l3 3 2-4 2 2 3-4v8H2z" stroke="currentColor" stroke-width="1.2"/></svg>
+        Summary Statistics
+      </div>
+      <div class="nav-item" onclick="setActive(this)">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 3h8v6H3z" stroke="currentColor" stroke-width="1.3"/><path d="M5 9v2M9 9v2M4 11h6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Annotation Tool
+      </div>
+      <div class="nav-item" onclick="setActive(this)">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="4" cy="7" r="1.5" stroke="currentColor" stroke-width="1.3"/><circle cx="10" cy="7" r="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M5.5 7h3" stroke="currentColor" stroke-width="1.3"/><path d="M9 5.5L11.5 7 9 8.5" stroke="currentColor" stroke-width="1.2"/></svg>
+        Translator
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main" id="main">
+
+    <!-- KPI Row -->
+    <div class="kpi-row">
+      <div class="kpi-card">
+        <div class="kpi-label">Total Conversations</div>
+        <div class="kpi-value">838k</div>
+        <div class="kpi-badge green">↑ 4 models</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Languages</div>
+        <div class="kpi-value">20+</div>
+        <div class="kpi-badge blue">EN leads 59%</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Avg Turns</div>
+        <div class="kpi-value">2.3</div>
+        <div class="kpi-badge orange">max 78</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Redacted</div>
+        <div class="kpi-value">36</div>
+        <div class="kpi-badge red">0.72%</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">US Share</div>
+        <div class="kpi-value">21%</div>
+        <div class="kpi-badge green">↑ Leading region</div>
+      </div>
+    </div>
+
+    <!-- DATE SLIDER -->
+    <div class="date-slider-bar">
+      <div class="slider-label">📅 Time Range</div>
+      <div class="slider-wrap">
+        <div class="range-track" id="rangeTrack" onclick="sliderClick(event)">
+          <div class="range-fill" id="rangeFill"></div>
+          <div class="range-thumb" id="thumbL" style="left:18%"></div>
+          <div class="range-thumb" id="thumbR" style="left:80%"></div>
+        </div>
+        <div class="slider-dates">
+          <span class="slider-date">Jan 2023</span>
+          <span class="slider-date active" id="dateL">Apr 2023</span>
+          <span class="slider-date">Jul 2023</span>
+          <span class="slider-date">Oct 2023</span>
+          <span class="slider-date active" id="dateR">Apr 2024</span>
+          <span class="slider-date">Jun 2024</span>
+        </div>
+      </div>
+      <div class="date-range-display" id="dateDisplay">Apr 2023 – Apr 2024</div>
+      <button class="btn btn-outline" onclick="animateSlider()">▶ Animate</button>
+      <div class="nav-pill">Volume</div>
+      <div class="nav-pill">Language</div>
+      <div class="nav-pill">Model</div>
+    </div>
+
+    <!-- FILTER BAR -->
+    <div class="filter-bar">
+      <div class="filter-search">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="5.5" cy="5.5" r="4" stroke="#8A96AE" stroke-width="1.4"/><path d="M9 9L11.5 11.5" stroke="#8A96AE" stroke-width="1.4" stroke-linecap="round"/></svg>
+        <input type="text" placeholder="Search refinement — keyword, hash, country, topic..." id="searchInput" oninput="filterUpdate()">
+      </div>
+      <div class="filter-tag" onclick="removeTag(this)">GPT-3.5 <span class="remove">×</span></div>
+      <div class="filter-tag" onclick="removeTag(this)">GPT-4 <span class="remove">×</span></div>
+      <div class="filter-tag green" onclick="removeTag(this)">English <span class="remove">×</span></div>
+      <div class="filter-tag green" onclick="removeTag(this)">Chinese <span class="remove">×</span></div>
+      <div class="filter-tag purple" onclick="removeTag(this)">United States <span class="remove">×</span></div>
+      <div class="filter-tag" onclick="removeTag(this)">1–5 turns <span class="remove">×</span></div>
+      <button class="btn btn-outline" onclick="addFilter()">+ Filter</button>
+      <div class="filter-count" id="filterCount">838k records</div>
+      <div class="presets-label">Presets:</div>
+      <div class="nav-pill" onclick="applyPreset(this,'RU·GPT-4·6+')">RU · GPT-4 · 6+</div>
+      <div class="nav-pill" onclick="applyPreset(this,'US·EN·2023')">US · EN · 2023</div>
+      <div class="nav-pill" onclick="applyPreset(this,'HK·ZH·GPT3')">HK · ZH · GPT-3.5</div>
+    </div>
+
+    <!-- MAP + TOPICS -->
+    <div class="mid-row">
+
+      <!-- MAP -->
+      <div class="card">
+        <div class="card-header">
+          <span style="font-size:14px">🗺</span>
+          <span class="card-title">Interactive Map</span>
+          <span class="card-sub">— Conversation density by country</span>
+          <div class="card-actions">
+            <div class="nav-pill" onclick="setMapMode(this,'volume')" style="font-size:11px;padding:4px 9px">Volume</div>
+            <div class="nav-pill" onclick="setMapMode(this,'language')" style="font-size:11px;padding:4px 9px">Language</div>
+            <div class="nav-pill active" onclick="setMapMode(this,'model')" style="font-size:11px;padding:4px 9px">Model</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="map-container">
+            <svg class="map-svg" viewBox="0 0 700 280" xmlns="http://www.w3.org/2000/svg">
+              <!-- Background -->
+              <rect width="700" height="280" fill="#DBEAFE" rx="0"/>
+              <!-- Simple continent shapes -->
+              <!-- North America -->
+              <path d="M40 60 Q80 40 130 50 L150 80 Q160 100 150 120 L130 140 Q110 160 90 155 L60 140 Q30 130 25 100 Z" fill="#93C5FD" stroke="#BFDBFE" stroke-width="1"/>
+              <!-- South America -->
+              <path d="M110 160 Q140 155 155 170 L165 200 Q168 230 150 245 L120 250 Q95 245 85 220 L80 190 Z" fill="#93C5FD" stroke="#BFDBFE" stroke-width="1"/>
+              <!-- Europe -->
+              <path d="M290 45 Q330 35 360 50 L370 70 Q365 85 350 90 L320 95 Q295 90 285 75 Z" fill="#93C5FD" stroke="#BFDBFE" stroke-width="1"/>
+              <!-- Africa -->
+              <path d="M295 100 Q330 95 355 110 L365 150 Q360 190 340 210 L315 215 Q290 205 280 175 L275 140 Q275 110 295 100 Z" fill="#93C5FD" stroke="#BFDBFE" stroke-width="1"/>
+              <!-- Russia/Eurasia -->
+              <path d="M380 30 Q460 20 540 35 L560 50 Q555 75 530 85 L480 90 Q430 85 400 75 L375 60 Z" fill="#93C5FD" stroke="#BFDBFE" stroke-width="1"/>
+              <!-- Middle East/South Asia -->
+              <path d="M370 90 Q420 85 450 100 L460 125 Q450 145 420 150 L385 145 Q360 135 360 115 Z" fill="#93C5FD" stroke="#BFDBFE" stroke-width="1"/>
+              <!-- East Asia -->
+              <path d="M480 60 Q540 50 590 65 L605 90 Q600 115 575 125 L535 130 Q495 125 478 105 L472 80 Z" fill="#93C5FD" stroke="#BFDBFE" stroke-width="1"/>
+              <!-- Southeast Asia -->
+              <path d="M545 120 Q580 115 605 130 L615 155 Q605 170 580 170 L555 165 Q535 155 535 140 Z" fill="#93C5FD" stroke="#BFDBFE" stroke-width="1"/>
+              <!-- Australia -->
+              <path d="M555 185 Q600 175 635 190 L645 220 Q640 245 610 250 L575 248 Q550 238 545 215 Z" fill="#93C5FD" stroke="#BFDBFE" stroke-width="1"/>
+
+              <!-- Conversation bubbles by country -->
+              <!-- USA -->
+              <g class="map-bubble" onclick="selectCountry('United States','🇺🇸')" onmouseenter="showTip(event,'🇺🇸 United States — 21% share')" onmouseleave="hideTip()">
+                <circle cx="95" cy="100" r="28" fill="#1A5CFF" opacity="0.85"/>
+                <text x="95" y="97" text-anchor="middle" fill="white" font-size="9" font-weight="700" font-family="DM Sans">🇺🇸</text>
+                <text x="95" y="108" text-anchor="middle" fill="white" font-size="7.5" font-weight="600" font-family="DM Sans">21%</text>
+              </g>
+              <!-- China / HK -->
+              <g class="map-bubble" onclick="selectCountry('China / HK','🇨🇳')" onmouseenter="showTip(event,'🇨🇳 China/HK — 14% share')" onmouseleave="hideTip()">
+                <circle cx="560" cy="95" r="20" fill="#7B4FD4" opacity="0.85"/>
+                <text x="560" y="92" text-anchor="middle" fill="white" font-size="9" font-weight="700" font-family="DM Sans">🇨🇳</text>
+                <text x="560" y="103" text-anchor="middle" fill="white" font-size="7.5" font-weight="600" font-family="DM Sans">14%</text>
+              </g>
+              <!-- Russia -->
+              <g class="map-bubble" onclick="selectCountry('Russia','🇷🇺')" onmouseenter="showTip(event,'🇷🇺 Russia — 11% share')" onmouseleave="hideTip()">
+                <circle cx="465" cy="50" r="17" fill="#00B67A" opacity="0.85"/>
+                <text x="465" y="47" text-anchor="middle" fill="white" font-size="9" font-family="DM Sans">🇷🇺</text>
+                <text x="465" y="57" text-anchor="middle" fill="white" font-size="7.5" font-weight="600" font-family="DM Sans">11%</text>
+              </g>
+              <!-- UK -->
+              <g class="map-bubble" onclick="selectCountry('United Kingdom','🇬🇧')" onmouseenter="showTip(event,'🇬🇧 United Kingdom — 8% share')" onmouseleave="hideTip()">
+                <circle cx="305" cy="58" r="13" fill="#FF8C00" opacity="0.85"/>
+                <text x="305" y="55" text-anchor="middle" fill="white" font-size="9" font-family="DM Sans">🇬🇧</text>
+                <text x="305" y="65" text-anchor="middle" fill="white" font-size="7" font-weight="600" font-family="DM Sans">8%</text>
+              </g>
+              <!-- Germany -->
+              <g class="map-bubble" onclick="selectCountry('Germany','🇩🇪')" onmouseenter="showTip(event,'🇩🇪 Germany — 6% share')" onmouseleave="hideTip()">
+                <circle cx="335" cy="65" r="11" fill="#E8294E" opacity="0.85"/>
+                <text x="335" y="62" text-anchor="middle" fill="white" font-size="8" font-family="DM Sans">🇩🇪</text>
+                <text x="335" y="71" text-anchor="middle" fill="white" font-size="7" font-weight="600" font-family="DM Sans">6%</text>
+              </g>
+              <!-- France -->
+              <g class="map-bubble" onclick="selectCountry('France','🇫🇷')" onmouseenter="showTip(event,'🇫🇷 France — 5% share')" onmouseleave="hideTip()">
+                <circle cx="312" cy="72" r="10" fill="#00A3B4" opacity="0.85"/>
+                <text x="312" y="69" text-anchor="middle" fill="white" font-size="8" font-family="DM Sans">🇫🇷</text>
+                <text x="312" y="78" text-anchor="middle" fill="white" font-size="7" font-weight="600" font-family="DM Sans">5%</text>
+              </g>
+              <!-- India -->
+              <g class="map-bubble" onclick="selectCountry('India','🇮🇳')" onmouseenter="showTip(event,'🇮🇳 India — 7% share')" onmouseleave="hideTip()">
+                <circle cx="440" cy="125" r="14" fill="#D4A017" opacity="0.85"/>
+                <text x="440" y="122" text-anchor="middle" fill="white" font-size="9" font-family="DM Sans">🇮🇳</text>
+                <text x="440" y="132" text-anchor="middle" fill="white" font-size="7" font-weight="600" font-family="DM Sans">7%</text>
+              </g>
+              <!-- Brazil -->
+              <g class="map-bubble" onclick="selectCountry('Brazil','🇧🇷')" onmouseenter="showTip(event,'🇧🇷 Brazil — 4% share')" onmouseleave="hideTip()">
+                <circle cx="130" cy="205" r="11" fill="#1A5CFF" opacity="0.7"/>
+                <text x="130" y="202" text-anchor="middle" fill="white" font-size="8" font-family="DM Sans">🇧🇷</text>
+                <text x="130" y="211" text-anchor="middle" fill="white" font-size="7" font-weight="600" font-family="DM Sans">4%</text>
+              </g>
+
+              <!-- Legend -->
+              <rect x="10" y="10" width="80" height="40" rx="5" fill="white" opacity=".9"/>
+              <text x="18" y="24" fill="#4A5872" font-size="8" font-family="DM Sans" font-weight="700">GPT-3.5</text>
+              <circle cx="14" cy="21" r="4" fill="#1A5CFF"/>
+              <text x="18" y="38" fill="#4A5872" font-size="8" font-family="DM Sans" font-weight="700">GPT-4</text>
+              <circle cx="14" cy="35" r="4" fill="#7B4FD4"/>
+            </svg>
+            <div class="map-controls">
+              <div class="map-btn">+</div>
+              <div class="map-btn">−</div>
+              <div class="map-btn">⌖</div>
+            </div>
+          </div>
+          <!-- Selected country info -->
+          <div id="countryInfo" style="padding:10px 14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px;font-size:12px;color:var(--text2);">
+            <span style="font-size:18px">🌍</span>
+            <span>Click a bubble to filter conversations by country</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- TOPIC CLUSTERING -->
+      <div class="card">
+        <div class="card-header">
+          <span style="font-size:14px">✦</span>
+          <span class="card-title">Topic Clustering</span>
+          <div class="card-actions">
+            <div class="nav-pill" style="font-size:11px;padding:4px 9px">By Model</div>
+            <div class="nav-pill" style="font-size:11px;padding:4px 9px">By Lang</div>
+          </div>
+        </div>
+        <div class="card-body padded" style="padding-top:10px;">
+          <div class="topic-list" style="padding:0;">
+            <div class="topic-row">
+              <div class="topic-name">Coding / Tech</div>
+              <div class="topic-bar-wrap"><div class="topic-bar" style="width:100%;background:var(--accent)"></div></div>
+              <div class="topic-pct">31%</div>
+            </div>
+            <div class="topic-row">
+              <div class="topic-name">Writing</div>
+              <div class="topic-bar-wrap"><div class="topic-bar" style="width:68%;background:var(--purple)"></div></div>
+              <div class="topic-pct">21%</div>
+            </div>
+            <div class="topic-row">
+              <div class="topic-name">Research / Info</div>
+              <div class="topic-bar-wrap"><div class="topic-bar" style="width:52%;background:var(--teal)"></div></div>
+              <div class="topic-pct">16%</div>
+            </div>
+            <div class="topic-row">
+              <div class="topic-name">Translation</div>
+              <div class="topic-bar-wrap"><div class="topic-bar" style="width:39%;background:var(--green)"></div></div>
+              <div class="topic-pct">12%</div>
+            </div>
+            <div class="topic-row">
+              <div class="topic-name">Math / Science</div>
+              <div class="topic-bar-wrap"><div class="topic-bar" style="width:26%;background:var(--orange)"></div></div>
+              <div class="topic-pct">8%</div>
+            </div>
+            <div class="topic-row">
+              <div class="topic-name">Roleplay</div>
+              <div class="topic-bar-wrap"><div class="topic-bar" style="width:19%;background:var(--red)"></div></div>
+              <div class="topic-pct">6%</div>
+            </div>
+            <div class="topic-row">
+              <div class="topic-name">Other</div>
+              <div class="topic-bar-wrap"><div class="topic-bar" style="width:16%;background:var(--text3)"></div></div>
+              <div class="topic-pct">5%</div>
+            </div>
+          </div>
+          <!-- Turn depth chart -->
+          <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px;">
+            <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;padding-bottom:8px;">Turn Depth · Model Comparison</div>
+            <div class="chart-legend">
+              <div class="legend-item"><div class="legend-swatch" style="background:var(--accent)"></div>GPT-3.5</div>
+              <div class="legend-item"><div class="legend-swatch" style="background:var(--purple)"></div>GPT-4</div>
+            </div>
+            <div class="turn-chart">
+              <div class="turn-bar-wrap"><div class="turn-bar" style="height:60%"></div><div class="turn-xlabel">1-2</div></div>
+              <div class="turn-bar-wrap"><div class="turn-bar gpt4" style="height:45%"></div><div class="turn-xlabel">1-2</div></div>
+              <div class="turn-bar-wrap"><div class="turn-bar" style="height:80%"></div><div class="turn-xlabel">3-5</div></div>
+              <div class="turn-bar-wrap"><div class="turn-bar gpt4" style="height:65%"></div><div class="turn-xlabel">3-5</div></div>
+              <div class="turn-bar-wrap"><div class="turn-bar" style="height:50%"></div><div class="turn-xlabel">6-10</div></div>
+              <div class="turn-bar-wrap"><div class="turn-bar gpt4" style="height:90%"></div><div class="turn-xlabel">6-10</div></div>
+              <div class="turn-bar-wrap"><div class="turn-bar" style="height:25%"></div><div class="turn-xlabel">11+</div></div>
+              <div class="turn-bar-wrap"><div class="turn-bar gpt4" style="height:55%"></div><div class="turn-xlabel">11+</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BOTTOM ROW -->
+    <div class="bottom-row">
+
+      <!-- CONVERSATION TABLE -->
+      <div class="card">
+        <div class="card-header">
+          <span style="font-size:14px">💬</span>
+          <span class="card-title">Conversation Explorer</span>
+          <span class="card-sub" id="tableCount">— 838,247 records</span>
+          <div class="card-actions">
+            <button class="btn btn-outline" style="font-size:11px;padding:5px 10px">⬇ Export CSV</button>
+          </div>
+        </div>
+        <div class="card-body" style="overflow:auto;max-height:260px;">
+          <table class="conv-table" id="convTable">
+            <thead>
+              <tr>
+                <th>Hash</th>
+                <th>Model</th>
+                <th>Language</th>
+                <th>Turns</th>
+                <th>Country</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="convBody">
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- CONVERSATION PREVIEW + FLOW -->
+      <div class="card">
+        <div class="card-header">
+          <span style="font-size:14px">👁</span>
+          <span class="card-title">Conversation Preview</span>
+          <div class="card-actions">
+            <div class="tab-row">
+              <div class="tab active" onclick="switchTab(this,'preview')">Chat</div>
+              <div class="tab" onclick="switchTab(this,'flow')">Flow</div>
+              <div class="tab" onclick="switchTab(this,'translator')">Translate</div>
+            </div>
+          </div>
+        </div>
+        <!-- Preview Tab -->
+        <div id="tab-preview" class="card-body" style="display:flex;flex-direction:column;max-height:260px;overflow-y:auto;">
+          <div class="conv-meta" style="padding:10px 14px 0;">
+            <span class="conv-meta-chip" id="previewHash">a1b2c3d4</span>
+            <span class="conv-meta-chip" id="previewModel">GPT-3.5-0613</span>
+            <span class="conv-meta-chip" id="previewLang">English</span>
+            <span class="conv-meta-chip" id="previewCountry">🇺🇸 United States</span>
+            <span class="conv-meta-chip" id="previewTurns">4 turns</span>
+          </div>
+          <div class="conv-preview" id="chatPreview">
+            <div>
+              <div class="msg-role user">User</div>
+              <div class="msg-bubble user">Can you explain how transformers work in ML?</div>
+            </div>
+            <div>
+              <div class="msg-role assistant">GPT-3.5</div>
+              <div class="msg-bubble assistant">Transformers use self-attention mechanisms to process sequences in parallel. Unlike RNNs, they don't process tokens sequentially — instead, every token attends to every other token...</div>
+            </div>
+            <div>
+              <div class="msg-role user">User</div>
+              <div class="msg-bubble user">What's the difference between encoder and decoder?</div>
+            </div>
+            <div>
+              <div class="msg-role assistant">GPT-3.5</div>
+              <div class="msg-bubble assistant">The encoder reads the input sequence and builds context representations. The decoder generates the output sequence, attending to encoder outputs via cross-attention...</div>
+            </div>
+          </div>
+        </div>
+        <!-- Flow Tab -->
+        <div id="tab-flow" class="card-body" style="display:none;max-height:260px;overflow-y:auto;">
+          <div style="padding:12px 14px;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;">Conversation Flow — Topic Tracking</div>
+          <div class="conv-flow-dots" style="flex-direction:column;align-items:flex-start;gap:8px;padding:8px 16px;">
+            <div style="display:flex;align-items:center;gap:10px;"><div class="flow-dot" style="background:var(--accent)"></div><span style="font-size:12px;color:var(--text2)">Turn 1 — Transformer architecture</span></div>
+            <div style="border-left:2px dashed var(--border2);height:12px;margin-left:5px;"></div>
+            <div style="display:flex;align-items:center;gap:10px;"><div class="flow-dot" style="background:var(--accent)"></div><span style="font-size:12px;color:var(--text2)">Turn 2 — Self-attention explanation</span></div>
+            <div style="border-left:2px dashed var(--border2);height:12px;margin-left:5px;"></div>
+            <div style="display:flex;align-items:center;gap:10px;"><div class="flow-dot" style="background:var(--orange)"></div><span style="font-size:12px;color:var(--text2)">Turn 3 — ⚡ Topic shift: Encoder/Decoder</span></div>
+            <div style="border-left:2px dashed var(--border2);height:12px;margin-left:5px;"></div>
+            <div style="display:flex;align-items:center;gap:10px;"><div class="flow-dot" style="background:var(--green)"></div><span style="font-size:12px;color:var(--text2)">Turn 4 — Fine-tuning discussion</span></div>
+          </div>
+          <div class="topic-shift-note">Topic shift detected at turn 3</div>
+          <div style="padding:12px 14px;display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
+            <div class="annotation-item info" style="font-size:11px;flex:1;">
+              <div class="ann-icon">ℹ</div><div class="ann-text">Conversation spans 2 major topics</div>
+            </div>
+            <div class="annotation-item warn" style="font-size:11px;flex:1;">
+              <div class="ann-icon">⚡</div><div class="ann-text">Topic shifts mid-conversation</div>
+            </div>
+          </div>
+        </div>
+        <!-- Translator Tab -->
+        <div id="tab-translator" class="card-body" style="display:none;max-height:260px;overflow-y:auto;">
+          <div class="translator-wrap">
+            <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;">🌐 Inline Translator</div>
+            <div class="translator-from-to">
+              <select class="lang-select" id="fromLang">
+                <option>Auto-detect</option>
+                <option>English</option><option>Chinese</option><option>Russian</option>
+                <option>French</option><option>German</option><option>Spanish</option>
+                <option>Arabic</option><option>Japanese</option><option>Korean</option>
+                <option>Portuguese</option><option>Hindi</option>
+              </select>
+              <div class="swap-btn" onclick="swapLangs()">⇄</div>
+              <select class="lang-select" id="toLang">
+                <option>English</option>
+                <option>Chinese</option><option>Russian</option>
+                <option>French</option><option>German</option><option>Spanish</option>
+                <option>Arabic</option><option>Japanese</option><option>Korean</option>
+                <option>Portuguese</option><option>Hindi</option>
+              </select>
+            </div>
+            <textarea class="trans-textarea" id="transInput" placeholder="Enter text to translate, or click 'Translate Selected' to translate the current conversation..." oninput="clearOutput()"></textarea>
+            <div style="display:flex;gap:6px;">
+              <button class="btn btn-primary" style="flex:1;font-size:11px;" onclick="translateText()">🌐 Translate</button>
+              <button class="btn btn-outline" style="font-size:11px;" onclick="translateConv()">Translate Conversation</button>
+            </div>
+            <div class="trans-output" id="transOutput">
+              <span style="color:var(--text3);font-style:normal;">Translation will appear here...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN: ETL + Presets + Session + Annotation -->
+      <div style="display:flex;flex-direction:column;gap:12px;">
+
+        <!-- ETL LOG -->
+        <div class="card">
+          <div class="card-header">
+            <span style="font-size:13px">⚙</span>
+            <span class="card-title">ETL Run Log</span>
+            <div class="card-actions">
+              <div class="kpi-badge green" style="font-size:10px;">● Live</div>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="etl-list">
+              <div class="etl-row">
+                <div class="etl-time">2024-04-29 20:11</div>
+                <div class="etl-rows">838,247 rows</div>
+                <div class="etl-status success">success</div>
+              </div>
+              <div class="etl-row">
+                <div class="etl-time">2024-04-28 14:03</div>
+                <div class="etl-rows">837,891 rows</div>
+                <div class="etl-status success">success</div>
+              </div>
+              <div class="etl-row">
+                <div class="etl-time">2024-04-27 09:45</div>
+                <div class="etl-rows">621,004 rows</div>
+                <div class="etl-status partial">partial</div>
+              </div>
+              <div class="etl-row">
+                <div class="etl-time">2024-04-26 18:22</div>
+                <div class="etl-rows">838,247 rows</div>
+                <div class="etl-status success">success</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PRESETS + SESSION HISTORY -->
+        <div class="card" style="flex:1;">
+          <div class="card-header">
+            <span style="font-size:13px">📌</span>
+            <span class="card-title">Saved Presets</span>
+            <span class="card-sub">7 saved</span>
+          </div>
+          <div class="card-body" style="overflow-y:auto;max-height:120px;">
+            <div class="presets-grid" style="padding:10px;">
+              <div class="preset-chip active" onclick="togglePreset(this)"><span class="icon">🇷🇺</span><span class="label">Russia · GPT-4 · 6+ turns</span></div>
+              <div class="preset-chip" onclick="togglePreset(this)"><span class="icon">🇺🇸</span><span class="label">US · English · 2023</span></div>
+              <div class="preset-chip" onclick="togglePreset(this)"><span class="icon">🇨🇳</span><span class="label">HK · Chinese · GPT-3.5</span></div>
+              <div class="preset-chip" onclick="togglePreset(this)"><span class="icon">💻</span><span class="label">Coding · 10+ turns</span></div>
+              <div class="preset-chip" onclick="togglePreset(this)"><span class="icon">🔴</span><span class="label">Redacted only</span></div>
+              <div class="preset-chip" onclick="togglePreset(this)"><span class="icon">🌍</span><span class="label">EU countries</span></div>
+              <div class="preset-chip" onclick="togglePreset(this)"><span class="icon">📝</span><span class="label">Writing · GPT-4</span></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- EXTRA ROW: Summary Stats + Annotation + Session History -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;padding-bottom:20px;">
+
+      <!-- SUMMARY STATS -->
+      <div class="card">
+        <div class="card-header">
+          <span style="font-size:13px">📊</span>
+          <span class="card-title">Summary Statistics</span>
+        </div>
+        <div class="card-body padded" style="padding:10px;">
+          <div class="summary-grid">
+            <div class="stat-box">
+              <div class="stat-box-val">3.2</div>
+              <div class="stat-box-label">Avg Turns GPT-3.5</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-box-val">4.7</div>
+              <div class="stat-box-label">Avg Turns GPT-4</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-box-val">58%</div>
+              <div class="stat-box-label">English Share</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-box-val">21%</div>
+              <div class="stat-box-label">US Share</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ANNOTATION TOOL -->
+      <div class="card">
+        <div class="card-header">
+          <span style="font-size:13px">🏷</span>
+          <span class="card-title">Annotation Tool</span>
+        </div>
+        <div class="card-body" style="max-height:160px;overflow-y:auto;">
+          <div class="annotation-list">
+            <div class="annotation-item flag">
+              <div class="ann-icon">🚩</div>
+              <div class="ann-text">Possible prompt injection — flag for review</div>
+            </div>
+            <div class="annotation-item warn">
+              <div class="ann-icon">⚡</div>
+              <div class="ann-text">Topic shifts mid-conversation</div>
+            </div>
+            <div class="annotation-item info">
+              <div class="ann-icon">📝</div>
+              <div class="ann-text">Long-form coding session</div>
+            </div>
+            <div class="ann-add" onclick="addAnnotation()">+ Add annotation note</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SESSION HISTORY -->
+      <div class="card">
+        <div class="card-header">
+          <span style="font-size:13px">🕓</span>
+          <span class="card-title">User & Session History</span>
+        </div>
+        <div class="card-body" style="max-height:160px;overflow-y:auto;">
+          <div class="history-list">
+            <div class="history-item"><span class="history-icon">🔍</span>Searched "transformer"</div>
+            <div class="history-item"><span class="history-icon">🔧</span>Filter: Russia + GPT-4</div>
+            <div class="history-item"><span class="history-icon">👁</span>Opened a1b2c3d4...</div>
+            <div class="history-item"><span class="history-icon">🌍</span>Drilled into Hong Kong</div>
+            <div class="history-item"><span class="history-icon">🔍</span>Searched "coding"</div>
+            <div class="history-item"><span class="history-icon">📌</span>Saved preset: RU+GPT4</div>
+            <div class="history-item"><span class="history-icon">🔧</span>Filter: 1-5 turns</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- RIGHT PANEL -->
+  <aside class="right-panel" id="rightPanel">
+    <div style="padding:14px 16px;border-bottom:1px solid var(--border);">
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">Selected Conversation</div>
+      <div style="font-size:11px;color:var(--text3);" id="rpSelectedId">Select a row to view graphs</div>
+    </div>
+
+    <!-- GRAPHS when selected -->
+    <div id="rpGraphs" style="display:none;">
+      <div class="graph-area">
+        <div class="mini-graph">
+          <div class="mini-graph-title">Turn Sentiment Arc</div>
+          <div class="sparkline" id="sentimentSpark"></div>
+          <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:9px;color:var(--text3);font-family:'DM Mono',monospace;">
+            <span>Turn 1</span><span>Turn 2</span><span>Turn 3</span><span>Turn 4</span>
+          </div>
+        </div>
+        <div class="mini-graph">
+          <div class="mini-graph-title">Topic Distribution</div>
+          <div class="pie-wrap">
+            <svg class="pie-svg" width="60" height="60" viewBox="0 0 60 60">
+              <circle r="20" cx="30" cy="30" fill="none" stroke="#1A5CFF" stroke-width="12" stroke-dasharray="75.4 25.4" transform="rotate(-90 30 30)"/>
+              <circle r="20" cx="30" cy="30" fill="none" stroke="#7B4FD4" stroke-width="12" stroke-dasharray="30.2 70.6" stroke-dashoffset="-75.4" transform="rotate(-90 30 30)"/>
+              <circle r="20" cx="30" cy="30" fill="none" stroke="#00B67A" stroke-width="12" stroke-dasharray="25.1 75.7" stroke-dashoffset="-105.6" transform="rotate(-90 30 30)"/>
+            </svg>
+            <div class="pie-labels">
+              <div class="pie-row"><div class="pie-swatch" style="background:var(--accent)"></div>Coding 60%</div>
+              <div class="pie-row"><div class="pie-swatch" style="background:var(--purple)"></div>ML Theory 24%</div>
+              <div class="pie-row"><div class="pie-swatch" style="background:var(--green)"></div>Systems 16%</div>
+            </div>
+          </div>
+        </div>
+        <div class="mini-graph">
+          <div class="mini-graph-title">Response Length / Turn</div>
+          <div class="sparkline" id="lenSpark"></div>
+        </div>
+        <div class="mini-graph">
+          <div class="mini-graph-title">Conversation Metadata</div>
+          <div style="display:flex;flex-direction:column;gap:5px;font-size:11px;">
+            <div style="display:flex;justify-content:space-between;"><span style="color:var(--text3)">Model</span><span id="rpModel" style="font-weight:600;color:var(--text)">GPT-3.5-0613</span></div>
+            <div style="display:flex;justify-content:space-between;"><span style="color:var(--text3)">Language</span><span id="rpLang" style="font-weight:600;color:var(--text)">English</span></div>
+            <div style="display:flex;justify-content:space-between;"><span style="color:var(--text3)">Country</span><span id="rpCountry" style="font-weight:600;color:var(--text)">United States</span></div>
+            <div style="display:flex;justify-content:space-between;"><span style="color:var(--text3)">Turns</span><span id="rpTurns" style="font-weight:600;color:var(--text)">4</span></div>
+            <div style="display:flex;justify-content:space-between;"><span style="color:var(--text3)">Status</span><span id="rpStatus" style="font-weight:600;color:var(--green)">OK</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PRESETS SECTION -->
+    <div class="rpanel-section">
+      <div class="rpanel-head" onclick="togglePanel(this)">
+        <span style="font-size:12px">📌</span>
+        <div class="rpanel-head-title">Saved Presets</div>
+        <div class="rpanel-chevron open">▶</div>
+      </div>
+      <div class="rpanel-body">
+        <div style="padding:0 12px 10px;display:flex;flex-direction:column;gap:4px;">
+          <div class="preset-chip" onclick="togglePreset(this)" style="font-size:11px;"><span class="icon">🇷🇺</span><span class="label">Russia · GPT-4 · 6+</span></div>
+          <div class="preset-chip active" onclick="togglePreset(this)" style="font-size:11px;"><span class="icon">🇺🇸</span><span class="label">US · EN · 2023</span></div>
+          <div class="preset-chip" onclick="togglePreset(this)" style="font-size:11px;"><span class="icon">🇨🇳</span><span class="label">HK · ZH · GPT-3.5</span></div>
+          <div class="preset-chip" onclick="togglePreset(this)" style="font-size:11px;"><span class="icon">💻</span><span class="label">Coding · 10+ turns</span></div>
+          <div class="preset-chip" onclick="togglePreset(this)" style="font-size:11px;"><span class="icon">🔴</span><span class="label">Redacted only</span></div>
+          <div class="preset-chip" onclick="togglePreset(this)" style="font-size:11px;"><span class="icon">🌍</span><span class="label">EU countries</span></div>
+          <div class="preset-chip" onclick="togglePreset(this)" style="font-size:11px;"><span class="icon">📝</span><span class="label">Writing · GPT-4</span></div>
+          <button class="btn btn-outline" style="font-size:11px;padding:5px 10px;margin-top:4px;" onclick="addPreset()">+ Save current filters</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SESSION HISTORY -->
+    <div class="rpanel-section">
+      <div class="rpanel-head" onclick="togglePanel(this)">
+        <span style="font-size:12px">🕓</span>
+        <div class="rpanel-head-title">Session History</div>
+        <div class="rpanel-chevron open">▶</div>
+      </div>
+      <div class="rpanel-body">
+        <div class="history-list" style="padding:8px 14px 10px;">
+          <div class="history-item" style="font-size:11px;"><span class="history-icon">🔍</span>Searched "transformer"</div>
+          <div class="history-item" style="font-size:11px;"><span class="history-icon">🔧</span>Filter: Russia + GPT-4</div>
+          <div class="history-item" style="font-size:11px;"><span class="history-icon">👁</span>Opened a1b2c3d4...</div>
+          <div class="history-item" style="font-size:11px;"><span class="history-icon">🌍</span>Drilled into Hong Kong</div>
+          <div class="history-item" style="font-size:11px;"><span class="history-icon">🔍</span>Searched "coding"</div>
+        </div>
+      </div>
+    </div>
+
+  </aside>
+
+</div>
+
+<script>
+// ── DATA ──
+const conversations = [
+  { hash:'a1b2c3d4', model:'GPT-3.5', modelClass:'gpt35', lang:'English', langFlag:'', turns:4, country:'United States', countryFlag:'🇺🇸', status:'ok',
+    messages:[
+      {role:'user',text:'Can you explain how transformers work in ML?'},
+      {role:'assistant',text:'Transformers use self-attention mechanisms to process sequences in parallel. Unlike RNNs, they don\'t process tokens sequentially — every token attends to every other token simultaneously...'},
+      {role:'user',text:'What\'s the difference between encoder and decoder?'},
+      {role:'assistant',text:'The encoder reads the input and builds context representations. The decoder generates outputs, attending to encoder outputs via cross-attention mechanisms...'}
+    ]
+  },
+  { hash:'e5f6a7b8', model:'GPT-4', modelClass:'gpt4', lang:'Chinese', langFlag:'', turns:7, country:'Hong Kong', countryFlag:'🇭🇰', status:'ok',
+    messages:[
+      {role:'user',text:'请帮我写一首关于秋天的诗'},
+      {role:'assistant',text:'秋风轻抚落叶黄，枫林尽染夕阳光。寒露晨凝草尖上，归雁声声过远方。'},
+      {role:'user',text:'能解释一下这首诗的意境吗？'},
+      {role:'assistant',text:'这首诗描绘了秋天的典型景象：落叶飘零、枫林红遍、晨露凝草、雁阵南飞...'}
+    ]
+  },
+  { hash:'c9d0e1f2', model:'GPT-3.5', modelClass:'gpt35', lang:'Russian', langFlag:'', turns:2, country:'Russia', countryFlag:'🇷🇺', status:'redacted',
+    messages:[
+      {role:'user',text:'Как работает машинное обучение?'},
+      {role:'assistant',text:'Машинное обучение — это раздел искусственного интеллекта, где алгоритмы обучаются на данных без явного программирования...'}
+    ]
+  },
+  { hash:'g3h4i5j6', model:'GPT-4', modelClass:'gpt4', lang:'French', langFlag:'', turns:11, country:'France', countryFlag:'🇫🇷', status:'ok',
+    messages:[
+      {role:'user',text:'Pouvez-vous m\'aider à écrire un rapport sur le changement climatique?'},
+      {role:'assistant',text:'Bien sûr! Le changement climatique est l\'un des défis les plus urgents de notre époque. Je vais vous aider à structurer un rapport complet...'},
+      {role:'user',text:'Quelles sont les principales causes?'},
+      {role:'assistant',text:'Les principales causes du changement climatique sont les émissions de gaz à effet de serre, notamment le CO2 provenant des combustibles fossiles...'}
+    ]
+  },
+  { hash:'k7l8m9n0', model:'GPT-3.5', modelClass:'gpt35', lang:'English', langFlag:'', turns:3, country:'United Kingdom', countryFlag:'🇬🇧', status:'ok',
+    messages:[
+      {role:'user',text:'Write a Python function to sort a list'},
+      {role:'assistant',text:'Here\'s a Python function using quicksort:\n\ndef quicksort(arr):\n    if len(arr) <= 1:\n        return arr\n    pivot = arr[len(arr)//2]\n    left = [x for x in arr if x < pivot]\n    middle = [x for x in arr if x == pivot]\n    right = [x for x in arr if x > pivot]\n    return quicksort(left) + middle + quicksort(right)'},
+      {role:'user',text:'Can you add type hints?'},
+      {role:'assistant',text:'Sure! Here\'s the typed version with full annotations...'}
+    ]
+  },
+  { hash:'p1q2r3s4', model:'GPT-4', modelClass:'gpt4', lang:'German', langFlag:'', turns:5, country:'Germany', countryFlag:'🇩🇪', status:'ok',
+    messages:[
+      {role:'user',text:'Erkläre mir die Quantenmechanik'},
+      {role:'assistant',text:'Die Quantenmechanik ist die fundamentale Theorie der Physik, die das Verhalten von Materie und Energie auf atomarer Ebene beschreibt...'}
+    ]
+  },
+];
+
+let selectedRow = null;
+
+// ── RENDER TABLE ──
+function renderTable(data) {
+  const tbody = document.getElementById('convBody');
+  tbody.innerHTML = '';
+  data.forEach((c, i) => {
+    const tr = document.createElement('tr');
+    if (selectedRow === i) tr.classList.add('selected');
+    tr.onclick = () => selectConversation(i, tr);
+    tr.innerHTML = `
+      <td><span class="hash-code">${c.hash}...</span></td>
+      <td><span class="model-tag ${c.modelClass}">${c.model}</span></td>
+      <td><span class="lang-tag">${c.lang}</span></td>
+      <td style="font-family:'DM Mono',monospace;font-size:11.5px;">${c.turns}</td>
+      <td><span class="country-flag">${c.countryFlag}</span>${c.country}</td>
+      <td><span class="status-dot ${c.status}">${c.status}</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+renderTable(conversations);
+
+// ── SELECT CONVERSATION ──
+function selectConversation(i, tr) {
+  selectedRow = i;
+  const c = conversations[i];
+
+  // Highlight row
+  document.querySelectorAll('#convBody tr').forEach(r => r.classList.remove('selected'));
+  tr.classList.add('selected');
+
+  // Update preview
+  document.getElementById('previewHash').textContent = c.hash;
+  document.getElementById('previewModel').textContent = c.model;
+  document.getElementById('previewLang').textContent = c.lang;
+  document.getElementById('previewCountry').textContent = c.countryFlag + ' ' + c.country;
+  document.getElementById('previewTurns').textContent = c.turns + ' turns';
+
+  const chatEl = document.getElementById('chatPreview');
+  chatEl.innerHTML = c.messages.map(m => `
+    <div>
+      <div class="msg-role ${m.role}">${m.role === 'user' ? 'User' : c.model}</div>
+      <div class="msg-bubble ${m.role}" style="white-space:pre-wrap;">${m.text}</div>
+    </div>
+  `).join('');
+
+  // Switch to preview tab
+  switchTab(document.querySelector('.tab.active'), 'preview');
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelector('.tab').classList.add('active');
+
+  // Update right panel
+  document.getElementById('rpSelectedId').textContent = c.hash + ' · ' + c.country;
+  document.getElementById('rpModel').textContent = c.model;
+  document.getElementById('rpLang').textContent = c.lang;
+  document.getElementById('rpCountry').textContent = c.countryFlag + ' ' + c.country;
+  document.getElementById('rpTurns').textContent = c.turns;
+  document.getElementById('rpStatus').textContent = c.status.toUpperCase();
+  document.getElementById('rpStatus').style.color = c.status === 'redacted' ? 'var(--red)' : 'var(--green)';
+  document.getElementById('rpGraphs').style.display = 'block';
+
+  // Build sparklines
+  buildSentiment(c.turns);
+  buildLengthSpark(c.messages);
+
+  // Auto-fill translator
+  if (c.messages.length > 0) {
+    document.getElementById('transInput').value = c.messages[0].text;
+  }
+}
+
+function buildSentiment(turns) {
+  const el = document.getElementById('sentimentSpark');
+  const heights = Array.from({length: turns}, () => 30 + Math.random()*60);
+  const colors = heights.map(h => h > 60 ? 'high' : h > 40 ? 'med' : 'low');
+  el.innerHTML = heights.map((h,i) => `<div class="spark-bar ${colors[i]}" style="height:${h}%"></div>`).join('');
+}
+
+function buildLengthSpark(msgs) {
+  const el = document.getElementById('lenSpark');
+  const heights = msgs.map(m => Math.min(100, (m.text.length / 200) * 100));
+  el.innerHTML = heights.map(h => `<div class="spark-bar" style="height:${Math.max(10,h)}%;background:var(--teal)"></div>`).join('');
+}
+
+// ── FILTER ──
+function filterUpdate() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const filtered = q ? conversations.filter(c =>
+    c.hash.includes(q) || c.country.toLowerCase().includes(q) ||
+    c.lang.toLowerCase().includes(q) || c.model.toLowerCase().includes(q)
+  ) : conversations;
+  renderTable(filtered);
+  document.getElementById('filterCount').textContent = filtered.length.toLocaleString() + ' records';
+  document.getElementById('tableCount').textContent = '— ' + filtered.length.toLocaleString() + ' records';
+}
+
+function removeTag(el) {
+  el.style.opacity = '0.4';
+  el.style.textDecoration = 'line-through';
+  setTimeout(() => el.remove(), 300);
+}
+
+function addFilter() {
+  const val = document.getElementById('searchInput').value.trim();
+  if (!val) return;
+  const bar = document.querySelector('.filter-bar');
+  const addBtn = bar.querySelector('.btn-outline');
+  const tag = document.createElement('div');
+  tag.className = 'filter-tag';
+  tag.innerHTML = `${val} <span class="remove">×</span>`;
+  tag.onclick = () => removeTag(tag);
+  bar.insertBefore(tag, addBtn);
+  document.getElementById('searchInput').value = '';
+}
+
+function applyPreset(el, name) {
+  document.querySelectorAll('.nav-pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// ── COUNTRY SELECT ──
+function selectCountry(name, flag) {
+  const info = document.getElementById('countryInfo');
+  info.innerHTML = `<span style="font-size:18px">${flag}</span> <strong>${name}</strong> selected — filtering conversations... <button class="btn btn-outline" style="font-size:11px;padding:4px 8px;margin-left:8px;" onclick="clearCountry(this.parentElement)">✕ Clear</button>`;
+
+  const filtered = conversations.filter(c => c.country === name || c.country.includes(name.split(' ')[0]));
+  if (filtered.length > 0) renderTable(filtered);
+}
+
+function clearCountry(el) {
+  el.innerHTML = '<span style="font-size:18px">🌍</span><span>Click a bubble to filter conversations by country</span>';
+  renderTable(conversations);
+}
+
+// ── MAP TOOLTIP ──
+const tooltip = document.getElementById('tooltip');
+function showTip(e, text) {
+  tooltip.textContent = text;
+  tooltip.style.display = 'block';
+  moveTip(e);
+}
+function hideTip() { tooltip.style.display = 'none'; }
+document.addEventListener('mousemove', e => {
+  if (tooltip.style.display === 'block') {
+    tooltip.style.left = (e.clientX + 12) + 'px';
+    tooltip.style.top = (e.clientY - 28) + 'px';
+  }
+});
+function moveTip(e) {
+  tooltip.style.left = (e.clientX + 12) + 'px';
+  tooltip.style.top = (e.clientY - 28) + 'px';
+}
+
+// ── NAV ──
+function setNav(el) {
+  document.querySelectorAll('.topnav .nav-pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+}
+function setActive(el) {
+  document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// ── TABS ──
+function switchTab(el, id) {
+  document.querySelectorAll('.card-header .tab').forEach(t => t.classList.remove('active'));
+  if (el) el.classList.add('active');
+  ['preview','flow','translator'].forEach(t => {
+    const el = document.getElementById('tab-'+t);
+    if (el) el.style.display = t === id ? 'flex' : 'none';
+    if (el && t !== 'preview') el.style.display = t === id ? 'block' : 'none';
+  });
+}
+
+// ── PANEL TOGGLE ──
+function togglePanel(head) {
+  const body = head.nextElementSibling;
+  const chevron = head.querySelector('.rpanel-chevron');
+  if (body.classList.contains('hidden')) {
+    body.classList.remove('hidden');
+    chevron.classList.add('open');
+  } else {
+    body.classList.add('hidden');
+    chevron.classList.remove('open');
+  }
+}
+
+// ── PRESETS ──
+function togglePreset(el) {
+  el.classList.toggle('active');
+}
+
+// ── MAP MODE ──
+function setMapMode(el, mode) {
+  document.querySelectorAll('.card-header .nav-pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// ── DATE SLIDER ──
+function sliderClick(e) {
+  const track = e.currentTarget;
+  const rect = track.getBoundingClientRect();
+  const pct = Math.round(((e.clientX - rect.left) / rect.width) * 100);
+  console.log('Slider at', pct + '%');
+}
+
+let animating = false;
+function animateSlider() {
+  if (animating) return;
+  animating = true;
+  let pos = 0;
+  const fill = document.getElementById('rangeFill');
+  const thumbR = document.getElementById('thumbR');
+  const interval = setInterval(() => {
+    pos = (pos + 1) % 100;
+    const w = Math.min(pos, 80);
+    fill.style.left = '10%';
+    fill.style.width = w + '%';
+    thumbR.style.left = (10 + w) + '%';
+    if (pos >= 80) { clearInterval(interval); animating = false; }
+  }, 20);
+}
+
+// ── TRANSLATOR ──
+function swapLangs() {
+  const from = document.getElementById('fromLang');
+  const to = document.getElementById('toLang');
+  const tmp = from.value;
+  from.value = to.value;
+  to.value = tmp;
+}
+
+function clearOutput() {
+  document.getElementById('transOutput').innerHTML = '<span style="color:var(--text3);font-style:normal;">Translation will appear here...</span>';
+}
+
+async function translateText() {
+  const text = document.getElementById('transInput').value.trim();
+  const toLang = document.getElementById('toLang').value;
+  if (!text) return;
+
+  const out = document.getElementById('transOutput');
+  out.innerHTML = '<span class="trans-loading"><span class="spin">⟳</span> Translating...</span>';
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{
+          role: 'user',
+          content: `Translate the following text to ${toLang}. Return ONLY the translation, nothing else:\n\n${text}`
+        }]
+      })
+    });
+    const data = await resp.json();
+    const translation = data.content?.[0]?.text || 'Translation unavailable';
+    out.innerHTML = `<span style="font-style:normal;">${translation}</span>`;
+  } catch(e) {
+    out.innerHTML = `<span style="color:var(--text3);font-style:normal;">Translation service unavailable in preview. In production, this connects to the translation API.</span>`;
+  }
+}
+
+function translateConv() {
+  if (selectedRow === null) {
+    document.getElementById('transOutput').innerHTML = '<span style="color:var(--orange);font-style:normal;">Please select a conversation first.</span>';
+    return;
+  }
+  const c = conversations[selectedRow];
+  const text = c.messages.map(m => `[${m.role.toUpperCase()}]: ${m.text}`).join('\n\n');
+  document.getElementById('transInput').value = text;
+  translateText();
+}
+
+// ── ANNOTATION ──
+function addAnnotation() {
+  const note = prompt('Add annotation note:');
+  if (!note) return;
+  const list = document.querySelector('.annotation-list');
+  const addBtn = list.querySelector('.ann-add');
+  const item = document.createElement('div');
+  item.className = 'annotation-item info';
+  item.innerHTML = `<div class="ann-icon">📌</div><div class="ann-text">${note}</div>`;
+  list.insertBefore(item, addBtn);
+}
+
+// ── PRESET SAVE ──
+function addPreset() {
+  const name = prompt('Name this preset:');
+  if (!name) return;
+  alert(`Preset "${name}" saved!`);
+}
+
+// ── SHARE ──
+function showShare() {
+  alert('Share link copied to clipboard!\nhttps://wildchat-lens.example.com/share/abc123');
+}
+
+// ── INIT ──
+// select first row
+setTimeout(() => {
+  const firstRow = document.querySelector('#convBody tr');
+  if (firstRow) selectConversation(0, firstRow);
+}, 100);
+</script>
+</body>
+</html>

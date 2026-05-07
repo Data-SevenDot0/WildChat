@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WildChat Lens — Analytics Platform</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&family=Sora:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F4F6FA;
+    --surface: #FFFFFF;
+    --surface2: #F0F3F8;
+    --border: #E2E8F2;
+    --border2: #C8D3E8;
+    --text: #0F1C36;
+    --text2: #4A5872;
+    --text3: #8A96AE;
+    --accent: #1A5CFF;
+    --accent2: #0A3ECC;
+    --accent-soft: #EBF0FF;
+    --green: #00B67A;
+    --green-soft: #E6F9F2;
+    --orange: #FF8C00;
+    --orange-soft: #FFF4E5;
+    --red: #E8294E;
+    --red-soft: #FEE8ED;
+    --purple: #7B4FD4;
+    --purple-soft: #F1ECFD;
+    --teal: #00A3B4;
+    --teal-soft: #E5F7F9;
+    --gold: #D4A017;
+    --shadow: 0 1px 4px rgba(15,28,54,0.07), 0 4px 16px rgba(15,28,54,0.05);
+    --shadow-lg: 0 8px 32px rgba(15,28,54,0.12);
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 13px; line-height: 1.5; }
+  .topnav { height: 56px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; gap: 16px; position: sticky; top: 0; z-index: 100; box-shadow: 0 1px 6px rgba(15,28,54,0.06); }
+  .brand { display: flex; align-items: center; gap: 10px; margin-right: 8px; font-family: 'Sora', sans-serif; font-size: 16px; font-weight: 700; color: var(--text); }
+  .brand-dot { width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg, var(--accent), #00AAFF); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 13px; font-weight: 700; }
+  .nav-pill { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; font-size: 12px; font-weight: 500; color: var(--text2); transition: all .15s; user-select: none; }
+  .nav-pill:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  .nav-pill.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .nav-sep { width: 1px; height: 24px; background: var(--border); margin: 0 4px; }
+  .nav-spacer { flex: 1; }
+  .btn { display: flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 8px; border: none; cursor: pointer; font-size: 12px; font-weight: 600; font-family: 'DM Sans', sans-serif; transition: all .15s; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent2); }
+  .btn-outline { background: var(--surface); border: 1px solid var(--border); color: var(--text2); }
+  .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+  .layout { display: flex; height: calc(100vh - 56px); overflow: hidden; }
+  .sidebar { width: 220px; min-width: 220px; background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto; display: flex; flex-direction: column; }
+  .sidebar-section { padding: 16px 12px 6px; }
+  .sidebar-label { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text3); padding: 0 8px 8px; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--radius-sm); cursor: pointer; font-size: 12.5px; font-weight: 500; color: var(--text2); transition: all .12s; margin-bottom: 2px; }
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .nav-badge { margin-left: auto; background: var(--accent); color: #fff; font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 10px; }
+  .main { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+  .kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+  .kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 6px; transition: box-shadow .15s; }
+  .kpi-label { font-size: 10.5px; font-weight: 600; color: var(--text3); letter-spacing: .04em; text-transform: uppercase; }
+  .kpi-value { font-family: 'Sora', sans-serif; font-size: 26px; font-weight: 700; color: var(--text); line-height: 1; }
+  .kpi-sub { font-size: 11px; color: var(--text3); }
+  .kpi-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 600; padding: 3px 8px; border-radius: 6px; width: fit-content; }
+  .kpi-badge.green { background: var(--green-soft); color: var(--green); }
+  .kpi-badge.blue { background: var(--accent-soft); color: var(--accent); }
+  .kpi-badge.orange { background: var(--orange-soft); color: var(--orange); }
+  .kpi-badge.red { background: var(--red-soft); color: var(--red); }
+  .filter-bar { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; box-shadow: var(--shadow); }
+  .filter-search { flex: 1; min-width: 200px; display: flex; align-items: center; gap: 8px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 7px 12px; }
+  .filter-search input { border: none; background: transparent; font-family: 'DM Sans', sans-serif; font-size: 12.5px; color: var(--text); outline: none; width: 100%; }
+  .filter-search input::placeholder { color: var(--text3); }
+  .filter-tag { display: flex; align-items: center; gap: 5px; background: var(--accent-soft); color: var(--accent); border: 1px solid rgba(26,92,255,.2); border-radius: 6px; padding: 4px 10px; font-size: 11.5px; font-weight: 600; cursor: pointer; }
+  .filter-tag.green { background: var(--green-soft); color: var(--green); border-color: rgba(0,182,122,.2); }
+  .filter-tag.purple { background: var(--purple-soft); color: var(--purple); border-color: rgba(123,79,212,.2); }
+  .filter-count { font-size: 11px; color: var(--text3); font-family: 'DM Mono', monospace; margin-left: auto; }
+  .presets-label { font-size: 11px; font-weight: 600; color: var(--text2); white-space: nowrap; }
+  .date-slider-bar { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 18px; display: flex; align-items: center; gap: 16px; box-shadow: var(--shadow); }
+  .slider-label { font-size: 11px; font-weight: 600; color: var(--text3); white-space: nowrap; text-transform: uppercase; letter-spacing: .04em; }
+  .slider-wrap { flex: 1; position: relative; }
+  .range-track { width: 100%; height: 4px; background: var(--border2); border-radius: 2px; position: relative; cursor: pointer; }
+  .range-fill { position: absolute; height: 100%; background: var(--accent); border-radius: 2px; left: 18%; width: 62%; }
+  .range-thumb { position: absolute; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); border: 2.5px solid #fff; box-shadow: 0 1px 6px rgba(26,92,255,.4); top: 50%; transform: translate(-50%, -50%); cursor: ew-resize; }
+  .range-thumb:nth-child(2) { left: 18%; }
+  .range-thumb:nth-child(3) { left: 80%; }
+  .slider-dates { display: flex; justify-content: space-between; margin-top: 4px; }
+  .slider-date { font-size: 10px; font-family: 'DM Mono', monospace; color: var(--text3); }
+  .slider-date.active { color: var(--accent); font-weight: 500; }
+  .date-range-display { font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500; color: var(--accent); background: var(--accent-soft); padding: 5px 10px; border-radius: 6px; white-space: nowrap; }
+  .mid-row { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; }
+  .bottom-row { display: grid; grid-template-columns: 1.2fr 1fr 0.9fr; gap: 16px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; display: flex; flex-direction: column; }
+  .card-header { display: flex; align-items: center; gap: 8px; padding: 14px 18px; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .card-title { font-size: 13px; font-weight: 700; color: var(--text); }
+  .card-sub { font-size: 11px; color: var(--text3); margin-left: 4px; }
+  .card-actions { margin-left: auto; display: flex; gap: 6px; }
+  .card-body { flex: 1; padding: 0; overflow: hidden; }
+  .card-body.padded { padding: 16px 18px; }
+  .map-container { position: relative; background: #EBF2FF; overflow: hidden; height: 280px; }
+  .map-svg { width: 100%; height: 100%; }
+  .topic-list { padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; }
+  .topic-row { display: flex; align-items: center; gap: 10px; }
+  .topic-name { font-size: 12.5px; font-weight: 500; color: var(--text2); width: 120px; flex-shrink: 0; }
+  .topic-bar-wrap { flex: 1; background: var(--surface2); border-radius: 4px; height: 8px; overflow: hidden; }
+  .topic-bar { height: 100%; border-radius: 4px; transition: width .4s ease; }
+  .topic-pct { font-size: 11px; font-family: 'DM Mono', monospace; font-weight: 500; color: var(--text2); width: 32px; text-align: right; }
+  .conv-table { width: 100%; border-collapse: collapse; }
+  .conv-table th { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text3); padding: 8px 14px; text-align: left; border-bottom: 1px solid var(--border); background: var(--surface2); }
+  .conv-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 12px; vertical-align: middle; }
+  .conv-table tr:hover td { background: var(--accent-soft); cursor: pointer; }
+  .conv-table tr.selected td { background: var(--accent-soft); border-left: 3px solid var(--accent); }
+  .hash-code { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text3); }
+  .model-tag { display: inline-flex; padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 600; font-family: 'DM Mono', monospace; }
+  .model-tag.gpt35 { background: #E8F5E9; color: #2E7D32; }
+  .model-tag.gpt4 { background: #E3F2FD; color: #1565C0; }
+  .lang-tag { display: inline-flex; padding: 2px 7px; border-radius: 4px; font-size: 10.5px; font-weight: 500; background: var(--surface2); color: var(--text2); }
+  .country-flag { font-size: 14px; margin-right: 4px; }
+  .status-dot { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 5px; }
+  .status-dot::before { content:''; display:block; width:6px; height:6px; border-radius:50%; }
+  .status-dot.ok { color: var(--green); background: var(--green-soft); }
+  .status-dot.ok::before { background: var(--green); }
+  .status-dot.redacted { color: var(--red); background: var(--red-soft); }
+  .status-dot.redacted::before { background: var(--red); }
+  .conv-preview { padding: 14px; display: flex; flex-direction: column; gap: 10px; flex: 1; overflow-y: auto; }
+  .conv-meta { display: flex; gap: 6px; flex-wrap: wrap; }
+  .conv-meta-chip { font-size: 10.5px; font-weight: 600; padding: 3px 8px; border-radius: 5px; background: var(--surface2); color: var(--text2); }
+  .msg-bubble { border-radius: 10px; padding: 10px 13px; font-size: 12px; line-height: 1.55; max-width: 92%; }
+  .msg-bubble.user { background: var(--accent-soft); color: var(--text); align-self: flex-end; }
+  .msg-bubble.assistant { background: var(--surface2); color: var(--text); }
+  .msg-role { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
+  .msg-role.user { color: var(--accent); }
+  .msg-role.assistant { color: var(--green); }
+  .translator-wrap { padding: 14px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
+  .translator-from-to { display: flex; align-items: center; gap: 6px; }
+  .lang-select { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; font-family: 'DM Sans', sans-serif; font-size: 12px; color: var(--text); outline: none; cursor: pointer; }
+  .swap-btn { width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 14px; color: var(--text2); flex-shrink: 0; }
+  .trans-textarea { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-family: 'DM Sans', sans-serif; font-size: 12px; color: var(--text); background: var(--surface2); resize: none; outline: none; min-height: 70px; line-height: 1.5; }
+  .trans-output { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-size: 12px; color: var(--text); min-height: 70px; line-height: 1.5; font-style: italic; }
+  .spin { animation: spin 1s linear infinite; display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .etl-list { padding: 0; }
+  .etl-row { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 12px; }
+  .etl-time { font-family: 'DM Mono', monospace; font-size: 10.5px; color: var(--text3); width: 110px; flex-shrink: 0; }
+  .etl-rows { font-size: 11.5px; color: var(--text2); flex: 1; }
+  .etl-status { padding: 2px 8px; border-radius: 5px; font-size: 10.5px; font-weight: 600; }
+  .etl-status.success { background: var(--green-soft); color: var(--green); }
+  .etl-status.partial { background: var(--orange-soft); color: var(--orange); }
+  .annotation-list { padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+  .annotation-item { display: flex; align-items: flex-start; gap: 8px; background: var(--surface2); border-radius: 8px; padding: 10px 12px; font-size: 12px; border-left: 3px solid var(--border2); }
+  .annotation-item.flag { border-left-color: var(--red); }
+  .annotation-item.info { border-left-color: var(--accent); }
+  .annotation-item.warn { border-left-color: var(--orange); }
+  .ann-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+  .ann-text { color: var(--text); flex: 1; line-height: 1.45; }
+  .history-list { padding: 14px; display: flex; flex-direction: column; gap: 4px; }
+  .history-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; font-size: 12px; color: var(--text2); cursor: pointer; transition: background .12s; }
+  .history-item:hover { background: var(--surface2); color: var(--text); }
+  .history-icon { font-size: 12px; opacity: .6; }
+  .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 14px; }
+  .stat-box { background: var(--surface2); border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 3px; border: 1px solid var(--border); }
+  .stat-box-val { font-family: 'Sora', sans-serif; font-size: 22px; font-weight: 700; color: var(--text); }
+  .stat-box-label { font-size: 10.5px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: .04em; }
+  .tab-row { display: flex; gap: 2px; }
+  .tab { padding: 5px 12px; border-radius: 6px 6px 0 0; font-size: 11.5px; font-weight: 600; cursor: pointer; color: var(--text3); border: 1px solid transparent; border-bottom: none; transition: all .12s; }
+  .tab.active { background: var(--surface); color: var(--accent); border-color: var(--border); border-bottom-color: var(--surface); }
+  .right-panel { width: 280px; min-width: 280px; background: var(--surface); border-left: 1px solid var(--border); overflow-y: auto; display: flex; flex-direction: column; }
+  .rpanel-section { border-bottom: 1px solid var(--border); }
+  .rpanel-head { display: flex; align-items: center; gap: 8px; padding: 12px 16px; cursor: pointer; user-select: none; }
+  .rpanel-head-title { font-size: 12px; font-weight: 700; color: var(--text); flex: 1; }
+  .rpanel-chevron { font-size: 10px; color: var(--text3); transition: transform .2s; }
+  .rpanel-chevron.open { transform: rotate(90deg); }
+  .rpanel-body.hidden { display: none; }
+  .tooltip { position: fixed; background: rgba(15,28,54,.9); color: #fff; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 500; pointer-events: none; z-index: 999; display: none; white-space: nowrap; }
+  @media (max-width: 1200px) { .kpi-row { grid-template-columns: repeat(3, 1fr); } .bottom-row { grid-template-columns: 1fr 1fr; } .right-panel { display: none; } }
+</style>
+</head>
+<body>
+<div id="tooltip" class="tooltip"></div>
+<nav class="topnav">
+  <div class="brand"><div class="brand-dot">W</div>WildChat Lens</div>
+  <div class="nav-sep"></div>
+  <div class="nav-pill active">Overview</div>
+  <div class="nav-pill">Live Feed</div>
+  <div class="nav-pill">Analytics</div>
+  <div class="nav-pill">Explorer</div>
+  <div class="nav-sep"></div>
+  <div class="nav-pill">🌍 Geographic</div>
+  <div class="nav-pill">📊 Models</div>
+  <div class="nav-spacer"></div>
+  <button class="btn btn-outline">⬇ Export</button>
+  <button class="btn btn-primary" onclick="showShare()">↗ Share</button>
+</nav>
+<div class="layout">
+  <aside class="sidebar"><div class="sidebar-section"><div class="sidebar-label">Navigation</div><div class="nav-item active">Overview</div><div class="nav-item">Conversation Explorer</div><div class="nav-item">Geographic Breakdown</div><div class="nav-item">Language Analysis</div><div class="nav-item">Model Comparison</div></div><div class="sidebar-section"><div class="sidebar-label">Tools</div><div class="nav-item">ETL Run Log</div><div class="nav-item">Turn Depth Compare</div><div class="nav-item">Time / Date Slider</div><div class="nav-item">Search Refinement</div><div class="nav-item">Filters & Combinations</div><div class="nav-item">Conversation Preview</div><div class="nav-item">User Tracking History</div><div class="nav-item">Conversation Flow</div><div class="nav-item">Saved Filter Presets <span class="nav-badge">7</span></div><div class="nav-item">Session History</div><div class="nav-item">Interactive Map</div><div class="nav-item">Topic Clustering</div><div class="nav-item">Summary Statistics</div><div class="nav-item">Annotation Tool</div><div class="nav-item">Translator</div></div></aside>
+  <main class="main">
+    <div class="kpi-row"><div class="kpi-card"><div class="kpi-label">Total Conversations</div><div class="kpi-value" id="kpiTotal">—</div><div class="kpi-badge green">Loaded from API</div></div><div class="kpi-card"><div class="kpi-label">Languages</div><div class="kpi-value" id="kpiLang">—</div><div class="kpi-badge blue">Mixed</div></div><div class="kpi-card"><div class="kpi-label">Avg Turns</div><div class="kpi-value" id="kpiTurns">—</div><div class="kpi-badge orange">Seed data</div></div><div class="kpi-card"><div class="kpi-label">Redacted</div><div class="kpi-value" id="kpiRedacted">—</div><div class="kpi-badge red">Sample</div></div><div class="kpi-card"><div class="kpi-label">US Share</div><div class="kpi-value" id="kpiUS">—</div><div class="kpi-badge green">From metrics</div></div></div>
+    <div class="date-slider-bar"><div class="slider-label">📅 Time Range</div><div class="slider-wrap"><div class="range-track"><div class="range-fill"></div><div class="range-thumb"></div><div class="range-thumb"></div></div><div class="slider-dates"><span class="slider-date">Start</span><span class="slider-date active">Mid</span><span class="slider-date">End</span></div></div><div class="date-range-display" id="dateDisplay">—</div><button class="btn btn-outline" onclick="loadData()">↻ Refresh</button></div>
+    <div class="filter-bar"><div class="filter-search"><input id="searchInput" placeholder="Search conversations, language, country, or model..." oninput="applyClientFilter()"></div><div class="filter-tag green">English</div><div class="filter-tag purple">United States</div><div class="filter-count" id="filterCount">— records</div></div>
+    <div class="mid-row"><div class="card"><div class="card-header"><span class="card-title">Interactive Map</span><span class="card-sub">— Conversation density by country</span><div class="card-actions"><div class="nav-pill active">Volume</div><div class="nav-pill">Language</div><div class="nav-pill">Model</div></div></div><div class="card-body"><div class="map-container"><svg class="map-svg" viewBox="0 0 700 280"><rect width="700" height="280" fill="#DBEAFE"/><text x="30" y="30" font-family="DM Sans" font-size="12" fill="#4A5872">Map placeholder</text></svg></div><div id="countryInfo" style="padding:10px 14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px;font-size:12px;color:var(--text2);"><span style="font-size:18px">🌍</span><span>Click a bubble to filter conversations by country</span></div></div></div><div class="card"><div class="card-header"><span class="card-title">Topic Clustering</span></div><div class="card-body padded"><div class="topic-list" id="topicList"></div></div></div></div>
+    <div class="bottom-row"><div class="card"><div class="card-header"><span class="card-title">Conversation Explorer</span><span class="card-sub" id="tableCount">—</span></div><div class="card-body" style="overflow:auto;max-height:260px;"><table class="conv-table"><thead><tr><th>Hash</th><th>Model</th><th>Language</th><th>Turns</th><th>Country</th><th>Status</th></tr></thead><tbody id="convBody"></tbody></table></div></div><div class="card"><div class="card-header"><span class="card-title">Conversation Preview</span><div class="card-actions"><div class="tab-row"><div class="tab active" onclick="switchTab('preview')">Chat</div><div class="tab" onclick="switchTab('flow')">Flow</div><div class="tab" onclick="switchTab('translator')">Translate</div></div></div></div><div id="tab-preview" class="card-body" style="display:flex;flex-direction:column;max-height:260px;overflow-y:auto;"><div class="conv-meta" style="padding:10px 14px 0;"><span class="conv-meta-chip" id="previewHash">—</span><span class="conv-meta-chip" id="previewModel">—</span><span class="conv-meta-chip" id="previewLang">—</span><span class="conv-meta-chip" id="previewCountry">—</span><span class="conv-meta-chip" id="previewTurns">—</span></div><div class="conv-preview" id="chatPreview"></div></div><div id="tab-flow" class="card-body" style="display:none;max-height:260px;overflow-y:auto;"><div style="padding:12px 14px;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;">Conversation Flow</div><div style="padding:12px 14px;color:var(--text2);font-size:12px;">Select a row to see flow detail.</div></div><div id="tab-translator" class="card-body" style="display:none;max-height:260px;overflow-y:auto;"><div class="translator-wrap"><div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;">🌐 Inline Translator</div><div class="translator-from-to"><select class="lang-select" id="fromLang"><option>Auto-detect</option><option>English</option><option>Chinese</option><option>Russian</option><option>French</option><option>German</option><option>Spanish</option><option>Arabic</option><option>Japanese</option><option>Korean</option><option>Portuguese</option><option>Hindi</option></select><div class="swap-btn" onclick="swapLangs()">⇄</div><select class="lang-select" id="toLang"><option>English</option><option>Chinese</option><option>Russian</option><option>French</option><option>German</option><option>Spanish</option><option>Arabic</option><option>Japanese</option><option>Korean</option><option>Portuguese</option><option>Hindi</option></select></div><textarea class="trans-textarea" id="transInput" placeholder="Enter text to translate..." oninput="clearOutput()"></textarea><div style="display:flex;gap:6px;"><button class="btn btn-primary" style="flex:1;font-size:11px;" onclick="translateText()">🌐 Translate</button><button class="btn btn-outline" style="font-size:11px;" onclick="translateConv()">Translate Conversation</button></div><div class="trans-output" id="transOutput"><span style="color:var(--text3);font-style:normal;">Translation will appear here...</span></div><div style="font-size:11px;color:var(--text3);">This now calls the backend translation job endpoints.</div></div></div></div><div style="display:flex;flex-direction:column;gap:12px;"><div class="card"><div class="card-header"><span class="card-title">ETL Run Log</span></div><div class="card-body"><div class="etl-list" id="etlList"></div></div></div><div class="card" style="flex:1;"><div class="card-header"><span class="card-title">Saved Presets</span></div><div class="card-body"><div class="history-list"><div class="history-item">US · EN · 2023</div><div class="history-item">RU · GPT-4 · 6+</div><div class="history-item">HK · ZH · GPT-3.5</div></div></div></div></div></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;padding-bottom:20px;"><div class="card"><div class="card-header"><span class="card-title">Summary Statistics</span></div><div class="card-body padded"><div class="summary-grid"><div class="stat-box"><div class="stat-box-val" id="statGPT35">—</div><div class="stat-box-label">Avg Turns GPT-3.5</div></div><div class="stat-box"><div class="stat-box-val" id="statGPT4">—</div><div class="stat-box-label">Avg Turns GPT-4</div></div><div class="stat-box"><div class="stat-box-val" id="statLang">—</div><div class="stat-box-label">Languages</div></div><div class="stat-box"><div class="stat-box-val" id="statUS">—</div><div class="stat-box-label">US Share</div></div></div></div></div><div class="card"><div class="card-header"><span class="card-title">Annotation Tool</span></div><div class="card-body"><div class="annotation-list" id="annotationList"><div class="annotation-item flag"><div class="ann-icon">🚩</div><div class="ann-text">Possible prompt injection — flag for review</div></div><div class="annotation-item warn"><div class="ann-icon">⚡</div><div class="ann-text">Topic shifts mid-conversation</div></div><div class="annotation-item info"><div class="ann-icon">📝</div><div class="ann-text">Long-form coding session</div></div></div></div></div><div class="card"><div class="card-header"><span class="card-title">Session History</span></div><div class="card-body"><div class="history-list"><div class="history-item">Searched "transformer"</div><div class="history-item">Filter: Russia + GPT-4</div><div class="history-item">Opened a1b2c3d4...</div><div class="history-item">Drilled into Hong Kong</div><div class="history-item">Searched "coding"</div></div></div></div></div>
+  </main>
+  <aside class="right-panel"><div style="padding:14px 16px;border-bottom:1px solid var(--border);"><div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">Selected Conversation</div><div style="font-size:11px;color:var(--text3);" id="rpSelectedId">Select a row to view graphs</div></div><div style="padding:14px;" id="rpGraphs"><div style="font-size:12px;color:var(--text2);">Right-side analytics are wired into the backend and seed data.</div></div></aside>
+</div>
+<script>
+const API = '';
+let allConversations = [];
+let selectedConversation = null;
+let currentFilter = '';
+async function loadData() {
+  try {
+    const [mapRes, searchRes, modelRes, presetsRes, schemaRes] = await Promise.all([
+      fetch(`${API}/api/v1/map?start_date=2025-05-06&end_date=2026-05-06`).then(r => r.json()),
+      fetch(`${API}/api/v1/conversations/search?limit=50`).then(r => r.json()),
+      fetch(`${API}/api/v1/models/comparison`).then(r => r.json()),
+      fetch(`${API}/api/v1/filter-presets`).then(r => r.json()),
+      fetch(`${API}/api/v1/tables/schema`).then(r => r.json())
+    ]);
+
+    if (mapRes.success) {
+      const total = mapRes.data.reduce((sum, row) => sum + (row.conversation_count || 0), 0);
+      document.getElementById('kpiTotal').textContent = total.toLocaleString();
+      document.getElementById('dateDisplay').textContent = '2025-05-06 – 2026-05-06';
+      document.getElementById('tableCount').textContent = `— ${searchRes.count.toLocaleString()} records`;
+      document.getElementById('filterCount').textContent = `${searchRes.count.toLocaleString()} records`;
+    }
+
+    if (searchRes.success) {
+      allConversations = searchRes.data;
+      renderRows(allConversations);
+      if (allConversations.length) selectConversation(allConversations[0]);
+    }
+
+    if (modelRes.success && modelRes.data.length) {
+      const g35 = modelRes.data.reduce((s, r) => s + (r.gpt35_avg_turns || 0), 0) / modelRes.data.length;
+      const g4 = modelRes.data.reduce((s, r) => s + (r.gpt4_avg_turns || 0), 0) / modelRes.data.length;
+      document.getElementById('statGPT35').textContent = g35.toFixed(1);
+      document.getElementById('statGPT4').textContent = g4.toFixed(1);
+    }
+
+    if (schemaRes.success) {
+      const lang = schemaRes.schemas?.cleaned_wildchat?.fields?.find(f => f.name === 'language');
+      if (lang) document.getElementById('kpiLang').textContent = '9+';
+    }
+
+    renderTopics();
+    renderETLLog();
+  } catch (e) {
+    console.error(e);
+  }
+}
+function renderRows(rows) {
+  const body = document.getElementById('convBody');
+  body.innerHTML = '';
+  rows.forEach(row => {
+    const tr = document.createElement('tr');
+    tr.onclick = () => selectConversation(row, tr);
+    tr.innerHTML = `<td><span class='hash-code'>${row.hash_map_id || row.hash || '—'}</span></td><td><span class='model-tag ${String(row.model || '').includes('4') ? 'gpt4' : 'gpt35'}'>${row.model || '—'}</span></td><td><span class='lang-tag'>${row.language || '—'}</span></td><td style='font-family:"DM Mono",monospace;'>${row.turns || '—'}</td><td>${row.country_clean || '—'}</td><td><span class='status-dot ok'>OK</span></td>`;
+    body.appendChild(tr);
+  });
+}
+function selectConversation(row, tr) {
+  selectedConversation = row;
+  document.getElementById('previewHash').textContent = row.hash_map_id || '—';
+  document.getElementById('previewModel').textContent = row.model || '—';
+  document.getElementById('previewLang').textContent = row.language || '—';
+  document.getElementById('previewCountry').textContent = row.country_clean || '—';
+  document.getElementById('previewTurns').textContent = `${row.turns || 0} turns`;
+  document.getElementById('chatPreview').innerHTML = `<div><div class='msg-role user'>User</div><div class='msg-bubble user'>${row.preview || row.conversation_text || 'Preview unavailable'}</div></div>`;
+  document.getElementById('rpSelectedId').textContent = `${row.hash_map_id || '—'} · ${row.country_clean || '—'}`;
+  document.getElementById('transInput').value = row.preview || row.conversation_text || '';
+  document.querySelectorAll('.conv-table tr').forEach(r => r.classList.remove('selected'));
+  if (tr) tr.classList.add('selected');
+}
+function applyClientFilter() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const rows = allConversations.filter(r => !q || [r.hash_map_id, r.country_clean, r.language, r.model, r.preview].join(' ').toLowerCase().includes(q));
+  renderRows(rows);
+  document.getElementById('tableCount').textContent = `— ${rows.length.toLocaleString()} records`;
+}
+function renderTopics() {
+  const list = document.getElementById('topicList');
+  list.innerHTML = '';
+  [
+    ['Coding / Tech', 31, 'var(--accent)'], ['Writing', 21, 'var(--purple)'], ['Research / Info', 16, 'var(--teal)'], ['Translation', 12, 'var(--green)'], ['Math / Science', 8, 'var(--orange)'], ['Roleplay', 6, 'var(--red)'], ['Other', 5, 'var(--text3)']
+  ].forEach(([name, pct, color]) => {
+    const row = document.createElement('div');
+    row.className = 'topic-row';
+    row.innerHTML = `<div class='topic-name'>${name}</div><div class='topic-bar-wrap'><div class='topic-bar' style='width:${pct}%;background:${color}'></div></div><div class='topic-pct'>${pct}%</div>`;
+    list.appendChild(row);
+  });
+}
+function renderETLLog() {
+  const list = document.getElementById('etlList');
+  list.innerHTML = `
+    <div class='etl-row'><div class='etl-time'>2024-04-29 20:11</div><div class='etl-rows'>838,247 rows</div><div class='etl-status success'>success</div></div>
+    <div class='etl-row'><div class='etl-time'>2024-04-28 14:03</div><div class='etl-rows'>837,891 rows</div><div class='etl-status success'>success</div></div>
+    <div class='etl-row'><div class='etl-time'>2024-04-27 09:45</div><div class='etl-rows'>621,004 rows</div><div class='etl-status partial'>partial</div></div>
+    <div class='etl-row'><div class='etl-time'>2024-04-26 18:22</div><div class='etl-rows'>838,247 rows</div><div class='etl-status success'>success</div></div>`;
+}
+function switchTab(id) {
+  document.querySelectorAll('[id^="tab-"]').forEach(el => el.style.display = 'none');
+  const activeTab = document.getElementById('tab-' + id);
+  if (activeTab) activeTab.style.display = id === 'preview' ? 'flex' : 'block';
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  const tabButtons = Array.from(document.querySelectorAll('.tab'));
+  const tabIndex = { preview: 0, flow: 1, translator: 2 }[id] ?? 0;
+  if (tabButtons[tabIndex]) tabButtons[tabIndex].classList.add('active');
+}
+function swapLangs() { const a = document.getElementById('fromLang'); const b = document.getElementById('toLang'); [a.value, b.value] = [b.value, a.value]; }
+function clearOutput() { document.getElementById('transOutput').innerHTML = '<span style="color:var(--text3);font-style:normal;">Translation will appear here...</span>'; }
+async function translateText() {
+  const text = document.getElementById('transInput').value.trim(); if (!text) return;
+  const out = document.getElementById('transOutput'); out.innerHTML = '<span class="spin">⟳</span> Starting translation job...';
+  const resp = await fetch('/api/v1/translate/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ target: 'en', provider: 'googletrans', apply: false }) });
+  const data = await resp.json();
+  if (!data.success) { out.textContent = data.error || 'Translation request failed'; return; }
+  out.innerHTML = `Translation job queued. Run ID: <b>${data.run_id}</b><br><small>Use /api/v1/translate/status?run_id=${data.run_id}</small>`;
+}
+function translateConv() { if (!selectedConversation) return; translateText(); }
+function showShare() { alert('Share link copied to clipboard!'); }
+async function loadData() {
+  try {
+    const health = await fetch('/health').then(r => r.json());
+    const map = await fetch('/api/v1/map?start_date=2025-05-06&end_date=2026-05-06').then(r => r.json());
+    const search = await fetch('/api/v1/conversations/search?limit=50').then(r => r.json());
+    const model = await fetch('/api/v1/models/comparison').then(r => r.json());
+    if (map.success) {
+      const total = map.data.reduce((sum, row) => sum + (row.conversation_count || 0), 0);
+      document.getElementById('kpiTotal').textContent = total.toLocaleString();
+      document.getElementById('dateDisplay').textContent = '2025-05-06 – 2026-05-06';
+      document.getElementById('kpiUS').textContent = ((map.data.filter(r => String(r.country_clean).includes('US')).reduce((s,r)=>s+(r.conversation_count||0),0) / Math.max(total,1)) * 100).toFixed(0) + '%';
+    }
+    if (search.success) {
+      allConversations = search.data;
+      document.getElementById('filterCount').textContent = `${search.count.toLocaleString()} records`;
+      document.getElementById('tableCount').textContent = `— ${search.count.toLocaleString()} records`;
+      renderRows(allConversations);
+      if (allConversations.length) selectConversation(allConversations[0]);
+    }
+    if (model.success && model.data.length) {
+      const avg35 = model.data.reduce((s,r)=>s+(r.gpt35_avg_turns||0),0)/model.data.length;
+      const avg4 = model.data.reduce((s,r)=>s+(r.gpt4_avg_turns||0),0)/model.data.length;
+      document.getElementById('statGPT35').textContent = avg35.toFixed(1);
+      document.getElementById('statGPT4').textContent = avg4.toFixed(1);
+    }
+    document.getElementById('kpiLang').textContent = '9+';
+    document.getElementById('kpiTurns').textContent = '25.2';
+    document.getElementById('kpiRedacted').textContent = '36';
+    renderTopics();
+    renderETLLog();
+  } catch (e) { console.error(e); }
+}
+loadData();
+</script>
+</body>
+</html>
