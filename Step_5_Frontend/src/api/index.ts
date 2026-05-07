@@ -33,8 +33,11 @@ export async function fetchModels(): Promise<ModelItem[]> {
   return data;
 }
 
-export async function fetchCountries(limit = 50): Promise<CountryItem[]> {
-  const { data } = await api.get(`/data/countries?limit=${limit}`);
+export async function fetchCountries(limit = 50, dateFrom?: string, dateTo?: string): Promise<CountryItem[]> {
+  const p = new URLSearchParams({ limit: String(limit) });
+  if (dateFrom) p.set("date_from", dateFrom);
+  if (dateTo) p.set("date_to", dateTo);
+  const { data } = await api.get(`/data/countries?${p.toString()}`);
   return data;
 }
 

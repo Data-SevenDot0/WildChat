@@ -187,9 +187,15 @@ export default function App() {
     fetchTopics().then(setTopics).catch(() => {}).finally(() => setLoadingTopics(false));
     fetchLanguages(30).then(setLanguages).catch(() => {});
     fetchModels().then(setModels).catch(() => {});
-    fetchCountries(50).then(setCountries).catch(() => {});
     fetchSummary().then(setSummaryStats).catch(() => {});
   }, []);
+
+  // Re-fetch countries whenever date range changes
+  useEffect(() => {
+    fetchCountries(50, filters.dateFrom || undefined, filters.dateTo || undefined)
+      .then(setCountries)
+      .catch(() => {});
+  }, [filters.dateFrom, filters.dateTo]);
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">
@@ -263,6 +269,8 @@ export default function App() {
                 <StatCards overview={overview} loading={loadingOverview} />
                 <GeographicView
                   countries={countries}
+                  filters={filters}
+                  onFilterChange={handleFilterChange}
                   onCountryClick={handleCountryFilter}
                   activeCountry={filters.country}
                 />

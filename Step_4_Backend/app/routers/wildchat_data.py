@@ -217,8 +217,27 @@ def get_models():
 
 
 @data_router.get("/countries")
-def get_countries(limit: int = Query(50, ge=1, le=250)):
-    return _get_stats()["countries"][:limit]
+def get_countries(
+    limit: int = Query(50, ge=1, le=250),
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+):
+    if not date_from and not date_to:
+        return _get_stats()["countries"][:limit]
+
+    # Filter the slim df by date range and recompute country counts
+    df = _load_df().copy()
+    if date_from:
+        df = df[df["timestamp"] >= pd.Timestamp(date_from, tz="UTC")]
+    if date_to:
+        df = df[df["timestamp"] <= pd.Timestamp(date_to, tz="UTC")]
+
+    total = max(len(df), 1)
+    country_counts = df["country"].value_counts()
+    return [
+        {"country": c, "count": int(n), "pct": round(n / total * 100, 1)}
+        for c, n in country_counts.items()
+    ][:limit]
 
 
 @data_router.get("/summary")

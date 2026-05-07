@@ -16,20 +16,10 @@ const NAV: { label: string; view: View }[] = [
 ];
 
 const TOOLS: { label: string; view: View }[] = [
-  { label: "ETL run log",            view: "etl"        },
   { label: "Topic clustering",       view: "overview"   },
-  { label: "Summary statistics",     view: "overview"   },
   { label: "Interactive map",        view: "geographic" },
-  { label: "Turn depth compare",     view: "turns"      },
-  { label: "Search refinement",      view: "explorer"   },
-  { label: "Filters & combinations", view: "explorer"   },
-  { label: "Conversation preview",   view: "explorer"   },
-  { label: "Conversation flow",      view: "explorer"   },
-  { label: "Annotation tool",        view: "explorer"   },
-  { label: "Saved filter presets",   view: "explorer"   },
-  { label: "User tracking history",  view: "explorer"   },
-  { label: "Session history",        view: "explorer"   },
   { label: "Time / date slider",     view: "geographic" },
+  { label: "Search refinement",      view: "explorer"   },
 ];
 
 export default function Sidebar({ activeView, onSelect }: Props) {

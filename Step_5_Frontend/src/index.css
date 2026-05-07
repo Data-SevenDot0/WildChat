@@ -14,6 +14,10 @@ body,
   padding: 0;
 }
 
+html {
+  transition: font-size 0.2s ease;
+}
+
 body {
   background-color: #111111;
   color: #e8e8e8;

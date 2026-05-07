@@ -78,16 +78,16 @@ export default function TopBar({
 }: Props) {
   const [presetsOpen, setPresetsOpen] = useState(false);
   const FONT_SIZES = [
-    { label: "A",  title: "Normal",  size: "13px" },
-    { label: "A+", title: "Large",   size: "15px" },
-    { label: "A⁺⁺", title: "X-Large", size: "18px" },
+    { label: "A",    title: "Normal",   size: "16px" },
+    { label: "A+",   title: "Large",    size: "19px" },
+    { label: "A⁺⁺",  title: "X-Large",  size: "22px" },
   ];
   const [fontIdx, setFontIdx] = useState(0);
 
   function cycleFontSize() {
     const next = (fontIdx + 1) % FONT_SIZES.length;
     setFontIdx(next);
-    document.body.style.fontSize = FONT_SIZES[next].size;
+    document.documentElement.style.fontSize = FONT_SIZES[next].size;
   }
 
   const activeCount = [
