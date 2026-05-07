@@ -27,6 +27,7 @@ import argparse
 import uuid
 import os
 from datetime import datetime
+import time
 
 from pyspark.sql import SparkSession, functions as F
 
@@ -65,13 +66,21 @@ def run_translate(df_pandas, translator, target: str):
     translated_langs = []
 
     for i, text in enumerate(texts):
-        try:
-            res = translator.translate(text, dest=target)
-            translated_texts.append(res.text)
-            translated_langs.append(res.dest)
-        except Exception:
-            translated_texts.append("")
-            translated_langs.append("")
+        # retry a few times on transient errors
+        attempt = 0
+        translated = ""
+        tlang = ""
+        while attempt < 3:
+            try:
+                res = translator.translate(text, dest=target)
+                translated = res.text
+                tlang = getattr(res, "dest", "")
+                break
+            except Exception:
+                attempt += 1
+                time.sleep(0.5 * attempt)
+        translated_texts.append(translated)
+        translated_langs.append(tlang)
 
     df_pandas["conversation_text_translated"] = translated_texts
     df_pandas["translated_language"] = translated_langs
@@ -108,33 +117,27 @@ def main():
 
         translator = ensure_translator(args.provider)
 
-        # Process in batches using pandas for library compatibility
+        # Process in batches using pandas for library compatibility.
+        # Read the subset to translate into pandas once, then slice it to avoid
+        # repeated Spark queries (the previous offset logic was invalid).
         run_id = f"translate_{datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')}_{uuid.uuid4().hex[:8]}"
         translated_rows = []
 
-        # iterate in chunks
-        offset = 0
-        batch = args.batch_size
-        while True:
-            pdf = (
-                to_translate.limit(batch).offset(offset).toPandas()
-                if hasattr(to_translate.limit(batch), 'offset')
-                else to_translate.limit(batch).toPandas()
-            )
-            if pdf.empty:
-                break
+        pdf_all = to_translate.toPandas()
+        if pdf_all.empty:
+            print("No rows to translate after filtering.")
+            return
 
+        total_rows = len(pdf_all)
+        batch = args.batch_size
+        for start in range(0, total_rows, batch):
+            end = min(start + batch, total_rows)
+            pdf = pdf_all.iloc[start:end].copy()
             pdf = run_translate(pdf, translator, args.target)
             pdf["translation_provider"] = args.provider
             pdf["translation_run_id"] = run_id
             pdf["translation_updated_at"] = datetime.utcnow()
-
             translated_rows.append(pdf)
-            offset += len(pdf)
-
-            # If smaller than batch, we're done
-            if len(pdf) < batch:
-                break
 
         if not translated_rows:
             print("No rows translated (all are already in target language).")
