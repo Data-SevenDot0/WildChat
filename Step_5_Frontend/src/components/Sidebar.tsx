@@ -1,4 +1,4 @@
-type View = "overview" | "explorer" | "geographic" | "language" | "model";
+type View = "overview" | "explorer" | "geographic" | "language" | "model" | "etl" | "turns";
 
 interface Props {
   activeView: View;
@@ -11,24 +11,25 @@ const NAV: { label: string; view: View }[] = [
   { label: "Geographic breakdown", view: "geographic" },
   { label: "Language analysis", view: "language" },
   { label: "Model comparison", view: "model" },
+  { label: "ETL run log", view: "etl" },
+  { label: "Turn depth compare", view: "turns" },
 ];
 
-// Each tool maps to the view that contains it.
 const TOOLS: { label: string; view: View }[] = [
-  { label: "ETL run log",           view: "overview"   },
-  { label: "Topic clustering",      view: "overview"   },
-  { label: "Summary statistics",    view: "overview"   },
-  { label: "Interactive map",       view: "geographic" },
-  { label: "Turn depth compare",    view: "model"      },
-  { label: "Search refinement",     view: "explorer"   },
-  { label: "Filters & combinations",view: "explorer"   },
-  { label: "Conversation preview",  view: "explorer"   },
-  { label: "Conversation flow",     view: "explorer"   },
-  { label: "Annotation tool",       view: "explorer"   },
-  { label: "Saved filter presets",  view: "explorer"   },
-  { label: "User tracking history", view: "explorer"   },
-  { label: "Session history",       view: "explorer"   },
-  { label: "Time / date slider",    view: "explorer"   },
+  { label: "ETL run log",            view: "etl"        },
+  { label: "Topic clustering",       view: "overview"   },
+  { label: "Summary statistics",     view: "overview"   },
+  { label: "Interactive map",        view: "geographic" },
+  { label: "Turn depth compare",     view: "turns"      },
+  { label: "Search refinement",      view: "explorer"   },
+  { label: "Filters & combinations", view: "explorer"   },
+  { label: "Conversation preview",   view: "explorer"   },
+  { label: "Conversation flow",      view: "explorer"   },
+  { label: "Annotation tool",        view: "explorer"   },
+  { label: "Saved filter presets",   view: "explorer"   },
+  { label: "User tracking history",  view: "explorer"   },
+  { label: "Session history",        view: "explorer"   },
+  { label: "Time / date slider",     view: "geographic" },
 ];
 
 export default function Sidebar({ activeView, onSelect }: Props) {
@@ -40,10 +41,7 @@ export default function Sidebar({ activeView, onSelect }: Props) {
       {/* Logo */}
       <div className="px-3 py-3 border-b border-border-base">
         <div className="flex items-center gap-2">
-          <span
-            className="text-accent-green font-semibold text-sm"
-            style={{ letterSpacing: "0.01em" }}
-          >
+          <span className="text-accent-green font-semibold text-sm" style={{ letterSpacing: "0.01em" }}>
             Wildchat Lens
           </span>
         </div>
@@ -69,7 +67,7 @@ export default function Sidebar({ activeView, onSelect }: Props) {
         {TOOLS.map(({ label, view }) => (
           <button
             key={label}
-            className={`sidebar-link w-full text-left ${activeView === view && false ? "active" : ""}`}
+            className={`sidebar-link w-full text-left ${activeView === view ? "active" : ""}`}
             onClick={() => onSelect(view)}
             title={`Go to ${view} view`}
           >

@@ -8,6 +8,8 @@ import type {
   SummaryStats,
   ConversationRow,
   Filters,
+  FilterPreset,
+  ActivityEntry,
 } from "./types";
 import {
   fetchOverview,
@@ -30,8 +32,46 @@ import RightPanel from "./components/RightPanel";
 import GeographicView from "./components/GeographicView";
 import LanguageView from "./components/LanguageView";
 import ModelView from "./components/ModelView";
+import TurnDepthCompare from "./components/TurnDepthCompare";
 
-type View = "overview" | "explorer" | "geographic" | "language" | "model";
+type View = "overview" | "explorer" | "geographic" | "language" | "model" | "etl" | "turns";
+
+const DEFAULT_FILTERS: Filters = {
+  model: "", language: "", country: "", redactedOnly: false, search: "",
+  dateFrom: "", dateTo: "", topicFilter: "", turnMin: 0, turnMax: 0,
+};
+
+function filtersFromURL(): Partial<Filters> {
+  const p = new URLSearchParams(window.location.search);
+  const partial: Partial<Filters> = {};
+  if (p.get("model")) partial.model = p.get("model")!;
+  if (p.get("language")) partial.language = p.get("language")!;
+  if (p.get("country")) partial.country = p.get("country")!;
+  if (p.get("redactedOnly") === "true") partial.redactedOnly = true;
+  if (p.get("search")) partial.search = p.get("search")!;
+  if (p.get("dateFrom")) partial.dateFrom = p.get("dateFrom")!;
+  if (p.get("dateTo")) partial.dateTo = p.get("dateTo")!;
+  if (p.get("topicFilter")) partial.topicFilter = p.get("topicFilter")!;
+  if (p.get("turnMin")) partial.turnMin = Number(p.get("turnMin"));
+  if (p.get("turnMax")) partial.turnMax = Number(p.get("turnMax"));
+  return partial;
+}
+
+function filtersToURL(f: Filters) {
+  const p = new URLSearchParams();
+  if (f.model) p.set("model", f.model);
+  if (f.language) p.set("language", f.language);
+  if (f.country) p.set("country", f.country);
+  if (f.redactedOnly) p.set("redactedOnly", "true");
+  if (f.search) p.set("search", f.search);
+  if (f.dateFrom) p.set("dateFrom", f.dateFrom);
+  if (f.dateTo) p.set("dateTo", f.dateTo);
+  if (f.topicFilter) p.set("topicFilter", f.topicFilter);
+  if (f.turnMin > 0) p.set("turnMin", String(f.turnMin));
+  if (f.turnMax > 0) p.set("turnMax", String(f.turnMax));
+  const qs = p.toString();
+  window.history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
+}
 
 function LoadingBanner() {
   return (
@@ -53,36 +93,98 @@ export default function App() {
   const [summaryStats, setSummaryStats] = useState<SummaryStats | null>(null);
   const [loadingOverview, setLoadingOverview] = useState(true);
   const [loadingTopics, setLoadingTopics] = useState(true);
-  const [serverReady, setServerReady] = useState(false);
   const [selectedConv, setSelectedConv] = useState<ConversationRow | null>(null);
 
-  const [filters, setFilters] = useState<Filters>({
-    model: "",
-    language: "",
-    country: "",
-    redactedOnly: false,
-    search: "",
+  const [filters, setFilters] = useState<Filters>(() => ({
+    ...DEFAULT_FILTERS,
+    ...filtersFromURL(),
+  }));
+
+  const [presets, setPresets] = useState<FilterPreset[]>(() => {
+    try { return JSON.parse(sessionStorage.getItem("wc_presets") || "[]"); } catch { return []; }
   });
 
-  function handleFilterChange(key: string, value: string | boolean) {
-    setFilters((f) => ({ ...f, [key]: value }));
+  const [activityLog, setActivityLog] = useState<ActivityEntry[]>(() => {
+    try { return JSON.parse(sessionStorage.getItem("wc_activity") || "[]"); } catch { return []; }
+  });
+
+  function logActivity(type: ActivityEntry["type"], label: string, currentFilters: Filters) {
+    const entry: ActivityEntry = {
+      id: String(Date.now()),
+      type, label,
+      timestamp: new Date().toISOString(),
+      filterSnapshot: currentFilters,
+    };
+    setActivityLog((prev) => {
+      const next = [entry, ...prev].slice(0, 100);
+      sessionStorage.setItem("wc_activity", JSON.stringify(next));
+      return next;
+    });
   }
 
-  // Load all static data on mount
+  function handleFilterChange(key: string, value: string | boolean | number) {
+    setFilters((f) => {
+      const next = { ...f, [key]: value };
+      filtersToURL(next);
+      if (key !== "search") {
+        logActivity("filter", `Filter: ${key} = ${value || "any"}`, next);
+      }
+      return next;
+    });
+  }
+
+  function savePreset(name: string) {
+    const preset: FilterPreset = { id: String(Date.now()), name, filters, createdAt: new Date().toISOString() };
+    setPresets((prev) => {
+      const next = [preset, ...prev];
+      sessionStorage.setItem("wc_presets", JSON.stringify(next));
+      return next;
+    });
+    logActivity("preset", `Saved preset "${name}"`, filters);
+  }
+
+  function applyPreset(preset: FilterPreset) {
+    setFilters(preset.filters);
+    filtersToURL(preset.filters);
+    logActivity("preset", `Applied preset "${preset.name}"`, preset.filters);
+  }
+
+  function deletePreset(id: string) {
+    setPresets((prev) => {
+      const next = prev.filter((p) => p.id !== id);
+      sessionStorage.setItem("wc_presets", JSON.stringify(next));
+      return next;
+    });
+  }
+
+  function handleSelectConv(row: ConversationRow) {
+    setSelectedConv(row);
+    logActivity("conversation", `Opened conversation ${row.conversation_hash}`, filters);
+  }
+
+  function handleTopicFilter(cat: string) {
+    handleFilterChange("topicFilter", cat);
+    if (cat) logActivity("filter", `Topic filter: ${cat}`, { ...filters, topicFilter: cat });
+  }
+
+  function handleCountryFilter(country: string) {
+    handleFilterChange("country", country);
+    if (country) logActivity("country", `Country filter: ${country}`, { ...filters, country });
+  }
+
+  function handleRestoreActivity(entry: ActivityEntry) {
+    setFilters(entry.filterSnapshot);
+    filtersToURL(entry.filterSnapshot);
+  }
+
   useEffect(() => {
     setLoadingOverview(true);
     setLoadingTopics(true);
-
     fetchOverview()
-      .then((d) => { setOverview(d); setServerReady(true); })
+      .then((d) => { setOverview(d); })
       .catch(() => {})
       .finally(() => setLoadingOverview(false));
-
-    fetchTopics()
-      .then(setTopics)
-      .catch(() => {})
-      .finally(() => setLoadingTopics(false));
-
+    fetchTopics().then(setTopics).catch(() => {}).finally(() => setLoadingTopics(false));
     fetchLanguages(30).then(setLanguages).catch(() => {});
     fetchModels().then(setModels).catch(() => {});
     fetchCountries(50).then(setCountries).catch(() => {});
@@ -94,12 +196,9 @@ export default function App() {
       {loadingOverview && <LoadingBanner />}
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
-        <Sidebar activeView={view} onSelect={(v) => setView(v)} />
+        <Sidebar activeView={view} onSelect={(v) => setView(v as View)} />
 
-        {/* Main */}
         <div className="flex flex-col flex-1 overflow-hidden">
-          {/* Top bar */}
           <TopBar
             overview={overview}
             models={models}
@@ -107,23 +206,36 @@ export default function App() {
             countries={countries}
             filters={filters}
             onFilterChange={handleFilterChange}
+            presets={presets}
+            onSavePreset={savePreset}
+            onApplyPreset={applyPreset}
+            onDeletePreset={deletePreset}
           />
 
-          {/* Scrollable content */}
           <main className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
 
-            {/* ── Overview ───────────────────────────────────────────── */}
+            {/* Overview */}
             {view === "overview" && (
               <>
                 <StatCards overview={overview} loading={loadingOverview} />
                 <div className="grid gap-3" style={{ gridTemplateColumns: "1fr 320px" }}>
-                  <WorldMap countries={countries} />
-                  <TopicClustering topics={topics} loading={loadingTopics} />
+                  <WorldMap
+                    countries={countries}
+                    onCountryClick={handleCountryFilter}
+                    activeCountry={filters.country}
+                  />
+                  <TopicClustering
+                    topics={topics}
+                    loading={loadingTopics}
+                    onTopicFilter={handleTopicFilter}
+                    activeTopicFilter={filters.topicFilter}
+                  />
                 </div>
                 <ConversationList
                   filters={filters}
-                  onSelect={setSelectedConv}
+                  onSelect={handleSelectConv}
                   selectedHash={selectedConv?.full_hash ?? null}
+                  onFilterChange={handleFilterChange}
                 />
                 <div className="grid gap-3" style={{ gridTemplateColumns: "1fr 1fr" }}>
                   <EtlLog overview={overview} />
@@ -132,41 +244,62 @@ export default function App() {
               </>
             )}
 
-            {/* ── Conversation Explorer ───────────────────────────────── */}
+            {/* Explorer */}
             {view === "explorer" && (
               <>
                 <StatCards overview={overview} loading={loadingOverview} />
                 <ConversationList
                   filters={filters}
-                  onSelect={setSelectedConv}
+                  onSelect={handleSelectConv}
                   selectedHash={selectedConv?.full_hash ?? null}
+                  onFilterChange={handleFilterChange}
                 />
               </>
             )}
 
-            {/* ── Geographic Breakdown ────────────────────────────────── */}
+            {/* Geographic */}
             {view === "geographic" && (
               <>
                 <StatCards overview={overview} loading={loadingOverview} />
-                <GeographicView countries={countries} />
+                <GeographicView
+                  countries={countries}
+                  onCountryClick={handleCountryFilter}
+                  activeCountry={filters.country}
+                />
               </>
             )}
 
-            {/* ── Language Analysis ───────────────────────────────────── */}
+            {/* Language */}
             {view === "language" && (
               <LanguageView languages={languages} stats={summaryStats} />
             )}
 
-            {/* ── Model Comparison ────────────────────────────────────── */}
+            {/* Model */}
             {view === "model" && (
               <ModelView models={models} />
+            )}
+
+            {/* ETL Log */}
+            {view === "etl" && (
+              <EtlLog overview={overview} fullView />
+            )}
+
+            {/* Turn Depth */}
+            {view === "turns" && (
+              <TurnDepthCompare />
             )}
 
           </main>
         </div>
 
-        {/* Right panel */}
-        <RightPanel selected={selectedConv} />
+        <RightPanel
+          selected={selectedConv}
+          presets={presets}
+          activityLog={activityLog}
+          onApplyPreset={applyPreset}
+          onDeletePreset={deletePreset}
+          onRestoreActivity={handleRestoreActivity}
+        />
       </div>
     </div>
   );
