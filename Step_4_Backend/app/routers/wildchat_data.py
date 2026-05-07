@@ -237,6 +237,9 @@ def get_conversations(
     date_to: Optional[str] = None,
     redacted_only: bool = False,
     search: Optional[str] = None,
+    topic_filter: Optional[str] = None,
+    turn_min: Optional[int] = None,
+    turn_max: Optional[int] = None,
 ):
     df = _load_df()
 
@@ -254,6 +257,18 @@ def get_conversations(
         df = df[df["timestamp"] <= pd.Timestamp(date_to, tz="UTC")]
     if search:
         df = df[df["conversation_hash"].str.contains(search, case=False, na=False)]
+    if topic_filter:
+        category_tags = set(TOPIC_CATEGORIES.get(topic_filter, []))
+        if category_tags:
+            def has_topic(tags_str):
+                if not tags_str: return False
+                try: return bool(set(json.loads(tags_str)) & category_tags)
+                except: return False
+            df = df[df["tags"].apply(has_topic)]
+    if turn_min is not None and turn_min > 0:
+        df = df[df["turn"] >= turn_min]
+    if turn_max is not None and turn_max > 0:
+        df = df[df["turn"] <= turn_max]
 
     total = len(df)
     start = (page - 1) * per_page
@@ -336,3 +351,16 @@ def get_conversation(hash: str):
         raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@data_router.get("/turn-depth")
+def get_turn_depth(dimension: str = Query("model", regex="^(model|language|country)$")):
+    df = _load_df()
+    grouped = df.groupby(dimension).agg(
+        avg_turns=("turn", "mean"),
+        count=("turn", "count")
+    ).reset_index().sort_values("avg_turns", ascending=False).head(20)
+    return [
+        {"dimension": row[dimension], "avg_turns": round(float(row["avg_turns"]), 2), "count": int(row["count"])}
+        for _, row in grouped.iterrows()
+    ]

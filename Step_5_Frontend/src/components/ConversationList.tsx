@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { ConversationRow, ConversationsResponse, Filters } from "../types";
 import { fetchConversations } from "../api";
 
@@ -6,14 +6,13 @@ interface Props {
   filters: Filters;
   onSelect: (row: ConversationRow) => void;
   selectedHash: string | null;
+  onFilterChange?: (key: string, value: string | boolean | number) => void;
 }
 
 function ModelBadge({ model }: { model: string }) {
   const isGpt4 = model.startsWith("gpt-4");
-  const short = model.replace("gpt-3.5-turbo-", "3.5-").replace("gpt-4-", "4-").replace("-preview","");
-  return (
-    <span className={`model-badge ${isGpt4 ? "gpt4" : ""}`}>{short}</span>
-  );
+  const short = model.replace("gpt-3.5-turbo-", "3.5-").replace("gpt-4-", "4-").replace("-preview", "");
+  return <span className={`model-badge ${isGpt4 ? "gpt4" : ""}`}>{short}</span>;
 }
 
 function StatusCell({ row }: { row: ConversationRow }) {
@@ -22,83 +21,147 @@ function StatusCell({ row }: { row: ConversationRow }) {
   return <span className="flex items-center gap-1"><span className="status-dot ok" /> ok</span>;
 }
 
-export default function ConversationList({ filters, onSelect, selectedHash }: Props) {
+export default function ConversationList({ filters, onSelect, selectedHash, onFilterChange }: Props) {
   const [data, setData] = useState<ConversationsResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
-  const [inputVal, setInputVal] = useState("");
+  const [inputVal, setInputVal] = useState(filters.search || "");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const load = useCallback(async (p: number, s: string) => {
+  const load = useCallback(async (p: number, f: Filters) => {
     setLoading(true);
     try {
       const res = await fetchConversations({
         page: p,
         per_page: 20,
-        model: filters.model || undefined,
-        language: filters.language || undefined,
-        country: filters.country || undefined,
-        redacted_only: filters.redactedOnly || undefined,
-        search: s || undefined,
+        model: f.model || undefined,
+        language: f.language || undefined,
+        country: f.country || undefined,
+        redacted_only: f.redactedOnly || undefined,
+        search: f.search || undefined,
+        date_from: f.dateFrom || undefined,
+        date_to: f.dateTo || undefined,
+        topic_filter: f.topicFilter || undefined,
+        turn_min: f.turnMin > 0 ? f.turnMin : undefined,
+        turn_max: f.turnMax > 0 ? f.turnMax : undefined,
       });
       setData(res);
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, []);
 
+  // Reload when filters (except search, handled by debounce) or page changes
   useEffect(() => {
     setPage(1);
-    load(1, search);
-  }, [filters, search]);
+    load(1, filters);
+  }, [
+    filters.model, filters.language, filters.country, filters.redactedOnly,
+    filters.search, filters.dateFrom, filters.dateTo, filters.topicFilter,
+    filters.turnMin, filters.turnMax,
+  ]);
 
   useEffect(() => {
-    load(page, search);
+    load(page, filters);
   }, [page]);
 
-  function handleSearch(e: React.FormEvent) {
-    e.preventDefault();
-    setSearch(inputVal);
-    setPage(1);
+  // Debounced search
+  function handleInputChange(val: string) {
+    setInputVal(val);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      if (onFilterChange) onFilterChange("search", val);
+    }, 300);
   }
+
+  const hasChips = filters.model || filters.language || filters.country || filters.redactedOnly || filters.topicFilter || filters.dateFrom || filters.dateTo;
 
   return (
     <div className="card flex flex-col" style={{ minHeight: 260 }}>
       {/* Search bar */}
       <div className="flex items-center gap-2 px-4 py-2 border-b border-border-subtle">
-        <form onSubmit={handleSearch} className="flex items-center gap-2 flex-1">
-          <span className="text-text-muted text-sm">🔍</span>
-          <input
-            className="flex-1 bg-transparent text-text-primary text-xs outline-none placeholder-text-muted"
-            placeholder="Search refinement — keyword, hash, country, topic..."
-            value={inputVal}
-            onChange={(e) => setInputVal(e.target.value)}
-          />
-          {inputVal && (
-            <button
-              type="button"
-              className="text-text-secondary hover:text-accent-green text-xs"
-              onClick={() => { setInputVal(""); setSearch(""); }}
-            >
-              ✕
-            </button>
-          )}
-        </form>
+        <span className="text-text-muted text-sm">🔍</span>
+        <input
+          className="flex-1 bg-transparent text-text-primary text-xs outline-none placeholder-text-muted"
+          placeholder="Search — keyword, hash, country, topic..."
+          value={inputVal}
+          onChange={(e) => handleInputChange(e.target.value)}
+        />
+        {inputVal && (
+          <button
+            type="button"
+            className="text-text-secondary hover:text-accent-green text-xs"
+            onClick={() => { setInputVal(""); if (onFilterChange) onFilterChange("search", ""); }}
+          >
+            ✕
+          </button>
+        )}
         {data && (
           <span className="text-text-secondary text-xs whitespace-nowrap">
             {data.total.toLocaleString()} records
           </span>
         )}
-        <button className="filter-btn text-xs">⊞ Save preset</button>
       </div>
 
       {/* Active filter chips */}
-      {(filters.model || filters.language || filters.country || filters.redactedOnly) && (
+      {hasChips && (
         <div className="flex items-center gap-2 px-4 py-2 border-b border-border-subtle flex-wrap">
-          {filters.model && <span className="tag-pill">{filters.model} ✕</span>}
-          {filters.language && <span className="tag-pill">{filters.language} ✕</span>}
-          {filters.country && <span className="tag-pill">{filters.country} ✕</span>}
-          {filters.redactedOnly && <span className="tag-pill">Redacted only ✕</span>}
+          {filters.model && (
+            <span
+              className="tag-pill removable cursor-pointer"
+              onClick={() => onFilterChange && onFilterChange("model", "")}
+            >
+              {filters.model} ✕
+            </span>
+          )}
+          {filters.language && (
+            <span
+              className="tag-pill removable cursor-pointer"
+              onClick={() => onFilterChange && onFilterChange("language", "")}
+            >
+              {filters.language} ✕
+            </span>
+          )}
+          {filters.country && (
+            <span
+              className="tag-pill removable cursor-pointer"
+              onClick={() => onFilterChange && onFilterChange("country", "")}
+            >
+              {filters.country} ✕
+            </span>
+          )}
+          {filters.redactedOnly && (
+            <span
+              className="tag-pill removable cursor-pointer"
+              onClick={() => onFilterChange && onFilterChange("redactedOnly", false)}
+            >
+              Redacted only ✕
+            </span>
+          )}
+          {filters.topicFilter && (
+            <span
+              className="tag-pill removable cursor-pointer"
+              onClick={() => onFilterChange && onFilterChange("topicFilter", "")}
+            >
+              Topic: {filters.topicFilter} ✕
+            </span>
+          )}
+          {filters.dateFrom && (
+            <span
+              className="tag-pill removable cursor-pointer"
+              onClick={() => onFilterChange && onFilterChange("dateFrom", "")}
+            >
+              From: {filters.dateFrom} ✕
+            </span>
+          )}
+          {filters.dateTo && (
+            <span
+              className="tag-pill removable cursor-pointer"
+              onClick={() => onFilterChange && onFilterChange("dateTo", "")}
+            >
+              To: {filters.dateTo} ✕
+            </span>
+          )}
         </div>
       )}
 

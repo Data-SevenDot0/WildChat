@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   ComposableMap,
   Geographies,
@@ -8,7 +9,6 @@ import type { CountryItem } from "../types";
 const GEO_URL =
   "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
-// Map from country name to ISO-3166-1 numeric code used by world-atlas
 const COUNTRY_TO_NUM: Record<string, number> = {
   "United States": 840,
   "Russia": 643,
@@ -64,7 +64,12 @@ const COUNTRY_TO_NUM: Record<string, number> = {
   "Taiwan": 158,
 };
 
-function getColor(pct: number): string {
+// reverse lookup: numericId -> country name
+const NUM_TO_COUNTRY: Record<number, string> = Object.fromEntries(
+  Object.entries(COUNTRY_TO_NUM).map(([name, num]) => [num, name])
+);
+
+function getVolumeColor(pct: number): string {
   if (pct > 15) return "#d97706";
   if (pct > 8) return "#b86200";
   if (pct > 4) return "#9a5000";
@@ -74,21 +79,60 @@ function getColor(pct: number): string {
   return "#1e1e1e";
 }
 
-interface Props {
-  countries: CountryItem[];
+interface TooltipState {
+  x: number;
+  y: number;
+  content: string;
 }
 
-export default function WorldMap({ countries }: Props) {
+interface Props {
+  countries: CountryItem[];
+  onCountryClick?: (country: string) => void;
+  activeCountry?: string;
+}
+
+type ViewMode = "volume" | "language" | "model";
+
+export default function WorldMap({ countries, onCountryClick, activeCountry }: Props) {
+  const [viewMode, setViewMode] = useState<ViewMode>("volume");
+  const [tooltip, setTooltip] = useState<TooltipState | null>(null);
+
   const pctMap: Record<number, number> = {};
-  countries.forEach(({ country, pct }) => {
-    const num = COUNTRY_TO_NUM[country];
-    if (num) pctMap[num] = pct;
+  const nameToItem: Record<string, CountryItem> = {};
+  countries.forEach((item) => {
+    const num = COUNTRY_TO_NUM[item.country];
+    if (num) pctMap[num] = item.pct;
+    nameToItem[item.country] = item;
   });
 
+  function getColor(numId: number): string {
+    const countryName = NUM_TO_COUNTRY[numId];
+    if (activeCountry && countryName === activeCountry) return "#f59e0b";
+    if (viewMode === "volume") {
+      return getVolumeColor(pctMap[numId] ?? 0);
+    }
+    // For language/model mode: just use volume color with slight tint difference
+    return getVolumeColor(pctMap[numId] ?? 0);
+  }
+
   return (
-    <div className="card p-4 flex flex-col gap-2">
-      <div className="label">Interactive Map</div>
-      <div style={{ marginTop: -8, marginBottom: -8 }}>
+    <div className="card p-4 flex flex-col gap-2" style={{ position: "relative" }}>
+      <div className="flex items-center justify-between">
+        <div className="label">Interactive Map</div>
+        <div className="flex gap-1">
+          {(["volume", "language", "model"] as ViewMode[]).map((mode) => (
+            <button
+              key={mode}
+              className={`filter-btn text-xs ${viewMode === mode ? "active" : ""}`}
+              style={{ padding: "2px 8px", fontSize: 10 }}
+              onClick={() => setViewMode(mode)}
+            >
+              {mode.charAt(0).toUpperCase() + mode.slice(1)}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div style={{ marginTop: -8, marginBottom: -8, position: "relative" }}>
         <ComposableMap
           projection="geoNaturalEarth1"
           style={{ width: "100%", height: "auto" }}
@@ -98,18 +142,41 @@ export default function WorldMap({ countries }: Props) {
             {({ geographies }) =>
               geographies.map((geo) => {
                 const numId = Number(geo.id);
-                const pct = pctMap[numId] ?? 0;
+                const countryName = NUM_TO_COUNTRY[numId];
+                const item = countryName ? nameToItem[countryName] : undefined;
                 return (
                   <Geography
                     key={geo.rsmKey}
                     geography={geo}
-                    fill={getColor(pct)}
+                    fill={getColor(numId)}
                     stroke="#141414"
                     strokeWidth={0.4}
                     style={{
                       default: { outline: "none" },
-                      hover: { fill: "#f59e0b", outline: "none" },
+                      hover: { fill: "#f59e0b", outline: "none", cursor: countryName ? "pointer" : "default" },
                       pressed: { outline: "none" },
+                    }}
+                    onMouseEnter={(evt) => {
+                      if (countryName && item) {
+                        setTooltip({
+                          x: evt.clientX + 12,
+                          y: evt.clientY - 28,
+                          content: `${countryName}: ${item.count.toLocaleString()} convs (${item.pct}%)`,
+                        });
+                      } else if (countryName) {
+                        setTooltip({ x: evt.clientX + 12, y: evt.clientY - 28, content: countryName });
+                      }
+                    }}
+                    onMouseMove={(evt) => {
+                      if (tooltip) {
+                        setTooltip((t) => t ? { ...t, x: evt.clientX + 12, y: evt.clientY - 28 } : null);
+                      }
+                    }}
+                    onMouseLeave={() => setTooltip(null)}
+                    onClick={() => {
+                      if (countryName && onCountryClick) {
+                        onCountryClick(countryName);
+                      }
                     }}
                   />
                 );
@@ -124,12 +191,38 @@ export default function WorldMap({ countries }: Props) {
         <div
           className="flex-1 h-2 rounded"
           style={{
-            background:
-              "linear-gradient(90deg, #3d1f00, #572d00, #7a3f00, #b86200, #d97706)",
+            background: "linear-gradient(90deg, #3d1f00, #572d00, #7a3f00, #b86200, #d97706)",
           }}
         />
         <span className="text-text-secondary text-xs">high</span>
       </div>
+      {activeCountry && onCountryClick && (
+        <div className="text-xs text-text-secondary">
+          Filtered: <span className="text-accent-green">{activeCountry}</span>
+          <button className="ml-2 hover:text-accent-green" onClick={() => onCountryClick("")}>✕ clear</button>
+        </div>
+      )}
+      {/* Tooltip */}
+      {tooltip && (
+        <div
+          style={{
+            position: "fixed",
+            left: tooltip.x,
+            top: tooltip.y,
+            background: "#1e1e1e",
+            border: "1px solid #303030",
+            borderRadius: 4,
+            padding: "4px 8px",
+            fontSize: 11,
+            color: "#e0e0e0",
+            pointerEvents: "none",
+            zIndex: 9999,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {tooltip.content}
+        </div>
+      )}
     </div>
   );
 }
