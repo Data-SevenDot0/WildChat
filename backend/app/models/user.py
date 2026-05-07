@@ -16,5 +16,5 @@ class User(Base):
 	email: Mapped[str] = mapped_column(String(200), unique=True, index=True)
 	hashed_password: Mapped[str] = mapped_column(String(200))
 	histories: Mapped[list["History"]] = relationship("History", back_populates="user")
-	hashed_ip: Mapped[str | None] = mapped_column(String(200), nullable=True)
+	user_ip: Mapped[str | None] = mapped_column(String(200), nullable=True)
 	

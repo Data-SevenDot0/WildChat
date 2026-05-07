@@ -1,9 +1,8 @@
-from app.schemas.user_schema import User_schema
+from app.schemas.user_schema import User_schema, UserCreate
 from app.crud import crud_user
 from app.db.session import get_db
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
-from app.schemas.user_schema import UserCreate
 
 user_router = APIRouter(prefix="/users", tags=["users"])
 

@@ -16,7 +16,7 @@ def create_admin() -> User:
             username="admin",
             email="admin@scouterfrc.local",
             hashed_password=get_password_hash("123"),
-            hashed_ip="127.0.0.1",
+            user_ip="127.0.0.1",
         )
         db.add(user)
         db.commit()

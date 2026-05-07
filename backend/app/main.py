@@ -5,10 +5,9 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.routers import (
-    users
+    users,
+    wilddata
     )
-import app.models  # Import all models for SQLAlchemy registration
-
 
 # ── App ────────────────────────────────────────────────────────────────────────
 
@@ -70,3 +69,4 @@ async def global_exception_handler(request: Request, exc: Exception):
 # ── Routers ───────────────────────────────────────────────────────────────────
 
 app.include_router(users.user_router)
+app.include_router(wilddata.data_router)
