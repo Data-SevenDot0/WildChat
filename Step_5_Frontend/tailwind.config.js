@@ -5,25 +5,25 @@ export default {
     extend: {
       colors: {
         bg: {
-          deep: "#111111",
-          card: "#1e1e1e",
-          panel: "#181818",
-          row: "#1a1a1a",
-          hover: "#1c1500",
+          deep:  "var(--color-bg-deep)",
+          card:  "var(--color-bg-card)",
+          panel: "var(--color-bg-panel)",
+          row:   "var(--color-bg-row)",
+          hover: "var(--color-bg-hover)",
         },
         accent: {
-          green: "#f59e0b",   /* amber-500 — primary accent */
-          teal: "#d97706",    /* amber-600 — darker accent */
-          gold: "#fbbf24",    /* amber-400 — highlight */
+          green:  "var(--color-accent)",
+          teal:   "var(--color-accent-dark)",
+          gold:   "var(--color-accent-bright)",
         },
         text: {
-          primary: "#e0e0e0",
-          secondary: "#888888",
-          muted: "#555555",
+          primary:   "var(--color-text-primary)",
+          secondary: "var(--color-text-secondary)",
+          muted:     "var(--color-text-muted)",
         },
         border: {
-          base: "#2d2d2d",
-          subtle: "#252525",
+          base:   "var(--color-border-base)",
+          subtle: "var(--color-border-subtle)",
         },
       },
       fontFamily: {

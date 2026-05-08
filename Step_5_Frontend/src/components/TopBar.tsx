@@ -1,5 +1,7 @@
 import { useState } from "react";
 import type { ModelItem, LanguageItem, CountryItem, Overview, Filters, FilterPreset } from "../types";
+import { useTheme, THEMES } from "../context/ThemeContext";
+import type { ThemeId } from "../context/ThemeContext";
 
 // Generate month options from Apr 2023 to Apr 2024
 function generateMonthOptions() {
@@ -77,6 +79,9 @@ export default function TopBar({
   presets = [], onSavePreset, onApplyPreset, onDeletePreset,
 }: Props) {
   const [presetsOpen, setPresetsOpen] = useState(false);
+  const [visualOpen, setVisualOpen] = useState(false);
+  const { theme, setTheme } = useTheme();
+
   const FONT_SIZES = [
     { label: "A",    title: "Normal",   size: "16px" },
     { label: "A+",   title: "Large",    size: "19px" },
@@ -195,7 +200,94 @@ export default function TopBar({
         >
           {FONT_SIZES[fontIdx].label}
         </button>
-        <button className="filter-btn" onClick={() => setPresetsOpen((o) => !o)}>
+
+        {/* Visual Alterations panel */}
+        <div className="relative">
+          <button
+            className={`filter-btn ${visualOpen ? "active" : ""}`}
+            onClick={() => { setVisualOpen(o => !o); setPresetsOpen(false); }}
+            title="Visual alterations — change colour scheme"
+          >
+            ◑ Visual alterations
+          </button>
+          {visualOpen && (
+            <div
+              className="absolute top-full right-0 mt-1 z-50 card overflow-hidden"
+              style={{ minWidth: 280 }}
+            >
+              <div className="px-3 py-2 border-b border-border-subtle">
+                <div className="text-text-primary text-xs font-semibold">Colour scheme</div>
+                <div className="text-text-muted text-xs mt-0.5">Preference is saved automatically</div>
+              </div>
+
+              {/* Standard themes */}
+              <div className="px-3 py-2 border-b border-border-subtle">
+                <div className="label mb-2">Standard</div>
+                {THEMES.filter(t => !t.accessibility).map(t => (
+                  <button
+                    key={t.id}
+                    className="w-full flex items-center gap-3 px-2 py-2 rounded hover:bg-bg-hover text-left transition-colors"
+                    onClick={() => setTheme(t.id as ThemeId)}
+                  >
+                    <span
+                      className="flex-shrink-0 rounded"
+                      style={{
+                        width: 28, height: 18,
+                        background: t.swatchBg,
+                        border: `2px solid ${theme === t.id ? t.swatch : "transparent"}`,
+                        outline: `1px solid #444`,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                      }}
+                    >
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: t.swatch, display: "block" }} />
+                    </span>
+                    <span className="flex-1">
+                      <span className="text-xs font-medium" style={{ color: theme === t.id ? "var(--color-accent)" : "var(--color-text-primary)" }}>
+                        {t.name}
+                      </span>
+                      {theme === t.id && <span className="ml-2 text-xs opacity-60">✓ active</span>}
+                      <div className="text-text-muted text-xs">{t.description}</div>
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Accessibility themes */}
+              <div className="px-3 py-2">
+                <div className="label mb-2">Accessibility</div>
+                {THEMES.filter(t => t.accessibility).map(t => (
+                  <button
+                    key={t.id}
+                    className="w-full flex items-center gap-3 px-2 py-2 rounded hover:bg-bg-hover text-left transition-colors"
+                    onClick={() => setTheme(t.id as ThemeId)}
+                  >
+                    <span
+                      className="flex-shrink-0 rounded"
+                      style={{
+                        width: 28, height: 18,
+                        background: t.swatchBg,
+                        border: `2px solid ${theme === t.id ? t.swatch : "transparent"}`,
+                        outline: `1px solid #444`,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                      }}
+                    >
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: t.swatch, display: "block" }} />
+                    </span>
+                    <span className="flex-1">
+                      <span className="text-xs font-medium" style={{ color: theme === t.id ? "var(--color-accent)" : "var(--color-text-primary)" }}>
+                        {t.name}
+                      </span>
+                      {theme === t.id && <span className="ml-2 text-xs opacity-60">✓ active</span>}
+                      <div className="text-text-muted text-xs">{t.description}</div>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <button className="filter-btn" onClick={() => { setPresetsOpen((o) => !o); setVisualOpen(false); }}>
           ⊞ Presets{presets.length > 0 ? ` (${presets.length})` : ""} ▾
         </button>
         {presetsOpen && (
