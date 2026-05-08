@@ -31,8 +31,15 @@ export default function Sidebar({ activeView, onSelect }: Props) {
       {/* Logo */}
       <div className="px-3 py-3 border-b border-border-base">
         <div className="flex items-center gap-2">
-          <span className="text-accent-green font-semibold text-sm" style={{ letterSpacing: "0.01em" }}>
-            Wildchat Lens
+          <img
+            src="/wildchat-lens-favicon.svg"
+            alt="Wildchat Lens icon"
+            width={20}
+            height={20}
+            style={{ flexShrink: 0 }}
+          />
+          <span className="font-semibold text-sm" style={{ letterSpacing: "0.01em", color: "#e0e0e0" }}>
+            Wild<span style={{ color: "#f59e0b", fontWeight: 400 }}>chat</span> Lens
           </span>
         </div>
       </div>

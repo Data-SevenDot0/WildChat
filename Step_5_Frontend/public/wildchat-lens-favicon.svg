@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none">
+  <!-- Iris fill: subtle vertical ellipse -->
+  <ellipse cx="10" cy="10" rx="3" ry="5.5" fill="rgba(245,158,11,0.12)"/>
+
+  <!-- Outer eye almond shape: stroke only -->
+  <path
+    d="M2.5 10 Q6.25 4 10 3.5 Q13.75 4 17.5 10 Q13.75 16 10 16.5 Q6.25 16 2.5 10Z"
+    fill="none"
+    stroke="#f59e0b"
+    stroke-width="1.5"
+    stroke-linejoin="round"
+  />
+
+  <!-- Pupil: vertical slit -->
+  <rect
+    x="9.25" y="4.5" width="1.5" height="11" rx="0.75"
+    fill="#f59e0b"
+    opacity="0.85"
+  />
+</svg>

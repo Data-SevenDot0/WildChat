@@ -119,6 +119,13 @@ export default function TopBar({
 
   return (
     <header className="flex items-center gap-2 px-4 py-2 border-b border-border-base bg-bg-panel flex-shrink-0 flex-wrap">
+      <img
+        src="/wildchat-lens-favicon.svg"
+        alt=""
+        width={18}
+        height={18}
+        style={{ flexShrink: 0, opacity: 0.8 }}
+      />
       <Dropdown
         label="Model"
         value={filters.model}
