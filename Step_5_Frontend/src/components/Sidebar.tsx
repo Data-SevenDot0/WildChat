@@ -1,4 +1,5 @@
 import WildchatLogo from "./WildchatLogo";
+import { useTheme } from "../context/ThemeContext";
 
 type View = "overview" | "explorer" | "geographic" | "language" | "model" | "etl" | "turns";
 
@@ -25,14 +26,23 @@ const TOOLS: { label: string; view: View }[] = [
 ];
 
 export default function Sidebar({ activeView, onSelect }: Props) {
+  const { colors } = useTheme();
   return (
     <aside
       style={{ width: 168, minWidth: 168 }}
       className="flex flex-col h-full bg-bg-panel border-r border-border-base overflow-y-auto flex-shrink-0"
     >
       {/* Logo */}
-      <div className="px-3 py-3 border-b border-border-base">
-        <WildchatLogo />
+      <div className="px-3 py-4 border-b border-border-base flex flex-col items-start gap-1.5">
+        <WildchatLogo size={36} wordmark={false} />
+        <div style={{ lineHeight: 1.2 }}>
+          <div style={{ fontSize: "0.9rem", fontWeight: 600, letterSpacing: "0.01em", color: colors.textPrimary }}>
+            Wild<span style={{ color: colors.logoAccent, fontWeight: 400 }}>chat</span> Lens
+          </div>
+          <div style={{ fontSize: "0.7rem", color: colors.textSecondary, letterSpacing: "0.04em" }}>
+            conversation analytics
+          </div>
+        </div>
       </div>
 
       {/* Navigation */}
