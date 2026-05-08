@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { ConversationRow, ConversationDetail, FilterPreset, ActivityEntry, Filters } from "../types";
 import { fetchConversationDetail } from "../api";
+import { useTheme } from "../context/ThemeContext";
 
 interface Props {
   selected: ConversationRow | null;
@@ -18,7 +19,6 @@ interface AnnotationNote {
 
 type AnnotationsMap = Record<string, AnnotationNote[]>;
 
-const TURN_COLORS = ["#f59e0b", "#d97706", "#fbbf24", "#b45309", "#e0e0e0", "#6b7280"];
 
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -42,6 +42,7 @@ function activityIcon(type: ActivityEntry["type"]): string {
 }
 
 function ThreadModal({ detail, onClose }: { detail: ConversationDetail; onClose: () => void }) {
+  const { colors } = useTheme();
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
@@ -55,7 +56,7 @@ function ThreadModal({ detail, onClose }: { detail: ConversationDetail; onClose:
       >
         <div className="flex items-center justify-between px-5 py-3 border-b border-border-base flex-shrink-0">
           <div className="flex items-center gap-3">
-            <span className="font-mono text-xs text-accent-green">{detail.conversation_hash.slice(0, 8)}…</span>
+            <span className="font-mono text-xs" style={{ color: colors.accent }}>{detail.conversation_hash.slice(0, 8)}…</span>
             <span className="text-text-secondary text-xs">{detail.turns} turns · {detail.language} · {detail.country}</span>
             {detail.redacted && <span className="status-dot redacted" />}
             {detail.toxic && <span className="status-dot toxic" />}
@@ -72,7 +73,7 @@ function ThreadModal({ detail, onClose }: { detail: ConversationDetail; onClose:
         <div className="overflow-y-auto flex-1 px-5 py-4 flex flex-col gap-4">
           {detail.messages.map((msg, i) => (
             <div key={i} className={`flex flex-col gap-1 ${msg.role === "assistant" ? "pl-4 border-l-2 border-border-base" : ""}`}>
-              <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: msg.role === "user" ? "#f59e0b" : "#e0e0e0" }}>
+              <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: msg.role === "user" ? colors.accent : colors.textPrimary }}>
                 {msg.role === "user" ? "User" : "Assistant"}
               </div>
               <div className="text-xs text-text-primary leading-relaxed whitespace-pre-wrap">{msg.content}</div>
@@ -89,18 +90,23 @@ function ThreadModal({ detail, onClose }: { detail: ConversationDetail; onClose:
 }
 
 function ConversationFlow({ detail }: { detail: ConversationDetail }) {
+  const { colors } = useTheme();
+  const turnColors = [...colors.chart, colors.textSecondary];
   const turns = Math.min(detail.turns, 8);
   return (
     <div>
       <div className="label mb-2">Conversation Flow</div>
       <div className="flex flex-col gap-1">
-        {Array.from({ length: turns }).map((_, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <span className="status-dot flex-shrink-0" style={{ background: TURN_COLORS[i % TURN_COLORS.length] }} />
-            <div className="flex-1 h-1.5 rounded" style={{ background: TURN_COLORS[i % TURN_COLORS.length] + "40" }} />
-            <span className="text-text-secondary text-xs">Turn {i + 1}</span>
-          </div>
-        ))}
+        {Array.from({ length: turns }).map((_, i) => {
+          const c = turnColors[i % turnColors.length];
+          return (
+            <div key={i} className="flex items-center gap-2">
+              <span className="status-dot flex-shrink-0" style={{ background: c }} />
+              <div className="flex-1 h-1.5 rounded" style={{ background: c + "40" }} />
+              <span className="text-text-secondary text-xs">Turn {i + 1}</span>
+            </div>
+          );
+        })}
       </div>
       {detail.tags.length > 0 && (
         <div className="mt-2 text-xs text-text-secondary">Topic shift detected at turn 2</div>
@@ -110,6 +116,7 @@ function ConversationFlow({ detail }: { detail: ConversationDetail }) {
 }
 
 export default function RightPanel({ selected, presets = [], activityLog = [], onApplyPreset, onDeletePreset, onRestoreActivity }: Props) {
+  const { colors } = useTheme();
   const [detail, setDetail] = useState<ConversationDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [showThread, setShowThread] = useState(false);
@@ -175,13 +182,13 @@ export default function RightPanel({ selected, presets = [], activityLog = [], o
           ) : detail ? (
             <>
               <div className="flex items-center gap-2 mb-2">
-                <span className="font-mono text-xs text-accent-green">{detail.conversation_hash.slice(0, 8)}…</span>
+              <span className="font-mono text-xs" style={{ color: colors.accent }}>{detail.conversation_hash.slice(0, 8)}…</span>
                 <span className="text-text-secondary text-xs">{detail.turns} turns</span>
                 <span className="text-text-secondary text-xs">· {detail.language}</span>
               </div>
               {detail.messages.slice(0, 3).map((msg, i) => (
                 <div key={i} className="mb-2">
-                  <div className="text-xs font-medium mb-0.5" style={{ color: msg.role === "user" ? "#f59e0b" : "#e0e0e0" }}>
+                  <div className="text-xs font-medium mb-0.5" style={{ color: msg.role === "user" ? colors.accent : colors.textPrimary }}>
                     {msg.role === "user" ? "User" : "Assistant"}:
                   </div>
                   <div className="text-xs text-text-primary leading-relaxed" style={{ maxHeight: 80, overflow: "hidden" }}>
@@ -223,7 +230,7 @@ export default function RightPanel({ selected, presets = [], activityLog = [], o
                 </div>
               )}
               {currentNotes.map((note, i) => (
-                <div key={i} className="flex flex-col gap-0.5 mt-1 p-2 rounded" style={{ background: "#1a1a1a", border: "1px solid #303030" }}>
+                <div key={i} className="flex flex-col gap-0.5 mt-1 p-2 rounded" style={{ background: colors.bgCard, border: `1px solid ${colors.borderBase}` }}>
                   <span className="text-xs text-text-primary">{note.text}</span>
                   <span className="text-xs text-text-muted">{timeAgo(note.timestamp)}</span>
                 </div>
@@ -244,8 +251,8 @@ export default function RightPanel({ selected, presets = [], activityLog = [], o
           ) : (
             <div className="flex flex-col gap-1.5">
               {[
-                { color: "#f59e0b", text: "Possible prompt injection — flag" },
-                { color: "#fbbf24", text: "Topic shifts mid-conversation" },
+                { color: colors.accent, text: "Possible prompt injection — flag" },
+                { color: colors.chart[1], text: "Topic shifts mid-conversation" },
               ].map(({ color, text }) => (
                 <div key={text} className="flex items-center gap-2">
                   <span className="status-dot flex-shrink-0" style={{ background: color }} />
@@ -269,7 +276,7 @@ export default function RightPanel({ selected, presets = [], activityLog = [], o
                   className="flex items-center gap-2 cursor-pointer flex-1"
                   onClick={() => onApplyPreset && onApplyPreset(p)}
                 >
-                  <span className="status-dot" style={{ background: "#f59e0b", opacity: 0.6 }} />
+                  <span className="status-dot" style={{ background: colors.accent, opacity: 0.6 }} />
                   <span className="text-xs text-text-primary group-hover:text-accent-green">{p.name}</span>
                 </div>
                 <button

@@ -1,4 +1,5 @@
 import type { TopicItem } from "../types";
+import { useTheme } from "../context/ThemeContext";
 
 interface Props {
   topics: TopicItem[];
@@ -7,16 +8,25 @@ interface Props {
   activeTopicFilter?: string;
 }
 
-const CATEGORY_COLORS: Record<string, string> = {
-  "Research / info": "#f59e0b",
-  "Coding / tech":   "#d97706",
-  "Writing":         "#fbbf24",
-  "Math / science":  "#f59e0b",
-  "Translation":     "#b45309",
-  "Other":           "#888888",
+const CATEGORY_INDICES: Record<string, number> = {
+  "Research / info": 0,
+  "Coding / tech":   1,
+  "Writing":         2,
+  "Math / science":  3,
+  "Translation":     4,
+  "Other":           5, // chartMuted
 };
 
 export default function TopicClustering({ topics, loading, onTopicFilter, activeTopicFilter }: Props) {
+  const { colors } = useTheme();
+
+  function categoryColor(category: string): string {
+    const idx = CATEGORY_INDICES[category];
+    if (idx === undefined) return colors.chartMuted;
+    if (idx === 5) return colors.chartMuted;
+    return colors.chart[idx] ?? colors.chartMuted;
+  }
+
   return (
     <div className="card p-4 flex flex-col gap-3">
       <div className="flex items-center justify-between">
@@ -48,22 +58,20 @@ export default function TopicClustering({ topics, loading, onTopicFilter, active
         <div className="flex flex-col gap-3">
           {topics.map(({ category, pct }) => {
             const isActive = activeTopicFilter === category;
+            const color = categoryColor(category);
             return (
               <div
                 key={category}
                 className="cursor-pointer rounded px-1 transition-colors"
                 style={{
-                  borderLeft: isActive ? `3px solid ${CATEGORY_COLORS[category] ?? "#f59e0b"}` : "3px solid transparent",
-                  background: isActive ? "rgba(245,158,11,0.08)" : undefined,
+                  borderLeft: isActive ? `3px solid ${color}` : "3px solid transparent",
+                  background: isActive ? `${color}14` : undefined,
                 }}
                 onClick={() => onTopicFilter && onTopicFilter(isActive ? "" : category)}
               >
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-text-primary text-xs">{category}</span>
-                  <span
-                    className="text-xs font-mono font-medium"
-                    style={{ color: CATEGORY_COLORS[category] ?? "#888888" }}
-                  >
+                  <span className="text-xs font-mono font-medium" style={{ color }}>
                     {pct}%
                   </span>
                 </div>
@@ -72,7 +80,7 @@ export default function TopicClustering({ topics, loading, onTopicFilter, active
                     className="bar-fill"
                     style={{
                       width: `${pct}%`,
-                      background: `linear-gradient(90deg, ${CATEGORY_COLORS[category] ?? "#f59e0b"}88, ${CATEGORY_COLORS[category] ?? "#f59e0b"})`,
+                      background: `linear-gradient(90deg, ${color}88, ${color})`,
                     }}
                   />
                 </div>

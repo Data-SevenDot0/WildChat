@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { ModelItem, LanguageItem, CountryItem, Overview, Filters, FilterPreset } from "../types";
 import { useTheme, THEMES } from "../context/ThemeContext";
 import type { ThemeId } from "../context/ThemeContext";
+import { WildchatIcon } from "./WildchatLogo";
 
 // Generate month options from Apr 2023 to Apr 2024
 function generateMonthOptions() {
@@ -124,13 +125,7 @@ export default function TopBar({
 
   return (
     <header className="flex items-center gap-2 px-4 py-2 border-b border-border-base bg-bg-panel flex-shrink-0 flex-wrap">
-      <img
-        src="/wildchat-lens-favicon.svg"
-        alt=""
-        width={18}
-        height={18}
-        style={{ flexShrink: 0, opacity: 0.8 }}
-      />
+      <WildchatIcon size={18} />
       <Dropdown
         label="Model"
         value={filters.model}

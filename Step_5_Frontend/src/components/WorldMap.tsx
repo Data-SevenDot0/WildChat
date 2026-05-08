@@ -6,6 +6,7 @@ import {
   Sphere,
 } from "react-simple-maps";
 import type { CountryItem } from "../types";
+import { useTheme } from "../context/ThemeContext";
 
 const GEO_URL =
   "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
@@ -70,16 +71,6 @@ const NUM_TO_COUNTRY: Record<number, string> = Object.fromEntries(
   Object.entries(COUNTRY_TO_NUM).map(([name, num]) => [num, name])
 );
 
-function getVolumeColor(pct: number): string {
-  if (pct > 15) return "#d97706";
-  if (pct > 8)  return "#b86200";
-  if (pct > 4)  return "#9a5000";
-  if (pct > 2)  return "#7a3f00";
-  if (pct > 0.5) return "#572d00";
-  if (pct > 0)  return "#3d1f00";
-  return "#1e1e1e";
-}
-
 interface TooltipState {
   x: number;
   y: number;
@@ -95,6 +86,7 @@ interface Props {
 type ViewMode = "volume" | "language" | "model";
 
 export default function WorldMap({ countries, onCountryClick, activeCountry }: Props) {
+  const { colors } = useTheme();
   const [viewMode, setViewMode] = useState<ViewMode>("volume");
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
 
@@ -106,13 +98,21 @@ export default function WorldMap({ countries, onCountryClick, activeCountry }: P
     nameToItem[item.country] = item;
   });
 
+  function getVolumeColor(pct: number): string {
+    const s = colors.mapScale;
+    if (pct > 15) return s[5];
+    if (pct > 8)  return s[4];
+    if (pct > 4)  return s[3];
+    if (pct > 2)  return s[2];
+    if (pct > 0.5) return s[1];
+    if (pct > 0)  return s[0];
+    return colors.mapOcean;
+  }
+
   function getColor(numId: number): string {
     const countryName = NUM_TO_COUNTRY[numId];
-    if (activeCountry && countryName === activeCountry) return "#f59e0b";
-    if (viewMode === "volume") {
-      return getVolumeColor(pctMap[numId] ?? 0);
-    }
-    // For language/model mode: just use volume color with slight tint difference
+    if (activeCountry && countryName === activeCountry) return colors.mapHover;
+    if (viewMode === "volume") return getVolumeColor(pctMap[numId] ?? 0);
     return getVolumeColor(pctMap[numId] ?? 0);
   }
 
@@ -139,7 +139,7 @@ export default function WorldMap({ countries, onCountryClick, activeCountry }: P
           style={{ width: "100%", height: "auto" }}
           projectionConfig={{ scale: 140 }}
         >
-          <Sphere id="ocean" fill="#1a3a5c" stroke="#0d2440" strokeWidth={0.5} />
+          <Sphere id="ocean" fill={colors.mapOcean} stroke={colors.mapOcean} strokeWidth={0.5} />
           <Geographies geography={GEO_URL}>
             {({ geographies }) =>
               geographies.map((geo) => {
@@ -151,11 +151,11 @@ export default function WorldMap({ countries, onCountryClick, activeCountry }: P
                     key={geo.rsmKey}
                     geography={geo}
                     fill={getColor(numId)}
-                    stroke="#4a4030"
+                    stroke={colors.mapBorder}
                     strokeWidth={0.7}
                     style={{
                       default: { outline: "none" },
-                      hover: { fill: "#f59e0b", outline: "none", cursor: countryName ? "pointer" : "default" },
+                      hover: { fill: colors.mapHover, outline: "none", cursor: countryName ? "pointer" : "default" },
                       pressed: { outline: "none" },
                     }}
                     onMouseEnter={(evt) => {
@@ -193,15 +193,15 @@ export default function WorldMap({ countries, onCountryClick, activeCountry }: P
         <div
           className="flex-1 h-2 rounded"
           style={{
-            background: "linear-gradient(90deg, #3d1f00, #572d00, #7a3f00, #b86200, #d97706)",
+            background: `linear-gradient(90deg, ${colors.mapScale[0]}, ${colors.mapScale[2]}, ${colors.mapScale[5]})`,
           }}
         />
         <span className="text-text-secondary text-xs">high</span>
       </div>
       {activeCountry && onCountryClick && (
         <div className="text-xs text-text-secondary">
-          Filtered: <span className="text-accent-green">{activeCountry}</span>
-          <button className="ml-2 hover:text-accent-green" onClick={() => onCountryClick("")}>✕ clear</button>
+          Filtered: <span style={{ color: colors.accent }}>{activeCountry}</span>
+          <button className="ml-2 hover:underline" style={{ color: colors.accent }} onClick={() => onCountryClick("")}>✕ clear</button>
         </div>
       )}
       {/* Tooltip */}
@@ -211,12 +211,12 @@ export default function WorldMap({ countries, onCountryClick, activeCountry }: P
             position: "fixed",
             left: tooltip.x,
             top: tooltip.y,
-            background: "#1e1e1e",
-            border: "1px solid #303030",
+            background: colors.tooltipBg,
+            border: `1px solid ${colors.tooltipBorder}`,
             borderRadius: 4,
             padding: "4px 8px",
             fontSize: 11,
-            color: "#e0e0e0",
+            color: colors.tooltipText,
             pointerEvents: "none",
             zIndex: 9999,
             whiteSpace: "nowrap",

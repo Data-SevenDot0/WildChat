@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import type { TurnDepthItem } from "../types";
 import { fetchTurnDepth } from "../api";
+import { useTheme } from "../context/ThemeContext";
 
 type Dimension = "model" | "language" | "country";
 
 export default function TurnDepthCompare() {
+  const { colors } = useTheme();
   const [dimension, setDimension] = useState<Dimension>("model");
   const [data, setData] = useState<TurnDepthItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -51,7 +53,7 @@ export default function TurnDepthCompare() {
                   </span>
                   <div className="flex items-center gap-3">
                     <span className="text-text-secondary text-xs">{item.count.toLocaleString()} convs</span>
-                    <span className="text-xs font-mono font-medium text-accent-green">
+                    <span className="text-xs font-mono font-medium" style={{ color: colors.accent }}>
                       {item.avg_turns} turns avg
                     </span>
                   </div>
@@ -61,7 +63,7 @@ export default function TurnDepthCompare() {
                     className="bar-fill"
                     style={{
                       width: `${(item.avg_turns / maxAvg) * 100}%`,
-                      background: "linear-gradient(90deg, #d97706aa, #f59e0b)",
+                      background: `linear-gradient(90deg, ${colors.accentDark}aa, ${colors.accent})`,
                     }}
                   />
                 </div>
