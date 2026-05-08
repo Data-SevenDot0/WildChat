@@ -144,39 +144,39 @@
   --color-body-bg:         #12131a;
 }
 
-/* ── Theme: Low Light (very dim charcoal — photosensitivity / night use) ─────── */
-[data-theme="low-light"] {
-  --color-bg-deep:         #080808;
-  --color-bg-card:         #111111;
-  --color-bg-panel:        #0c0c0c;
-  --color-bg-row:          #0e0e0e;
-  --color-bg-hover:        #130e00;
-  --color-accent:          #a06820;
-  --color-accent-dark:     #7d5218;
-  --color-accent-bright:   #c48030;
-  --color-text-primary:    #aaaaaa;
-  --color-text-secondary:  #666666;
-  --color-text-muted:      #444444;
-  --color-border-base:     #1e1e1e;
-  --color-border-subtle:   #181818;
-  --color-tag-bg:          #130e00;
-  --color-tag-text:        #c48030;
-  --color-tag-hover:       #1c1400;
-  --color-model-badge-bg:  #130e00;
-  --color-model-badge-gpt4-bg: #180f00;
-  --color-scrollbar-track: #080808;
-  --color-scrollbar-thumb: #1e1e1e;
-  --color-scrollbar-hover: #a0682030;
-  --color-bar-fill-from:   #7d5218;
-  --color-bar-fill-to:     #a06820;
-  --color-bar-track:       #1e1e1e;
-  --color-spinner-border:  #1e1e1e;
-  --color-link-label:      #555555;
-  --color-sidebar-hover-bg:#130e00;
-  --color-conv-hover:      #130e00;
-  --color-conv-selected:   #180f00;
-  --color-body-text:       #aaaaaa;
-  --color-body-bg:         #080808;
+/* ── Theme: Wildlight (light mode — cream & amber) ────────────────────────────── */
+[data-theme="wildlight"] {
+  --color-bg-deep:         #ffffff;
+  --color-bg-card:         #faf8f4;
+  --color-bg-panel:        #f5f0e8;
+  --color-bg-row:          #f8f5f0;
+  --color-bg-hover:        #f0e8d8;
+  --color-accent:          #d97706;
+  --color-accent-dark:     #b45309;
+  --color-accent-bright:   #f59e0b;
+  --color-text-primary:    #1e1a14;
+  --color-text-secondary:  #6b5840;
+  --color-text-muted:      #a89070;
+  --color-border-base:     #e0d0b8;
+  --color-border-subtle:   #ece4d4;
+  --color-tag-bg:          #f5e8c8;
+  --color-tag-text:        #b45309;
+  --color-tag-hover:       #f0d8a0;
+  --color-model-badge-bg:  #f5e8c8;
+  --color-model-badge-gpt4-bg: #f0e0c0;
+  --color-scrollbar-track: #f0e8d8;
+  --color-scrollbar-thumb: #d0b888;
+  --color-scrollbar-hover: #d9770640;
+  --color-bar-fill-from:   #b45309;
+  --color-bar-fill-to:     #d97706;
+  --color-bar-track:       #e0d0b8;
+  --color-spinner-border:  #e0d0b8;
+  --color-link-label:      #a89070;
+  --color-sidebar-hover-bg:#f0e8d8;
+  --color-conv-hover:      #f0e8d8;
+  --color-conv-selected:   #ead8b8;
+  --color-body-text:       #1e1a14;
+  --color-body-bg:         #f5f0e8;
 }
 
 /* ── Base styles ────────────────────────────────────────────────────────────── */

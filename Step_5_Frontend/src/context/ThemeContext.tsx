@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 
-export type ThemeId = "wildcolor" | "blueprint" | "high-contrast" | "colorblind" | "low-light";
+export type ThemeId = "wildcolor" | "blueprint" | "high-contrast" | "colorblind" | "wildlight";
 
 export interface ThemeColors {
   /** Primary accent (buttons, highlights) */
@@ -121,22 +121,21 @@ export const THEMES: ThemeMeta[] = [
     },
   },
   {
-    id: "low-light",
-    name: "Low Light",
-    description: "Very dim — for photosensitivity & night use",
-    swatch: "#a06820",
-    swatchBg: "#111111",
-    accessibility: true,
+    id: "wildlight",
+    name: "Wildlight",
+    description: "Light mode — cream & amber",
+    swatch: "#d97706",
+    swatchBg: "#faf8f4",
     colors: {
-      accent: "#a06820", accentDark: "#7d5218", accentBright: "#c48030",
-      chart:   ["#a06820", "#7d5218", "#c48030", "#8a5a1a", "#b87030"],
-      chartMuted: "#555555",
-      mapScale: ["#130e00", "#1c1200", "#261800", "#341f00", "#4a2a00", "#7d5218"],
-      mapOcean: "#080f1a", mapNoData: "#1a1a1a", mapBorder: "#1e1e1e", mapHover: "#a06820",
-      tooltipBg: "#111111", tooltipBorder: "#1e1e1e", tooltipText: "#aaaaaa",
-      logoAccent: "#a06820",
-      textPrimary: "#aaaaaa", textSecondary: "#666666", textMuted: "#444444",
-      bgCard: "#111111", bgHover: "#130e00", borderBase: "#1e1e1e",
+      accent: "#d97706", accentDark: "#b45309", accentBright: "#f59e0b",
+      chart:   ["#fbbf24", "#f59e0b", "#d97706", "#b45309", "#92400e"],
+      chartMuted: "#c8b080",
+      mapScale: ["#faeec8", "#f5d878", "#e8b820", "#d97706", "#b45309", "#92400e"],
+      mapOcean: "#6090b8", mapNoData: "#c8c0b0", mapBorder: "#a89060", mapHover: "#d97706",
+      tooltipBg: "#1e1a14", tooltipBorder: "#3d2e1e", tooltipText: "#f5f0e8",
+      logoAccent: "#d97706",
+      textPrimary: "#1e1a14", textSecondary: "#6b5840", textMuted: "#a89070",
+      bgCard: "#faf8f4", bgHover: "#f0e8d8", borderBase: "#e0d0b8",
     },
   },
 ];
