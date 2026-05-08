@@ -244,7 +244,7 @@ export default function App() {
                   onFilterChange={handleFilterChange}
                 />
                 <div className="grid gap-3" style={{ gridTemplateColumns: "1fr 1fr" }}>
-                  <EtlLog overview={overview} />
+                  <EtlLog />
                   <SummaryStatsPanel stats={summaryStats} loading={loadingOverview} />
                 </div>
               </>
@@ -289,7 +289,7 @@ export default function App() {
 
             {/* ETL Log */}
             {view === "etl" && (
-              <EtlLog overview={overview} fullView />
+              <EtlLog fullView />
             )}
 
             {/* Turn Depth */}

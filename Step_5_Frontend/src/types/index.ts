@@ -70,3 +70,13 @@ export interface TurnDepthItem {
   avg_turns: number;
   count: number;
 }
+
+export interface EtlRunItem {
+  id: number;
+  ran_at: string;
+  rows_processed: number;
+  status: "success" | "error";
+  errors: number;
+  duration_seconds: number;
+  notes: string;
+}

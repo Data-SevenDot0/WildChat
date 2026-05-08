@@ -1,7 +1,8 @@
-import type { Overview } from "../types";
+import { useEffect, useState } from "react";
+import { fetchEtlRuns } from "../api";
+import type { EtlRunItem } from "../types";
 
 interface Props {
-  overview: Overview | null;
   fullView?: boolean;
 }
 
@@ -10,29 +11,34 @@ function formatTs(iso: string) {
   return d.toISOString().replace("T", " ").slice(0, 16);
 }
 
-const ALL_ROWS = [
-  { ts: "2024-04-29T22:10:00Z", rows: 837989, status: "success" as const, errors: 0, duration: "4m 12s" },
-  { ts: "2024-04-28T14:03:00Z", rows: 821004, status: "success" as const, errors: 0, duration: "3m 58s" },
-  { ts: "2024-04-27T09:45:00Z", rows: 756312, status: "partial" as const, errors: 3, duration: "5m 01s" },
-  { ts: "2024-04-26T18:22:00Z", rows: 638247, status: "success" as const, errors: 0, duration: "3m 44s" },
-  { ts: "2024-04-25T11:00:00Z", rows: 602115, status: "success" as const, errors: 0, duration: "3m 31s" },
-  { ts: "2024-04-24T08:15:00Z", rows: 589034, status: "error" as const, errors: 17, duration: "1m 12s" },
-  { ts: "2024-04-23T20:05:00Z", rows: 571200, status: "success" as const, errors: 0, duration: "3m 20s" },
-  { ts: "2024-04-22T15:40:00Z", rows: 548033, status: "partial" as const, errors: 2, duration: "4m 05s" },
-  { ts: "2024-04-21T10:30:00Z", rows: 520184, status: "success" as const, errors: 0, duration: "3m 10s" },
-  { ts: "2024-04-20T06:00:00Z", rows: 498761, status: "success" as const, errors: 0, duration: "3m 02s" },
-];
+function formatDuration(seconds: number) {
+  if (seconds < 60) return `${seconds.toFixed(1)}s`;
+  const m = Math.floor(seconds / 60);
+  const s = Math.round(seconds % 60);
+  return `${m}m ${s}s`;
+}
 
-function StatusColor(status: "success" | "partial" | "error") {
+function statusColor(status: string) {
   if (status === "success") return "#22c55e";
   if (status === "partial") return "#f59e0b";
   return "#ef4444";
 }
 
-export default function EtlLog({ overview, fullView }: Props) {
-  const rows = fullView ? ALL_ROWS : ALL_ROWS.slice(0, 4).map((r, i) =>
-    i === 0 && overview ? { ...r, ts: overview.date_to } : r
-  );
+export default function EtlLog({ fullView }: Props) {
+  const [runs, setRuns] = useState<EtlRunItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchEtlRuns(fullView ? 20 : 4)
+      .then(setRuns)
+      .catch(() => setRuns([]))
+      .finally(() => setLoading(false));
+  }, [fullView]);
+
+  const displayed = runs;
+
+  const successCount = runs.filter(r => r.status === "success").length;
+  const errorCount = runs.filter(r => r.status === "error").length;
 
   if (fullView) {
     return (
@@ -41,15 +47,13 @@ export default function EtlLog({ overview, fullView }: Props) {
           <div>
             <div className="text-text-primary font-semibold text-sm">ETL Run Log</div>
             <div className="text-text-secondary text-xs mt-0.5">
-              {ALL_ROWS.filter(r => r.status === "error").length} errors ·{" "}
-              {ALL_ROWS.filter(r => r.status === "partial").length} partial runs ·{" "}
-              {ALL_ROWS.filter(r => r.status === "success").length} successful
+              {errorCount} errors · {successCount} successful
             </div>
           </div>
           <button
             className="filter-btn text-xs opacity-50 cursor-not-allowed"
             disabled
-            title="Demo only — run disabled"
+            title="Re-runs are triggered by server restart"
           >
             ▶ Run new ETL job
           </button>
@@ -57,32 +61,38 @@ export default function EtlLog({ overview, fullView }: Props) {
         <div className="card">
           <div
             className="grid text-xs text-text-secondary px-4 py-2 border-b border-border-base"
-            style={{ gridTemplateColumns: "1fr 120px 80px 60px 80px" }}
+            style={{ gridTemplateColumns: "1fr 130px 80px 60px 90px" }}
           >
-            <span className="label">Timestamp</span>
+            <span className="label">Timestamp (UTC)</span>
             <span className="label text-right">Rows Processed</span>
             <span className="label text-right">Status</span>
             <span className="label text-right">Errors</span>
             <span className="label text-right">Duration</span>
           </div>
-          {rows.map((r, i) => (
+          {loading && (
+            <div className="px-4 py-4 text-xs text-text-secondary">Loading…</div>
+          )}
+          {!loading && displayed.length === 0 && (
+            <div className="px-4 py-4 text-xs text-text-secondary">No runs recorded yet. Start the server to generate a run entry.</div>
+          )}
+          {displayed.map(r => (
             <div
-              key={i}
+              key={r.id}
               className="grid items-center px-4 py-2.5 border-b border-border-subtle last:border-0 hover:bg-bg-hover"
-              style={{ gridTemplateColumns: "1fr 120px 80px 60px 80px" }}
+              style={{ gridTemplateColumns: "1fr 130px 80px 60px 90px" }}
             >
-              <span className="font-mono text-xs text-text-secondary">{formatTs(r.ts)}</span>
-              <span className="text-xs text-text-primary text-right">{r.rows.toLocaleString()}</span>
+              <span className="font-mono text-xs text-text-secondary">{formatTs(r.ran_at)}</span>
+              <span className="text-xs text-text-primary text-right">{r.rows_processed.toLocaleString()}</span>
               <div className="flex items-center justify-end gap-1">
-                <span className="status-dot" style={{ background: StatusColor(r.status) }} />
-                <span className="text-xs font-medium" style={{ color: StatusColor(r.status) }}>
+                <span className="status-dot" style={{ background: statusColor(r.status) }} />
+                <span className="text-xs font-medium" style={{ color: statusColor(r.status) }}>
                   {r.status}
                 </span>
               </div>
               <span className="text-xs text-right" style={{ color: r.errors > 0 ? "#ef4444" : "#888888" }}>
                 {r.errors}
               </span>
-              <span className="font-mono text-xs text-text-secondary text-right">{r.duration}</span>
+              <span className="font-mono text-xs text-text-secondary text-right">{formatDuration(r.duration_seconds)}</span>
             </div>
           ))}
         </div>
@@ -93,17 +103,21 @@ export default function EtlLog({ overview, fullView }: Props) {
   return (
     <div className="card p-4 flex flex-col gap-3 flex-1">
       <div className="label">ETL Run Log</div>
+      {loading && <div className="text-xs text-text-secondary">Loading…</div>}
+      {!loading && displayed.length === 0 && (
+        <div className="text-xs text-text-secondary">No runs yet.</div>
+      )}
       <div className="flex flex-col gap-1">
-        {rows.map((r, i) => (
+        {displayed.map(r => (
           <div
-            key={i}
+            key={r.id}
             className="flex items-center justify-between py-1 border-b border-border-subtle last:border-0"
           >
-            <span className="font-mono text-xs text-text-secondary">{formatTs(r.ts)}</span>
-            <span className="text-xs text-text-primary">{r.rows.toLocaleString()} rows</span>
+            <span className="font-mono text-xs text-text-secondary">{formatTs(r.ran_at)}</span>
+            <span className="text-xs text-text-primary">{r.rows_processed.toLocaleString()} rows</span>
             <div className="flex items-center gap-1">
-              <span className="status-dot" style={{ background: StatusColor(r.status) }} />
-              <span className="text-xs font-medium" style={{ color: StatusColor(r.status) }}>{r.status}</span>
+              <span className="status-dot" style={{ background: statusColor(r.status) }} />
+              <span className="text-xs font-medium" style={{ color: statusColor(r.status) }}>{r.status}</span>
             </div>
           </div>
         ))}
@@ -111,3 +125,4 @@ export default function EtlLog({ overview, fullView }: Props) {
     </div>
   );
 }
+

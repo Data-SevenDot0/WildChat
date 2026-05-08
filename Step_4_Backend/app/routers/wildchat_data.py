@@ -7,6 +7,7 @@ detail lookup instead of the entire 3 GB file.
 """
 import json
 import threading
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -15,6 +16,9 @@ import pyarrow as pa
 import pyarrow.compute as pc
 import pyarrow.parquet as pq
 from fastapi import APIRouter, HTTPException, Query
+
+from app.db.session import SessionLocal
+from app.models.etl_run import EtlRun
 
 data_router = APIRouter(prefix="/data", tags=["wildchat-data"])
 
@@ -102,14 +106,53 @@ def _build_rg_index() -> None:
         _hash_to_rg = index
 
 
+def _record_etl_run(rows: int, status: str, errors: int, duration: float, notes: str = "") -> None:
+    """Persist an ETL run record to SQLite (fire-and-forget, never raises)."""
+    try:
+        db = SessionLocal()
+        try:
+            db.add(EtlRun(
+                rows_processed=rows,
+                status=status,
+                errors=errors,
+                duration_seconds=round(duration, 2),
+                notes=notes,
+            ))
+            db.commit()
+        finally:
+            db.close()
+    except Exception:
+        pass  # Never let logging break the data load
+
+
 def _load_df() -> pd.DataFrame:
     global _df
     if _df is None:
         with _lock:
             if _df is None:
-                _df = pd.read_parquet(PARQUET_PATH, columns=SLIM_COLS)
-                # Timestamps in the parquet are naive (no timezone) — keep them as-is
-                _df["timestamp"] = pd.to_datetime(_df["timestamp"])
+                t0 = time.perf_counter()
+                try:
+                    _df = pd.read_parquet(PARQUET_PATH, columns=SLIM_COLS)
+                    # Timestamps in the parquet are naive (no timezone) — keep them as-is
+                    _df["timestamp"] = pd.to_datetime(_df["timestamp"])
+                    duration = time.perf_counter() - t0
+                    _record_etl_run(
+                        rows=len(_df),
+                        status="success",
+                        errors=0,
+                        duration=duration,
+                        notes=f"Loaded {PARQUET_PATH.name}",
+                    )
+                except Exception as exc:
+                    duration = time.perf_counter() - t0
+                    _record_etl_run(
+                        rows=0,
+                        status="error",
+                        errors=1,
+                        duration=duration,
+                        notes=str(exc)[:500],
+                    )
+                    raise
     return _df
 
 
@@ -384,3 +427,30 @@ def get_turn_depth(dimension: str = Query("model", regex="^(model|language|count
         {"dimension": row[dimension], "avg_turns": round(float(row["avg_turns"]), 2), "count": int(row["count"])}
         for _, row in grouped.iterrows()
     ]
+
+
+@data_router.get("/etl-runs")
+def get_etl_runs(limit: int = Query(20, ge=1, le=100)):
+    """Return the most recent ETL run records from the database."""
+    db = SessionLocal()
+    try:
+        runs = (
+            db.query(EtlRun)
+            .order_by(EtlRun.ran_at.desc())
+            .limit(limit)
+            .all()
+        )
+        return [
+            {
+                "id": r.id,
+                "ran_at": r.ran_at.isoformat(),
+                "rows_processed": r.rows_processed,
+                "status": r.status,
+                "errors": r.errors,
+                "duration_seconds": r.duration_seconds,
+                "notes": r.notes,
+            }
+            for r in runs
+        ]
+    finally:
+        db.close()

@@ -9,6 +9,7 @@ import type {
   ConversationsResponse,
   ConversationDetail,
   TurnDepthItem,
+  EtlRunItem,
 } from "../types";
 
 const api = axios.create({ baseURL: "" }); // proxied by Vite to localhost:8000
@@ -86,5 +87,10 @@ export async function fetchConversationDetail(
 
 export async function fetchTurnDepth(dimension: "model" | "language" | "country"): Promise<TurnDepthItem[]> {
   const { data } = await api.get(`/data/turn-depth?dimension=${dimension}`);
+  return data;
+}
+
+export async function fetchEtlRuns(limit = 20): Promise<EtlRunItem[]> {
+  const { data } = await api.get(`/data/etl-runs?limit=${limit}`);
   return data;
 }
