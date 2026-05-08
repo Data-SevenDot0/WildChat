@@ -6,7 +6,7 @@ Helsinki-NLP opus-mt models on Apple Silicon MPS.
 
 Usage:
     from translate_pipeline import run
-    run("data/sample_data/95pct_confidence__1pct_margin_part1.parquet",
+    run("data/sample_data/99pct_confidence__1pct_margin_part1",
         "data/sample_data/translated_part1.parquet", spark)
 """
 
