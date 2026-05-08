@@ -33,6 +33,8 @@ import GeographicView from "./components/GeographicView";
 import LanguageView from "./components/LanguageView";
 import ModelView from "./components/ModelView";
 import TurnDepthCompare from "./components/TurnDepthCompare";
+import WildchatLogo from "./components/WildchatLogo";
+import { useTheme } from "./context/ThemeContext";
 
 type View = "overview" | "explorer" | "geographic" | "language" | "model" | "etl" | "turns";
 
@@ -84,6 +86,7 @@ function LoadingBanner() {
 }
 
 export default function App() {
+  const { colors } = useTheme();
   const [view, setView] = useState<View>("overview");
   const [overview, setOverview] = useState<Overview | null>(null);
   const [topics, setTopics] = useState<TopicItem[]>([]);
@@ -223,6 +226,15 @@ export default function App() {
             {/* Overview */}
             {view === "overview" && (
               <>
+                <div className="flex flex-col items-center gap-2 py-4">
+                  <WildchatLogo size={80} wordmark={false} />
+                  <span style={{ fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif", fontSize: 22, fontWeight: 600, letterSpacing: "0.01em", color: colors.textPrimary }}>
+                    Wild<span style={{ color: colors.logoAccent, fontWeight: 400 }}>chat</span> Lens
+                  </span>
+                  <span style={{ fontSize: 13, color: colors.textSecondary, letterSpacing: "0.04em" }}>
+                    conversation analytics
+                  </span>
+                </div>
                 <StatCards overview={overview} loading={loadingOverview} />
                 <div className="grid gap-3" style={{ gridTemplateColumns: "1fr 320px" }}>
                   <WorldMap

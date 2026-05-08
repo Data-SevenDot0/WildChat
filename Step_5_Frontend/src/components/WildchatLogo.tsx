@@ -33,17 +33,17 @@ export default function WildchatLogo({ wordmark = true, size = 20 }: Props) {
       />
       {/* Pupil */}
       <rect x="37" y="18" width="6" height="44" rx="3" fill={accent} opacity="0.85" />
-      {/* Left whiskers */}
+      {/* Left whiskers — radiate from left corner inward */}
       <g stroke={accent} strokeWidth="1.5" strokeLinecap="round" opacity="0.5">
-        <line x1="9" y1="40" x2="1" y2="40" />
-        <line x1="9" y1="39" x2="1" y2="35" />
-        <line x1="9" y1="41" x2="1" y2="45" />
+        <line x1="14" y1="40" x2="27" y2="40" />
+        <line x1="15" y1="38" x2="26" y2="34" />
+        <line x1="15" y1="42" x2="26" y2="46" />
       </g>
-      {/* Right whiskers */}
+      {/* Right whiskers — radiate from right corner inward */}
       <g stroke={accent} strokeWidth="1.5" strokeLinecap="round" opacity="0.5">
-        <line x1="71" y1="40" x2="79" y2="40" />
-        <line x1="71" y1="39" x2="79" y2="35" />
-        <line x1="71" y1="41" x2="79" y2="45" />
+        <line x1="66" y1="40" x2="53" y2="40" />
+        <line x1="65" y1="38" x2="54" y2="34" />
+        <line x1="65" y1="42" x2="54" y2="46" />
       </g>
     </svg>
   );

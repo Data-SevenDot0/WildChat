@@ -105,15 +105,15 @@ export default function WorldMap({ countries, onCountryClick, activeCountry }: P
     if (pct > 4)  return s[3];
     if (pct > 2)  return s[2];
     if (pct > 0.5) return s[1];
-    if (pct > 0)  return s[0];
-    return colors.mapOcean;
+    return s[0];
   }
 
   function getColor(numId: number): string {
     const countryName = NUM_TO_COUNTRY[numId];
     if (activeCountry && countryName === activeCountry) return colors.mapHover;
-    if (viewMode === "volume") return getVolumeColor(pctMap[numId] ?? 0);
-    return getVolumeColor(pctMap[numId] ?? 0);
+    const pct = pctMap[numId];
+    if (!pct) return colors.mapNoData;
+    return getVolumeColor(pct);
   }
 
   return (

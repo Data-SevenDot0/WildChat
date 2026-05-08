@@ -14,6 +14,8 @@ export interface ThemeColors {
   mapScale: [string, string, string, string, string, string];
   /** Map ocean fill */
   mapOcean: string;
+  /** Map fill for countries with no data */
+  mapNoData: string;
   /** Map country border */
   mapBorder: string;
   /** Map hover highlight */
@@ -55,7 +57,7 @@ export const THEMES: ThemeMeta[] = [
       chart:   ["#f59e0b", "#d97706", "#fbbf24", "#b45309", "#e07020"],
       chartMuted: "#888888",
       mapScale: ["#3d1f00", "#572d00", "#7a3f00", "#9a5000", "#b86200", "#d97706"],
-      mapOcean: "#1a3a5c", mapBorder: "#4a4030", mapHover: "#f59e0b",
+      mapOcean: "#1a3a5c", mapNoData: "#2e2e2e", mapBorder: "#4a4030", mapHover: "#f59e0b",
       tooltipBg: "#1e1e1e", tooltipBorder: "#303030", tooltipText: "#e0e0e0",
       logoAccent: "#f59e0b",
       textPrimary: "#e0e0e0", textSecondary: "#888888", textMuted: "#555555",
@@ -73,7 +75,7 @@ export const THEMES: ThemeMeta[] = [
       chart:   ["#4da6ff", "#2d8aee", "#82c4ff", "#1a6ec0", "#60b8ff"],
       chartMuted: "#4a7aa0",
       mapScale: ["#0a2040", "#0f3060", "#1a4a80", "#2060a0", "#2d8aee", "#4da6ff"],
-      mapOcean: "#060e1c", mapBorder: "#1a4060", mapHover: "#4da6ff",
+      mapOcean: "#060e1c", mapNoData: "#1a2535", mapBorder: "#1a4060", mapHover: "#4da6ff",
       tooltipBg: "#0e1e33", tooltipBorder: "#1a3a5e", tooltipText: "#d4e8ff",
       logoAccent: "#4da6ff",
       textPrimary: "#d4e8ff", textSecondary: "#6a9ec8", textMuted: "#3a6080",
@@ -92,7 +94,7 @@ export const THEMES: ThemeMeta[] = [
       chart:   ["#ffff00", "#cccc00", "#ffff66", "#e0e000", "#ffffff"],
       chartMuted: "#aaaaaa",
       mapScale: ["#1a1a00", "#333300", "#4d4d00", "#6b6b00", "#999900", "#cccc00"],
-      mapOcean: "#000033", mapBorder: "#555555", mapHover: "#ffff00",
+      mapOcean: "#000033", mapNoData: "#2a2a2a", mapBorder: "#555555", mapHover: "#ffff00",
       tooltipBg: "#0d0d0d", tooltipBorder: "#555555", tooltipText: "#ffffff",
       logoAccent: "#ffff00",
       textPrimary: "#ffffff", textSecondary: "#cccccc", textMuted: "#999999",
@@ -111,7 +113,7 @@ export const THEMES: ThemeMeta[] = [
       chart:   ["#e8b800", "#4da6ff", "#ffd320", "#82c4ff", "#c49600"],
       chartMuted: "#6666aa",
       mapScale: ["#1a1a2a", "#252545", "#333368", "#464690", "#5a5ab0", "#e8b800"],
-      mapOcean: "#0e0f1c", mapBorder: "#32344e", mapHover: "#e8b800",
+      mapOcean: "#0e0f1c", mapNoData: "#1e2132", mapBorder: "#32344e", mapHover: "#e8b800",
       tooltipBg: "#1d1f2e", tooltipBorder: "#32344e", tooltipText: "#e8e8ff",
       logoAccent: "#e8b800",
       textPrimary: "#e8e8ff", textSecondary: "#8888bb", textMuted: "#505075",
@@ -130,7 +132,7 @@ export const THEMES: ThemeMeta[] = [
       chart:   ["#a06820", "#7d5218", "#c48030", "#8a5a1a", "#b87030"],
       chartMuted: "#555555",
       mapScale: ["#130e00", "#1c1200", "#261800", "#341f00", "#4a2a00", "#7d5218"],
-      mapOcean: "#080f1a", mapBorder: "#1e1e1e", mapHover: "#a06820",
+      mapOcean: "#080f1a", mapNoData: "#1a1a1a", mapBorder: "#1e1e1e", mapHover: "#a06820",
       tooltipBg: "#111111", tooltipBorder: "#1e1e1e", tooltipText: "#aaaaaa",
       logoAccent: "#a06820",
       textPrimary: "#aaaaaa", textSecondary: "#666666", textMuted: "#444444",
