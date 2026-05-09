@@ -1,6 +1,16 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { ConversationRow, ConversationsResponse, Filters } from "../types";
 import { fetchConversations } from "../api";
+import { useTheme } from "../context/ThemeContext";
+
+const TOPIC_CATEGORIES: Record<string, string[]> = {
+  "Coding / tech": ["python code", "javascript frontend", "sql database", "cybersecurity", "data science ml ai", "cloud devops", "api rest integration", "software architecture", "chatgpt jailbreak", "+ more"],
+  "Writing": ["fiction short stories", "essay academic writing", "marketing seo copywriting", "email business writing", "grammar proofreading", "resume cv job application", "dialogue scripts screenplays", "+ more"],
+  "Research / info": ["history civilizations", "health medical", "finance investing crypto", "philosophy ethics", "travel tourism geography", "politics current events", "psychology behavior", "+ more"],
+  "Math / science": ["math algebra calculus", "science biology physics chemistry"],
+  "Translation": ["translation multilingual", "language learning", "language simplification"],
+  "Other": ["greeting casual chat", "ai model identity questions", "productivity self improvement", "+ more"],
+};
 
 interface Props {
   filters: Filters;
@@ -22,10 +32,13 @@ function StatusCell({ row }: { row: ConversationRow }) {
 }
 
 export default function ConversationList({ filters, onSelect, selectedHash, onFilterChange }: Props) {
+  const { colors } = useTheme();
   const [data, setData] = useState<ConversationsResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [inputVal, setInputVal] = useState(filters.search || "");
+  const [topicOpen, setTopicOpen] = useState(false);
+  const topicRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(async (p: number, f: Filters) => {
@@ -65,6 +78,17 @@ export default function ConversationList({ filters, onSelect, selectedHash, onFi
     load(page, filters);
   }, [page]);
 
+  // Close topic dropdown on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (topicRef.current && !topicRef.current.contains(e.target as Node)) {
+        setTopicOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
   // Debounced search
   function handleInputChange(val: string) {
     setInputVal(val);
@@ -96,6 +120,69 @@ export default function ConversationList({ filters, onSelect, selectedHash, onFi
             ✕
           </button>
         )}
+        {/* Topic dropdown */}
+        <div ref={topicRef} style={{ position: "relative" }}>
+          <button
+            className={`filter-btn text-xs ${filters.topicFilter ? "active" : ""}`}
+            style={{ padding: "3px 10px", whiteSpace: "nowrap" }}
+            onClick={() => setTopicOpen(o => !o)}
+          >
+            {filters.topicFilter ? filters.topicFilter : "Topic"} ▾
+          </button>
+
+          {topicOpen && (
+            <div style={{
+              position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 200,
+              background: colors.bgCard, border: `1px solid ${colors.borderBase}`,
+              borderRadius: 6, boxShadow: "0 6px 24px rgba(0,0,0,0.3)",
+              width: 280, maxHeight: 420, overflowY: "auto",
+            }}>
+              {/* Clear option */}
+              {filters.topicFilter && (
+                <button
+                  className="w-full text-left px-3 py-2 text-xs"
+                  style={{ color: colors.accent, borderBottom: `1px solid ${colors.borderBase}` }}
+                  onClick={() => { onFilterChange?.("topicFilter", ""); setTopicOpen(false); }}
+                >
+                  Clear topic filter ✕
+                </button>
+              )}
+              {Object.entries(TOPIC_CATEGORIES).map(([cat, tags]) => {
+                const isActive = filters.topicFilter === cat;
+                return (
+                  <div key={cat} style={{ borderBottom: `1px solid ${colors.borderBase}` }}>
+                    <button
+                      className="w-full text-left px-3 py-2"
+                      style={{
+                        background: isActive ? `${colors.accent}20` : "transparent",
+                        color: isActive ? colors.accent : colors.textPrimary,
+                        fontSize: "0.8rem", fontWeight: 600,
+                        transition: "background 0.1s",
+                      }}
+                      onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = colors.bgHover; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = isActive ? `${colors.accent}20` : "transparent"; }}
+                      onClick={() => { onFilterChange?.("topicFilter", isActive ? "" : cat); setTopicOpen(false); }}
+                    >
+                      {cat}
+                    </button>
+                    <div className="px-3 pb-2 flex flex-wrap gap-1">
+                      {tags.map(tag => (
+                        <span key={tag} style={{
+                          fontSize: "0.65rem", color: colors.textMuted,
+                          background: colors.bgHover, borderRadius: 3,
+                          padding: "1px 5px",
+                        }}>
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
         {data && (
           <span className="text-text-secondary text-xs whitespace-nowrap">
             {data.total.toLocaleString()} records
