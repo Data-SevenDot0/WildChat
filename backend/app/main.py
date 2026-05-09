@@ -6,7 +6,6 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.routers import (
     users,
-    wilddata,
     tags,
     translations,
     wildchat_data,
@@ -85,7 +84,6 @@ async def global_exception_handler(request: Request, exc: Exception):
 # ── Routers ───────────────────────────────────────────────────────────────────
 
 app.include_router(users.user_router)
-app.include_router(wilddata.wilddata_router)
 app.include_router(tags.tag_router)
 app.include_router(translations.translation_router)
 app.include_router(wildchat_data.data_router)
