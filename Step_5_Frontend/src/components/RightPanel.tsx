@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import type { ConversationRow, ConversationDetail, FilterPreset, ActivityEntry, Filters } from "../types";
-import { fetchConversationDetail } from "../api";
+import type { ConversationRow, ConversationDetail, FilterPreset, ActivityEntry, Filters, Annotation } from "../types";
+import { fetchConversationDetail, fetchAnnotations, createAnnotation, deleteAnnotation } from "../api";
 import { useTheme } from "../context/ThemeContext";
+import { useAuth } from "../context/AuthContext";
 
 interface Props {
   selected: ConversationRow | null;
@@ -12,12 +13,6 @@ interface Props {
   onRestoreActivity?: (entry: ActivityEntry) => void;
 }
 
-interface AnnotationNote {
-  text: string;
-  timestamp: string;
-}
-
-type AnnotationsMap = Record<string, AnnotationNote[]>;
 
 
 function timeAgo(iso: string): string {
@@ -117,21 +112,13 @@ function ConversationFlow({ detail }: { detail: ConversationDetail }) {
 
 export default function RightPanel({ selected, presets = [], activityLog = [], onApplyPreset, onDeletePreset, onRestoreActivity }: Props) {
   const { colors } = useTheme();
+  const { user, } = useAuth();
   const [detail, setDetail] = useState<ConversationDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [showThread, setShowThread] = useState(false);
-  const [annotations, setAnnotations] = useState<AnnotationsMap>({});
+  const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [noteInput, setNoteInput] = useState("");
-
-  // Load annotations from sessionStorage on mount
-  useEffect(() => {
-    try {
-      const stored = JSON.parse(sessionStorage.getItem("wc_annotations") || "{}");
-      setAnnotations(stored);
-    } catch {
-      setAnnotations({});
-    }
-  }, []);
+  const [annotationError, setAnnotationError] = useState("");
 
   useEffect(() => {
     if (!selected) { setDetail(null); return; }
@@ -143,21 +130,39 @@ export default function RightPanel({ selected, presets = [], activityLog = [], o
       .finally(() => setLoading(false));
   }, [selected?.full_hash]);
 
-  useEffect(() => { setShowThread(false); setNoteInput(""); }, [selected?.full_hash]);
-
-  function addNote() {
-    if (!noteInput.trim() || !selected) return;
-    const hash = selected.full_hash;
-    const note: AnnotationNote = { text: noteInput.trim(), timestamp: new Date().toISOString() };
-    setAnnotations((prev) => {
-      const next = { ...prev, [hash]: [...(prev[hash] || []), note] };
-      sessionStorage.setItem("wc_annotations", JSON.stringify(next));
-      return next;
-    });
+  useEffect(() => {
+    setShowThread(false);
     setNoteInput("");
+    setAnnotationError("");
+    setAnnotations([]);
+    if (selected && user) {
+      fetchAnnotations(selected.full_hash, user.token)
+        .then(setAnnotations)
+        .catch(() => setAnnotations([]));
+    }
+  }, [selected?.full_hash, user?.user_id]);
+
+  async function addNote() {
+    if (!noteInput.trim() || !selected || !user) return;
+    setAnnotationError("");
+    try {
+      const created = await createAnnotation(selected.full_hash, noteInput.trim(), user.token);
+      setAnnotations(prev => [...prev, created]);
+      setNoteInput("");
+    } catch {
+      setAnnotationError("Failed to save note.");
+    }
   }
 
-  const currentNotes = selected ? (annotations[selected.full_hash] || []) : [];
+  async function removeNote(id: number) {
+    if (!user) return;
+    try {
+      await deleteAnnotation(id, user.token);
+      setAnnotations(prev => prev.filter(a => a.id !== id));
+    } catch {
+      setAnnotationError("Failed to delete note.");
+    }
+  }
   const recentActivity = activityLog.slice(0, 10);
   const trackingHistory = activityLog.filter(e => ["conversation", "country", "search"].includes(e.type)).slice(0, 15);
 
@@ -215,7 +220,20 @@ export default function RightPanel({ selected, presets = [], activityLog = [], o
         {/* Annotation Tool */}
         <div className="p-4 border-b border-border-base">
           <div className="label mb-2">Annotation Tool</div>
-          {detail ? (
+          {!user ? (
+            <div className="flex flex-col gap-2">
+              <div className="text-xs text-text-muted">Log in to save personal annotations to conversations.</div>
+              <button
+                className="filter-btn active text-xs"
+                style={{ justifyContent: "center", padding: "6px" }}
+                onClick={() => document.dispatchEvent(new CustomEvent("wc:open-login"))}
+              >
+                Log in
+              </button>
+            </div>
+          ) : !detail ? (
+            <div className="text-xs text-text-muted">Select a conversation to annotate.</div>
+          ) : (
             <div className="flex flex-col gap-1.5">
               {detail.tags.slice(0, 3).map((tag) => (
                 <div key={tag} className="flex items-center gap-2">
@@ -229,12 +247,22 @@ export default function RightPanel({ selected, presets = [], activityLog = [], o
                   <span className="text-xs text-text-primary">Redacted content</span>
                 </div>
               )}
-              {currentNotes.map((note, i) => (
-                <div key={i} className="flex flex-col gap-0.5 mt-1 p-2 rounded" style={{ background: colors.bgCard, border: `1px solid ${colors.borderBase}` }}>
-                  <span className="text-xs text-text-primary">{note.text}</span>
-                  <span className="text-xs text-text-muted">{timeAgo(note.timestamp)}</span>
+              {annotations.map((note) => (
+                <div key={note.id} className="flex flex-col gap-0.5 mt-1 p-2 rounded group" style={{ background: colors.bgHover, border: `1px solid ${colors.borderBase}` }}>
+                  <div className="flex items-start justify-between gap-1">
+                    <span className="text-xs text-text-primary flex-1">{note.text}</span>
+                    <button
+                      className="text-text-muted hover:text-text-primary text-xs opacity-0 group-hover:opacity-100 flex-shrink-0"
+                      onClick={() => removeNote(note.id)}
+                      title="Delete note"
+                    >✕</button>
+                  </div>
+                  <span className="text-xs text-text-muted">{timeAgo(note.created_at)}</span>
                 </div>
               ))}
+              {annotationError && (
+                <div className="text-xs" style={{ color: "#ef4444" }}>{annotationError}</div>
+              )}
               <div className="flex gap-1 mt-1">
                 <input
                   className="flex-1 bg-transparent text-text-primary text-xs outline-none border-b border-border-subtle placeholder-text-muted"
@@ -244,22 +272,9 @@ export default function RightPanel({ selected, presets = [], activityLog = [], o
                   onKeyDown={(e) => { if (e.key === "Enter") addNote(); }}
                 />
                 {noteInput && (
-                  <button className="text-xs text-accent-green hover:underline" onClick={addNote}>Save</button>
+                  <button className="text-xs hover:underline" style={{ color: colors.accent }} onClick={addNote}>Save</button>
                 )}
               </div>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-1.5">
-              {[
-                { color: colors.accent, text: "Possible prompt injection — flag" },
-                { color: colors.chart[1], text: "Topic shifts mid-conversation" },
-              ].map(({ color, text }) => (
-                <div key={text} className="flex items-center gap-2">
-                  <span className="status-dot flex-shrink-0" style={{ background: color }} />
-                  <span className="text-xs text-text-primary">{text}</span>
-                </div>
-              ))}
-              <div className="text-xs text-text-muted mt-1">Select a conversation to annotate</div>
             </div>
           )}
         </div>

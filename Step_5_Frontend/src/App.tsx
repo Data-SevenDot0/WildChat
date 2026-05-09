@@ -38,7 +38,9 @@ import TurnDepthCompare from "./components/TurnDepthCompare";
 import WildchatLogo from "./components/WildchatLogo";
 import ModelTopicMatrix from "./components/ModelTopicMatrix";
 import ContinentView from "./components/ContinentView";
+import LoginModal from "./components/LoginModal";
 import { useTheme } from "./context/ThemeContext";
+import { AuthProvider } from "./context/AuthContext";
 
 type View = "overview" | "explorer" | "geographic" | "language" | "model" | "etl" | "turns" | "matrix" | "continent";
 
@@ -92,6 +94,7 @@ function LoadingBanner() {
 export default function App() {
   const { colors } = useTheme();
   const [view, setView] = useState<View>("overview");
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const [overview, setOverview] = useState<Overview | null>(null);
   const [topics, setTopics] = useState<TopicItem[]>([]);
   const [languages, setLanguages] = useState<LanguageItem[]>([]);
@@ -187,6 +190,12 @@ export default function App() {
   }
 
   useEffect(() => {
+    const open = () => setShowLoginModal(true);
+    document.addEventListener("wc:open-login", open);
+    return () => document.removeEventListener("wc:open-login", open);
+  }, []);
+
+  useEffect(() => {
     setLoadingOverview(true);
     setLoadingTopics(true);
     fetchOverview()
@@ -208,7 +217,9 @@ export default function App() {
   }, [filters.dateFrom, filters.dateTo]);
 
   return (
+    <AuthProvider>
     <div className="flex flex-col h-screen overflow-hidden">
+      {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} />}
       {loadingOverview && <LoadingBanner />}
 
       <div className="flex flex-1 overflow-hidden">
@@ -349,5 +360,6 @@ export default function App() {
         />
       </div>
     </div>
+    </AuthProvider>
   );
 }

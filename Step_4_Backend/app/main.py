@@ -6,12 +6,20 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.routers import users
 from app.routers.wildchat_data import data_router
+from app.routers.annotations import annotation_router
 import app.models  # Import all models for SQLAlchemy registration
+from app.db.database import engine
+from app.models.base import Base
 
 
 # ── App ────────────────────────────────────────────────────────────────────────
 
 app = FastAPI()
+
+
+@app.on_event("startup")
+def create_tables():
+    Base.metadata.create_all(bind=engine)
 
 origins = [
     "http://localhost:8000",
@@ -72,3 +80,4 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 app.include_router(users.user_router)
 app.include_router(data_router)
+app.include_router(annotation_router)

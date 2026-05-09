@@ -71,6 +71,20 @@ export interface TurnDepthItem {
   count: number;
 }
 
+export interface AuthUser {
+  user_id: number;
+  username: string;
+  token: string;
+}
+
+export interface Annotation {
+  id: number;
+  user_id: number;
+  conversation_hash: string;
+  text: string;
+  created_at: string;
+}
+
 export interface ModelTopicMatrixItem {
   model: string;
   topic: string;

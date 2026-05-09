@@ -1,9 +1,10 @@
-from app.schemas.user_schema import User_schema
+from app.schemas.user_schema import User_schema, UserCreate
+from app.schemas.login_schema import LoginRequest, TokenResponse
 from app.crud import crud_user
+from app.core.security import create_access_token
 from app.db.session import get_db
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
-from app.schemas.user_schema import UserCreate
 
 user_router = APIRouter(prefix="/users", tags=["users"])
 
@@ -45,12 +46,17 @@ def create_user(user_in: UserCreate, request: Request, db: Session = Depends(get
     
     return crud_user.create_user(db, user_in=user_in, hashed_ip=client_ip)
 
-@user_router.post("/login", response_model=User_schema)
-def login(user_in: UserCreate, db: Session = Depends(get_db)):
+@user_router.post("/login", response_model=TokenResponse)
+def login(login_in: LoginRequest, db: Session = Depends(get_db)):
     """
-    Authenticate a user and return their details.
+    Authenticate a user and return a JWT access token.
     """
-    user = crud_user.authenticate(db, username=user_in.username, password=user_in.password)
+    user = crud_user.authenticate(db, username=login_in.username, password=login_in.password)
     if not user:
         raise HTTPException(status_code=400, detail="Incorrect username or password")
-    return user
+    token = create_access_token(subject=user.user_id)
+    return TokenResponse(
+        access_token=token,
+        user_id=user.user_id,
+        username=user.username,
+    )

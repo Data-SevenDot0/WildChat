@@ -11,6 +11,8 @@ import type {
   TurnDepthItem,
   EtlRunItem,
   ModelTopicMatrixItem,
+  Annotation,
+  AuthUser,
 } from "../types";
 
 const api = axios.create({ baseURL: "" }); // proxied by Vite to localhost:8000
@@ -99,4 +101,31 @@ export async function fetchEtlRuns(limit = 20): Promise<EtlRunItem[]> {
 export async function fetchModelTopicMatrix(): Promise<ModelTopicMatrixItem[]> {
   const { data } = await api.get("/data/model-topic-matrix");
   return data;
+}
+
+export async function login(username: string, password: string): Promise<AuthUser> {
+  const { data } = await api.post("/users/login", { username, password });
+  return { user_id: data.user_id, username: data.username, token: data.access_token };
+}
+
+export async function register(username: string, email: string, password: string): Promise<void> {
+  await api.post("/users/", { username, email, password });
+}
+
+function authHeaders(token: string) {
+  return { headers: { Authorization: `Bearer ${token}` } };
+}
+
+export async function fetchAnnotations(conversationHash: string, token: string): Promise<Annotation[]> {
+  const { data } = await api.get(`/annotations/${conversationHash}`, authHeaders(token));
+  return data;
+}
+
+export async function createAnnotation(conversationHash: string, text: string, token: string): Promise<Annotation> {
+  const { data } = await api.post("/annotations/", { conversation_hash: conversationHash, text }, authHeaders(token));
+  return data;
+}
+
+export async function deleteAnnotation(id: number, token: string): Promise<void> {
+  await api.delete(`/annotations/${id}`, authHeaders(token));
 }

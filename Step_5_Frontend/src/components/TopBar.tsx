@@ -3,6 +3,7 @@ import type { ModelItem, LanguageItem, CountryItem, Overview, Filters, FilterPre
 import { useTheme, THEMES } from "../context/ThemeContext";
 import type { ThemeId } from "../context/ThemeContext";
 import { WildchatIcon } from "./WildchatLogo";
+import { useAuth } from "../context/AuthContext";
 
 // Generate month options from Apr 2023 to Apr 2024
 function generateMonthOptions() {
@@ -82,6 +83,7 @@ export default function TopBar({
   const [presetsOpen, setPresetsOpen] = useState(false);
   const [visualOpen, setVisualOpen] = useState(false);
   const { theme, setTheme } = useTheme();
+  const { user, logout } = useAuth();
 
   const FONT_SIZES = [
     { label: "A",    title: "Normal",   size: "20px" },
@@ -318,6 +320,20 @@ export default function TopBar({
           </div>
         )}
       </div>
+      {/* Auth */}
+      {user ? (
+        <div className="flex items-center gap-2 ml-1">
+          <span className="text-text-secondary text-xs">{user.username}</span>
+          <button className="filter-btn text-xs" onClick={logout}>Log out</button>
+        </div>
+      ) : (
+        <button
+          className="filter-btn text-xs ml-1"
+          onClick={() => document.dispatchEvent(new CustomEvent("wc:open-login"))}
+        >
+          Log in
+        </button>
+      )}
     </header>
   );
 }
