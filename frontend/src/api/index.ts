@@ -14,6 +14,8 @@ import type {
   Annotation,
   AuthUser,
   HistoryItem,
+  Translation,
+  Message,
 } from "../types";
 
 const api = axios.create({ baseURL: "" }); // proxied by Vite to localhost:8001
@@ -163,4 +165,26 @@ export async function createAnnotation(conversationHash: string, text: string, t
 
 export async function deleteAnnotation(id: number, token: string): Promise<void> {
   await api.delete(`/annotations/${id}`, authHeaders(token));
+}
+
+export async function fetchTranslation(conversationHash: string): Promise<Translation | null> {
+  try {
+    const { data } = await api.get(`/translations/${conversationHash}`);
+    return data as Translation;
+  } catch (err: any) {
+    if (err?.response?.status === 404) return null;
+    throw err;
+  }
+}
+
+export async function requestTranslation(
+  conversationHash: string,
+  messages: Message[],
+  sourceLanguage: string
+): Promise<Translation> {
+  const { data } = await api.post(`/translations/${conversationHash}`, {
+    messages,
+    source_language: sourceLanguage,
+  });
+  return data as Translation;
 }

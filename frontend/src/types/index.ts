@@ -99,6 +99,13 @@ export interface HistoryItem {
   timestamp: string;
 }
 
+export interface Translation {
+  translation_id: number;
+  conversation_hash: string;
+  original_language: string;
+  translated_content: string; // JSON string — parse to Message[]
+}
+
 export interface EtlRunItem {
   id: number;
   ran_at: string;

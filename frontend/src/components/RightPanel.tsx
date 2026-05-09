@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { ConversationRow, ConversationDetail, FilterPreset, ActivityEntry, Filters, Annotation, HistoryItem } from "../types";
-import { fetchConversationDetail, fetchAnnotations, createAnnotation, deleteAnnotation, fetchHistory, addHistory, deleteHistory, clearHistory } from "../api";
+import { fetchConversationDetail, fetchAnnotations, createAnnotation, deleteAnnotation, fetchHistory, addHistory, deleteHistory, clearHistory, fetchTranslation, requestTranslation } from "../api";
+import type { Message } from "../types";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 
@@ -119,6 +120,9 @@ export default function RightPanel({ selected, presets = [], activityLog = [], o
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [noteInput, setNoteInput] = useState("");
   const [annotationError, setAnnotationError] = useState("");
+  const [translatedMessages, setTranslatedMessages] = useState<Message[] | null>(null);
+  const [translating, setTranslating] = useState(false);
+  const [translateError, setTranslateError] = useState("");
 
   // DB-backed history (per-user, persisted)
   const [dbHistory, setDbHistory] = useState<HistoryItem[]>([]);
@@ -158,12 +162,34 @@ export default function RightPanel({ selected, presets = [], activityLog = [], o
   useEffect(() => {
     if (!selected) { setDetail(null); return; }
     setDetail(null);
+    setTranslatedMessages(null);
+    setTranslateError("");
     setLoading(true);
     fetchConversationDetail(selected.full_hash)
-      .then(setDetail)
+      .then(async (d) => {
+        setDetail(d);
+        if (d.language !== "English") {
+          const cached = await fetchTranslation(d.conversation_hash).catch(() => null);
+          if (cached) setTranslatedMessages(JSON.parse(cached.translated_content));
+        }
+      })
       .catch(() => setDetail(null))
       .finally(() => setLoading(false));
   }, [selected?.full_hash]);
+
+  async function handleTranslate() {
+    if (!detail) return;
+    setTranslating(true);
+    setTranslateError("");
+    try {
+      const result = await requestTranslation(detail.conversation_hash, detail.messages, detail.language);
+      setTranslatedMessages(JSON.parse(result.translated_content));
+    } catch {
+      setTranslateError("Translation failed. Please try again.");
+    } finally {
+      setTranslating(false);
+    }
+  }
 
   useEffect(() => {
     setShowThread(false);
@@ -226,7 +252,7 @@ export default function RightPanel({ selected, presets = [], activityLog = [], o
                 <span className="text-text-secondary text-xs">{detail.turns} turns</span>
                 <span className="text-text-secondary text-xs">· {detail.language}</span>
               </div>
-              {detail.messages.slice(0, 3).map((msg, i) => (
+              {(translatedMessages ?? detail.messages).slice(0, 3).map((msg: Message, i: number) => (
                 <div key={i} className="mb-2">
                   <div className="text-xs font-medium mb-0.5" style={{ color: msg.role === "user" ? colors.accent : colors.textPrimary }}>
                     {msg.role === "user" ? "User" : "Assistant"}:
@@ -239,6 +265,27 @@ export default function RightPanel({ selected, presets = [], activityLog = [], o
               <button className="text-xs text-accent-green hover:underline mt-1" onClick={() => setShowThread(true)}>
                 View full thread ({detail.messages.length} messages) →
               </button>
+              {detail.language !== "English" && (
+                <div className="mt-2 flex flex-col gap-1">
+                  {translatedMessages ? (
+                    <div className="flex items-center gap-1.5">
+                      <span className="status-dot ok" />
+                      <span className="text-xs text-text-muted">Translated from {detail.language}</span>
+                      <button className="text-xs text-text-muted hover:underline ml-1" onClick={() => setTranslatedMessages(null)}>Show original</button>
+                    </div>
+                  ) : (
+                    <button
+                      className="filter-btn text-xs"
+                      style={{ justifyContent: "center", padding: "4px 8px" }}
+                      onClick={handleTranslate}
+                      disabled={translating}
+                    >
+                      {translating ? "Translating…" : "Translate to English"}
+                    </button>
+                  )}
+                  {translateError && <div className="text-xs" style={{ color: "#ef4444" }}>{translateError}</div>}
+                </div>
+              )}
             </>
           ) : (
             <div className="text-text-muted text-xs">Could not load conversation.</div>
