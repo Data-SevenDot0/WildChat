@@ -4,6 +4,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.routers import (
+    users,
+    wilddata,
+    tags,
+    translations,
+    )
 from app.routers import users
 from app.routers.wildchat_data import data_router
 from app.routers.annotations import annotation_router
@@ -22,6 +28,8 @@ def create_tables():
     Base.metadata.create_all(bind=engine)
 
 origins = [
+    "http://localhost:8001",
+    "http://127.0.0.1:8001",
     "http://localhost:8000",
     "http://127.0.0.1:8000",
     "http://localhost:3001",
@@ -79,5 +87,8 @@ async def global_exception_handler(request: Request, exc: Exception):
 # ── Routers ───────────────────────────────────────────────────────────────────
 
 app.include_router(users.user_router)
+app.include_router(wilddata.data_router)
+app.include_router(tags.tag_router)
+app.include_router(translations.translation_router)
 app.include_router(data_router)
 app.include_router(annotation_router)
