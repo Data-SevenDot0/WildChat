@@ -84,9 +84,9 @@ export default function TopBar({
   const { theme, setTheme } = useTheme();
 
   const FONT_SIZES = [
-    { label: "A",    title: "Normal",   size: "16px" },
-    { label: "A+",   title: "Large",    size: "19px" },
-    { label: "A⁺⁺",  title: "X-Large",  size: "22px" },
+    { label: "A",    title: "Normal",   size: "20px" },
+    { label: "A+",   title: "Large",    size: "25px" },
+    { label: "A⁺⁺",  title: "X-Large",  size: "31px" },
   ];
   const [fontIdx, setFontIdx] = useState(0);
 
