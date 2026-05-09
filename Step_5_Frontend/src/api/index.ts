@@ -10,6 +10,7 @@ import type {
   ConversationDetail,
   TurnDepthItem,
   EtlRunItem,
+  ModelTopicMatrixItem,
 } from "../types";
 
 const api = axios.create({ baseURL: "" }); // proxied by Vite to localhost:8000
@@ -92,5 +93,10 @@ export async function fetchTurnDepth(dimension: "model" | "language" | "country"
 
 export async function fetchEtlRuns(limit = 20): Promise<EtlRunItem[]> {
   const { data } = await api.get(`/data/etl-runs?limit=${limit}`);
+  return data;
+}
+
+export async function fetchModelTopicMatrix(): Promise<ModelTopicMatrixItem[]> {
+  const { data } = await api.get("/data/model-topic-matrix");
   return data;
 }

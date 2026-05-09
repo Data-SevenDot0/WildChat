@@ -71,6 +71,13 @@ export interface TurnDepthItem {
   count: number;
 }
 
+export interface ModelTopicMatrixItem {
+  model: string;
+  topic: string;
+  count: number;
+  row_pct: number;
+}
+
 export interface EtlRunItem {
   id: number;
   ran_at: string;

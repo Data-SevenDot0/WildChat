@@ -235,6 +235,37 @@ def _get_stats() -> dict:
         "us_share_pct": us_pct,
     }
 
+    # Model × Topic matrix (top 10 models)
+    all_cats = list(TOPIC_CATEGORIES.keys()) + ["Other"]
+    top_models = df["model"].value_counts().head(10).index.tolist()
+    model_totals_dict = df["model"].value_counts().to_dict()
+    df_top = df[df["model"].isin(top_models)]
+    matrix: dict[str, dict[str, int]] = {m: {c: 0 for c in all_cats} for m in top_models}
+    for model, tags_str in zip(df_top["model"].values, df_top["tags"].values):
+        if not tags_str or not isinstance(tags_str, str):
+            continue
+        try:
+            seen: set = set()
+            for tag in json.loads(tags_str):
+                cat = _TAG_TO_CATEGORY.get(tag, "Other")
+                if cat not in seen:
+                    seen.add(cat)
+                    matrix[model][cat] += 1
+        except Exception:
+            pass
+    matrix_records = []
+    for model in top_models:
+        mtotal = model_totals_dict[model]
+        for cat in all_cats:
+            count = matrix[model][cat]
+            matrix_records.append({
+                "model": model,
+                "topic": cat,
+                "count": count,
+                "row_pct": round(count / mtotal * 100, 1) if mtotal > 0 else 0.0,
+            })
+    _stats_cache["model_topic_matrix"] = matrix_records
+
     return _stats_cache
 
 
@@ -427,6 +458,11 @@ def get_turn_depth(dimension: str = Query("model", regex="^(model|language|count
         {"dimension": row[dimension], "avg_turns": round(float(row["avg_turns"]), 2), "count": int(row["count"])}
         for _, row in grouped.iterrows()
     ]
+
+
+@data_router.get("/model-topic-matrix")
+def get_model_topic_matrix():
+    return _get_stats()["model_topic_matrix"]
 
 
 @data_router.get("/etl-runs")

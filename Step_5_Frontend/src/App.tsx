@@ -10,6 +10,7 @@ import type {
   Filters,
   FilterPreset,
   ActivityEntry,
+  ModelTopicMatrixItem,
 } from "./types";
 import {
   fetchOverview,
@@ -18,6 +19,7 @@ import {
   fetchModels,
   fetchCountries,
   fetchSummary,
+  fetchModelTopicMatrix,
 } from "./api";
 
 import Sidebar from "./components/Sidebar";
@@ -34,9 +36,11 @@ import LanguageView from "./components/LanguageView";
 import ModelView from "./components/ModelView";
 import TurnDepthCompare from "./components/TurnDepthCompare";
 import WildchatLogo from "./components/WildchatLogo";
+import ModelTopicMatrix from "./components/ModelTopicMatrix";
+import ContinentView from "./components/ContinentView";
 import { useTheme } from "./context/ThemeContext";
 
-type View = "overview" | "explorer" | "geographic" | "language" | "model" | "etl" | "turns";
+type View = "overview" | "explorer" | "geographic" | "language" | "model" | "etl" | "turns" | "matrix" | "continent";
 
 const DEFAULT_FILTERS: Filters = {
   model: "", language: "", country: "", redactedOnly: false, search: "",
@@ -94,6 +98,8 @@ export default function App() {
   const [models, setModels] = useState<ModelItem[]>([]);
   const [countries, setCountries] = useState<CountryItem[]>([]);
   const [summaryStats, setSummaryStats] = useState<SummaryStats | null>(null);
+  const [modelTopicMatrix, setModelTopicMatrix] = useState<ModelTopicMatrixItem[]>([]);
+  const [loadingMatrix, setLoadingMatrix] = useState(true);
   const [loadingOverview, setLoadingOverview] = useState(true);
   const [loadingTopics, setLoadingTopics] = useState(true);
   const [selectedConv, setSelectedConv] = useState<ConversationRow | null>(null);
@@ -191,11 +197,12 @@ export default function App() {
     fetchLanguages(30).then(setLanguages).catch(() => {});
     fetchModels().then(setModels).catch(() => {});
     fetchSummary().then(setSummaryStats).catch(() => {});
+    fetchModelTopicMatrix().then(setModelTopicMatrix).catch(() => {}).finally(() => setLoadingMatrix(false));
   }, []);
 
   // Re-fetch countries whenever date range changes
   useEffect(() => {
-    fetchCountries(50, filters.dateFrom || undefined, filters.dateTo || undefined)
+    fetchCountries(250, filters.dateFrom || undefined, filters.dateTo || undefined)
       .then(setCountries)
       .catch(() => {});
   }, [filters.dateFrom, filters.dateTo]);
@@ -307,6 +314,26 @@ export default function App() {
             {/* Turn Depth */}
             {view === "turns" && (
               <TurnDepthCompare />
+            )}
+
+            {/* Model × Topic Matrix */}
+            {view === "matrix" && (
+              <>
+                <StatCards overview={overview} loading={loadingOverview} />
+                <ModelTopicMatrix data={modelTopicMatrix} loading={loadingMatrix} />
+              </>
+            )}
+
+            {/* Continent Drill-Down */}
+            {view === "continent" && (
+              <>
+                <StatCards overview={overview} loading={loadingOverview} />
+                <ContinentView
+                  countries={countries}
+                  onCountryFilter={handleCountryFilter}
+                  activeCountry={filters.country}
+                />
+              </>
             )}
 
           </main>
