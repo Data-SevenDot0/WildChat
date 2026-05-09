@@ -1,8 +1,12 @@
 from datetime import datetime, timedelta, timezone
 from typing import Any, Union, Optional
+import warnings
 from jose import jwt
 from passlib.context import CryptContext
 from app.core.config import settings
+
+# Suppress passlib's noisy bcrypt version warning (bcrypt ≥ 4.x removed __about__)
+warnings.filterwarnings("ignore", message=".*error reading bcrypt version.*")
 
 SECRET_KEY: str = settings.SECRET_KEY
 ALGORITHM: str = settings.ALGORITHM

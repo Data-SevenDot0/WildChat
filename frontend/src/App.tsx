@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
   Overview,
   TopicItem,
@@ -117,12 +117,18 @@ export default function App() {
   });
 
   const [activityLog, setActivityLog] = useState<ActivityEntry[]>(() => {
-    try { return JSON.parse(sessionStorage.getItem("wc_activity") || "[]"); } catch { return []; }
+    try {
+      const raw: ActivityEntry[] = JSON.parse(sessionStorage.getItem("wc_activity") || "[]");
+      // Deduplicate by id in case of stale data with duplicate keys
+      const seen = new Set<string>();
+      return raw.filter(e => { if (seen.has(e.id)) return false; seen.add(e.id); return true; });
+    } catch { return []; }
   });
+  const activityCounter = useRef(0);
 
   function logActivity(type: ActivityEntry["type"], label: string, currentFilters: Filters) {
     const entry: ActivityEntry = {
-      id: String(Date.now()),
+      id: `${Date.now()}-${++activityCounter.current}`,
       type, label,
       timestamp: new Date().toISOString(),
       filterSnapshot: currentFilters,

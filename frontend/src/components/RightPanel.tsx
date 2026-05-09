@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import type { ConversationRow, ConversationDetail, FilterPreset, ActivityEntry, Filters, Annotation } from "../types";
-import { fetchConversationDetail, fetchAnnotations, createAnnotation, deleteAnnotation } from "../api";
+import type { ConversationRow, ConversationDetail, FilterPreset, ActivityEntry, Filters, Annotation, HistoryItem } from "../types";
+import { fetchConversationDetail, fetchAnnotations, createAnnotation, deleteAnnotation, fetchHistory, addHistory, deleteHistory, clearHistory } from "../api";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 
@@ -119,6 +119,41 @@ export default function RightPanel({ selected, presets = [], activityLog = [], o
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [noteInput, setNoteInput] = useState("");
   const [annotationError, setAnnotationError] = useState("");
+
+  // DB-backed history (per-user, persisted)
+  const [dbHistory, setDbHistory] = useState<HistoryItem[]>([]);
+
+  useEffect(() => {
+    if (!user) { setDbHistory([]); return; }
+    fetchHistory(user.token).then(data => setDbHistory(Array.isArray(data) ? data : [])).catch(() => setDbHistory([]));
+  }, [user?.user_id]);
+
+  // Sync new activity entries to DB when user is logged in
+  useEffect(() => {
+    if (!user?.token || activityLog.length === 0) return;
+    const latest = activityLog[0];
+    if (!["conversation", "country", "preset"].includes(latest.type)) return;
+    addHistory(latest.label, user.token)
+      .then((item) => setDbHistory((prev) => [item, ...prev]))
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activityLog[0]?.id, user?.token]);
+
+  async function removeHistoryItem(historyId: number) {
+    if (!user) return;
+    try {
+      await deleteHistory(historyId, user.token);
+      setDbHistory((prev) => prev.filter((h) => h.history_id !== historyId));
+    } catch {}
+  }
+
+  async function handleClearHistory() {
+    if (!user) return;
+    try {
+      await clearHistory(user.token);
+      setDbHistory([]);
+    } catch {}
+  }
 
   useEffect(() => {
     if (!selected) { setDetail(null); return; }
@@ -307,7 +342,12 @@ export default function RightPanel({ selected, presets = [], activityLog = [], o
 
         {/* Session History */}
         <div className="p-4 border-b border-border-base">
-          <div className="label mb-2">Session History</div>
+          <div className="flex items-center justify-between mb-2">
+            <div className="label">Session History</div>
+            {recentActivity.length > 0 && (
+              <span className="text-xs text-text-muted">{recentActivity.length} actions</span>
+            )}
+          </div>
           {recentActivity.length === 0 ? (
             <div className="text-text-muted text-xs">No activity yet.</div>
           ) : (
@@ -328,19 +368,37 @@ export default function RightPanel({ selected, presets = [], activityLog = [], o
           )}
         </div>
 
-        {/* User Tracking History */}
+        {/* User History — DB-backed, user-scoped */}
         <div className="p-4">
-          <div className="label mb-2">User Tracking History</div>
-          {trackingHistory.length === 0 ? (
-            <div className="text-text-muted text-xs">No tracked actions yet.</div>
+          <div className="flex items-center justify-between mb-2">
+            <div className="label">My History</div>
+            {user && dbHistory.length > 0 && (
+              <button
+                className="text-xs text-text-muted hover:text-text-primary"
+                onClick={handleClearHistory}
+                title="Clear all history"
+              >
+                Clear all
+              </button>
+            )}
+          </div>
+          {!user ? (
+            <div className="text-text-muted text-xs">Log in to save your history across sessions.</div>
+          ) : dbHistory.length === 0 ? (
+            <div className="text-text-muted text-xs">No history saved yet.</div>
           ) : (
-            trackingHistory.map((entry) => (
-              <div key={entry.id} className="flex items-start gap-2 py-1.5">
-                <span className="text-xs flex-shrink-0">{activityIcon(entry.type)}</span>
+            dbHistory.slice(0, 20).map((item) => (
+              <div key={item.history_id} className="flex items-start gap-2 py-1.5 group hover:bg-bg-hover rounded px-1">
+                <span className="text-xs flex-shrink-0">🕑</span>
                 <div className="flex flex-col gap-0.5 flex-1 min-w-0">
-                  <span className="text-xs text-text-secondary truncate">{entry.label}</span>
-                  <span className="text-xs text-text-muted">{timeAgo(entry.timestamp)}</span>
+                  <span className="text-xs text-text-secondary truncate">{item.search_query}</span>
+                  <span className="text-xs text-text-muted">{timeAgo(item.timestamp)}</span>
                 </div>
+                <button
+                  className="text-text-muted hover:text-text-primary text-xs opacity-0 group-hover:opacity-100 flex-shrink-0"
+                  onClick={() => removeHistoryItem(item.history_id)}
+                  title="Remove"
+                >✕</button>
               </div>
             ))
           )}

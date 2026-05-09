@@ -1,8 +1,17 @@
+import hashlib
 from sqlalchemy.orm import Session
 from app.models import User
 from app.core.security import verify_password, get_password_hash
 from typing import Optional
 from app.schemas.user_schema import UserCreate
+
+
+def _hash_ip(ip: Optional[str]) -> Optional[str]:
+    """SHA-256 hash the IP address for privacy."""
+    if not ip:
+        return None
+    return hashlib.sha256(ip.encode()).hexdigest()
+
 
 def get_users(db: Session):
         users = db.query(User).all()
@@ -16,7 +25,7 @@ def create_user(db: Session, user_in: UserCreate, hashed_ip: Optional[str] = Non
     db_obj = User(
         **user_in.model_dump(exclude={"password"}),
         hashed_password=get_password_hash(user_in.password),
-        hashed_ip=hashed_ip
+        user_ip=_hash_ip(hashed_ip),
     )
     db.add(db_obj)
     db.commit()

@@ -92,6 +92,13 @@ export interface ModelTopicMatrixItem {
   row_pct: number;
 }
 
+export interface HistoryItem {
+  history_id: number;
+  user_id: number;
+  search_query: string;
+  timestamp: string;
+}
+
 export interface EtlRunItem {
   id: number;
   ran_at: string;

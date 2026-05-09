@@ -6,8 +6,12 @@ export default defineConfig({
   server: {
     port: 3001,
     proxy: {
-      "/data": "http://localhost:8000",
-      "/users": "http://localhost:8000",
+      "/data": "http://localhost:8001",
+      "/users": "http://localhost:8001",
+      "/history": "http://localhost:8001",
+      "/annotations": "http://localhost:8001",
+      "/tags": "http://localhost:8001",
+      "/translations": "http://localhost:8001",
     },
   },
 });

@@ -13,9 +13,26 @@ import type {
   ModelTopicMatrixItem,
   Annotation,
   AuthUser,
+  HistoryItem,
 } from "../types";
 
-const api = axios.create({ baseURL: "" }); // proxied by Vite to localhost:8000
+const api = axios.create({ baseURL: "" }); // proxied by Vite to localhost:8001
+
+// Auto-clear stale stored auth when the backend rejects the token
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error?.response?.status === 401) {
+      const stored = localStorage.getItem("wc_auth");
+      if (stored) {
+        // Token is stale — clear it so the user gets prompted to log in again
+        localStorage.removeItem("wc_auth");
+        window.dispatchEvent(new Event("wc_auth_expired"));
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 export async function fetchOverview(): Promise<Overview> {
   const { data } = await api.get("/data/overview");
@@ -114,6 +131,24 @@ export async function register(username: string, email: string, password: string
 
 function authHeaders(token: string) {
   return { headers: { Authorization: `Bearer ${token}` } };
+}
+
+export async function fetchHistory(token: string, limit = 100): Promise<HistoryItem[]> {
+  const { data } = await api.get(`/history/?limit=${limit}`, authHeaders(token));
+  return Array.isArray(data) ? data : [];
+}
+
+export async function addHistory(query: string, token: string): Promise<HistoryItem> {
+  const { data } = await api.post("/history/", { search_query: query }, authHeaders(token));
+  return data;
+}
+
+export async function deleteHistory(historyId: number, token: string): Promise<void> {
+  await api.delete(`/history/${historyId}`, authHeaders(token));
+}
+
+export async function clearHistory(token: string): Promise<void> {
+  await api.delete("/history/", authHeaders(token));
 }
 
 export async function fetchAnnotations(conversationHash: string, token: string): Promise<Annotation[]> {

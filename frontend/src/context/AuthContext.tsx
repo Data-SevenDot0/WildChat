@@ -33,6 +33,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     else localStorage.removeItem(STORAGE_KEY);
   }, [user]);
 
+  useEffect(() => {
+    const handler = () => setUser(null);
+    window.addEventListener("wc_auth_expired", handler);
+    return () => window.removeEventListener("wc_auth_expired", handler);
+  }, []);
+
   async function login(username: string, password: string) {
     const authUser = await apiLogin(username, password);
     setUser(authUser);

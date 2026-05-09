@@ -9,10 +9,10 @@ from app.routers import (
     wilddata,
     tags,
     translations,
+    wildchat_data,
+    history_router,
+    annotations,
     )
-from app.routers import users
-from app.routers.wildchat_data import data_router
-from app.routers.annotations import annotation_router
 import app.models  # Import all models for SQLAlchemy registration
 from app.db.database import engine
 from app.models.base import Base
@@ -30,8 +30,6 @@ def create_tables():
 origins = [
     "http://localhost:8001",
     "http://127.0.0.1:8001",
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
     "http://localhost:3001",
     "http://127.0.0.1:3001",
 ]
@@ -87,8 +85,9 @@ async def global_exception_handler(request: Request, exc: Exception):
 # ── Routers ───────────────────────────────────────────────────────────────────
 
 app.include_router(users.user_router)
-app.include_router(wilddata.data_router)
+app.include_router(wilddata.wilddata_router)
 app.include_router(tags.tag_router)
 app.include_router(translations.translation_router)
-app.include_router(data_router)
-app.include_router(annotation_router)
+app.include_router(wildchat_data.data_router)
+app.include_router(annotations.annotation_router)
+app.include_router(history_router.history_router)

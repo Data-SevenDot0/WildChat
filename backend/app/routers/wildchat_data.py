@@ -25,7 +25,7 @@ data_router = APIRouter(prefix="/data", tags=["wildchat-data"])
 # ── Paths ──────────────────────────────────────────────────────────────────────
 
 PARQUET_PATH = (
-    Path(__file__).parents[3] / "Step_0_Data" / "WildChatData" / "combined_data_tagged.parquet"
+    Path(__file__).parents[3] / "data" / "WildChatData" / "combined_data_tagged.parquet"
 )
 
 SLIM_COLS = [
@@ -411,40 +411,44 @@ def get_conversation(hash: str):
         pf = pq.ParquetFile(PARQUET_PATH)
         # Read only the single row group that contains this hash (~35 MB vs ~490 MB).
         table = pf.read_row_group(rg_idx, columns=DETAIL_COLS)
-        # Narrow to the exact row.
-        table = table.filter(pc.equal(table.column("conversation_hash"), hash))
+        # Narrow to the exact row by converting to pandas for filtering.
+        df_detail = table.to_pandas()
+        df_detail = df_detail[df_detail["conversation_hash"] == hash]
 
-        if table.num_rows == 0:
+        if len(df_detail) == 0:
             raise HTTPException(status_code=404, detail="Conversation not found")
 
-        row = table.to_pydict()
-        conv_raw = row["conversation"][0]
+        row = df_detail.iloc[0]
+        conv_raw = row["conversation"]
+        if hasattr(conv_raw, "tolist"):
+            conv_raw = conv_raw.tolist()
 
         messages = []
-        if conv_raw:
+        if conv_raw is not None and len(conv_raw) > 0:
             for msg in conv_raw:
                 role = msg.get("role", "") if isinstance(msg, dict) else ""
                 content = msg.get("content", "") if isinstance(msg, dict) else str(msg)
                 messages.append({"role": role, "content": content or ""})
 
-        ts = row["timestamp"][0]
+        ts = row["timestamp"]
         return {
-            "conversation_hash": row["conversation_hash"][0],
-            "full_hash": row["conversation_hash"][0],
-            "model": row["model"][0],
-            "language": row["language"][0],
-            "turns": int(row["turn"][0]),
-            "country": row["country"][0],
-            "redacted": bool(row["redacted"][0]),
-            "toxic": bool(row["toxic"][0]),
-            "timestamp": ts.isoformat() if ts else None,
-            "tags": json.loads(row["tags"][0]) if row["tags"][0] else [],
+            "conversation_hash": row["conversation_hash"],
+            "full_hash": row["conversation_hash"],
+            "model": row["model"],
+            "language": row["language"],
+            "turns": int(row["turn"]),
+            "country": row["country"],
+            "redacted": bool(row["redacted"]),
+            "toxic": bool(row["toxic"]),
+            "timestamp": ts.isoformat() if hasattr(ts, "isoformat") else str(ts) if ts else None,
+            "tags": (json.loads(row["tags"]) if isinstance(row["tags"], str) else list(row["tags"]) if row["tags"] is not None else []),
             "messages": messages,
         }
     except HTTPException:
         raise
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        import traceback
+        raise HTTPException(status_code=500, detail=f"{type(exc).__name__}: {exc}\n{traceback.format_exc()}") from exc
 
 
 @data_router.get("/turn-depth")
