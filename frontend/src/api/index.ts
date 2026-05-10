@@ -16,6 +16,8 @@ import type {
   HistoryItem,
   Translation,
   Message,
+  GeoDrilldownResponse,
+  GraphDataPoint,
 } from "../types";
 
 const api = axios.create({ baseURL: "" }); // proxied by Vite to localhost:8001
@@ -187,4 +189,35 @@ export async function requestTranslation(
     source_language: sourceLanguage,
   });
   return data as Translation;
+}
+
+// ── Fix 3: Geographic drill-down ─────────────────────────────────────────────
+export async function fetchGeographicDrilldown(
+  country: string,
+  state?: string
+): Promise<GeoDrilldownResponse> {
+  const p = new URLSearchParams({ country });
+  if (state) p.set("state", state);
+  const { data } = await api.get(`/data/geographic-drilldown?${p}`);
+  return data as GeoDrilldownResponse;
+}
+
+// ── Fix 4: Graph builder data ─────────────────────────────────────────────────
+export async function fetchGraphBuilderData(params: {
+  x_axis: string;
+  y_axis: string;
+  model?: string;
+  language?: string;
+  country?: string;
+  date_from?: string;
+  date_to?: string;
+}): Promise<GraphDataPoint[]> {
+  const p = new URLSearchParams({ x_axis: params.x_axis, y_axis: params.y_axis });
+  if (params.model) p.set("model", params.model);
+  if (params.language) p.set("language", params.language);
+  if (params.country) p.set("country", params.country);
+  if (params.date_from) p.set("date_from", params.date_from);
+  if (params.date_to) p.set("date_to", params.date_to);
+  const { data } = await api.get(`/data/graph-builder?${p}`);
+  return data as GraphDataPoint[];
 }

@@ -51,6 +51,8 @@ export interface Filters {
   topicFilter: string;
   turnMin: number;
   turnMax: number;
+  // Fix 5 — user tag filter (client-side only, never sent to server or synced to URL)
+  tagFilter: string;
 }
 export interface ActivityEntry {
   id: string;
@@ -114,4 +116,60 @@ export interface EtlRunItem {
   errors: number;
   duration_seconds: number;
   notes: string;
+}
+
+// ── Fix 2: My History entry type (localStorage-based persistent log) ────────
+export interface MyHistoryEntry {
+  id: string;
+  type: "conversation" | "annotation" | "search" | "country" | "filter" | "tag" | "graph" | "preset";
+  label: string;
+  timestamp: string;
+}
+
+// ── Fix 3: Geographic drill-down types ──────────────────────────────────────
+export interface GeoDrilldownItem {
+  name: string;
+  count: number;
+  pct: number;
+  avg_turns: number;
+  dominant_model: string;
+  dominant_language: string;
+}
+
+export interface GeoDrilldownResponse {
+  level: "state" | "city";
+  items: GeoDrilldownItem[];
+  total_country?: number;
+  message?: string;
+}
+
+// ── Fix 4: Saved graph type ──────────────────────────────────────────────────
+export interface SavedGraph {
+  id: string;
+  name: string;
+  xAxis: "model" | "language" | "country" | "turn_depth";
+  yAxis: "conversation_count" | "avg_turn_depth";
+  chartType: "bar" | "line" | "scatter";
+  filters: { model: string; language: string; country: string; dateFrom: string; dateTo: string };
+  createdAt: string;
+}
+
+// ── Fix 5: User tag types ────────────────────────────────────────────────────
+export interface UserTag {
+  id: string;
+  name: string;
+  color: string;
+  createdAt: string;
+}
+
+export interface TagAssignments {
+  [conversationHash: string]: string[]; // full_hash → array of UserTag IDs
+}
+
+// ── Fix 4: Graph builder data point ─────────────────────────────────────────
+export interface GraphDataPoint {
+  dimension: string;
+  conversation_count: number;
+  avg_turn_depth: number;
+  pct: number;
 }

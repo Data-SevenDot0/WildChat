@@ -1,9 +1,22 @@
-import { useEffect, useState } from "react";
-import type { ConversationRow, ConversationDetail, FilterPreset, ActivityEntry, Filters, Annotation, HistoryItem } from "../types";
-import { fetchConversationDetail, fetchAnnotations, createAnnotation, deleteAnnotation, fetchHistory, addHistory, deleteHistory, clearHistory, fetchTranslation, requestTranslation } from "../api";
-import type { Message } from "../types";
+import { useEffect, useRef, useState } from "react";
+import type {
+  ConversationRow, ConversationDetail, FilterPreset, ActivityEntry,
+  Annotation, Filters, MyHistoryEntry, Message,
+} from "../types";
+import {
+  fetchConversationDetail, fetchAnnotations, createAnnotation, deleteAnnotation,
+  fetchTranslation, requestTranslation,
+} from "../api";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
+// Fix 5 — tag assignment in conversation preview
+import { useTagContext } from "../context/TagContext";
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+// Fix 2 — My History is localStorage-based, not DB-backed
+const MY_HISTORY_KEY = "wc_my_history";
+const MY_HISTORY_MAX = 500;
 
 interface Props {
   selected: ConversationRow | null;
@@ -13,8 +26,6 @@ interface Props {
   onDeletePreset?: (id: string) => void;
   onRestoreActivity?: (entry: ActivityEntry) => void;
 }
-
-
 
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -26,16 +37,29 @@ function timeAgo(iso: string): string {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
-function activityIcon(type: ActivityEntry["type"]): string {
-  switch (type) {
-    case "search": return "🔍";
-    case "filter": return "⊞";
-    case "conversation": return "💬";
-    case "country": return "🌍";
-    case "preset": return "📌";
-    default: return "↳";
-  }
+function fullTimestamp(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, {
+    month: "short", day: "numeric", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
 }
+
+// Fix 2 — format a filter snapshot as a concise human-readable string
+function formatFilterSnapshot(f: Filters): string {
+  const parts: string[] = [];
+  if (f.model) parts.push(`model: ${f.model}`);
+  if (f.language) parts.push(`lang: ${f.language}`);
+  if (f.country) parts.push(`country: ${f.country}`);
+  if (f.redactedOnly) parts.push("redacted only");
+  if (f.topicFilter) parts.push(`topic: ${f.topicFilter}`);
+  if (f.dateFrom) parts.push(`from: ${f.dateFrom.slice(0, 7)}`);
+  if (f.dateTo) parts.push(`to: ${f.dateTo.slice(0, 7)}`);
+  if (f.turnMin > 0) parts.push(`turns ≥ ${f.turnMin}`);
+  if (f.turnMax > 0) parts.push(`turns ≤ ${f.turnMax}`);
+  return parts.length > 0 ? parts.join(" · ") : "all conversations";
+}
+
+// ── Thread modal ──────────────────────────────────────────────────────────────
 
 interface ThreadModalProps {
   detail: ConversationDetail;
@@ -120,6 +144,8 @@ function ThreadModal({ detail, onClose, translatedMessages, translating, transla
   );
 }
 
+// ── Conversation flow mini-viz ────────────────────────────────────────────────
+
 function ConversationFlow({ detail }: { detail: ConversationDetail }) {
   const { colors } = useTheme();
   const turnColors = [...colors.chart, colors.textSecondary];
@@ -139,16 +165,18 @@ function ConversationFlow({ detail }: { detail: ConversationDetail }) {
           );
         })}
       </div>
-      {detail.tags.length > 0 && (
-        <div className="mt-2 text-xs text-text-secondary">Topic shift detected at turn 2</div>
-      )}
     </div>
   );
 }
 
+// ── Main panel ────────────────────────────────────────────────────────────────
+
 export default function RightPanel({ selected, presets = [], activityLog = [], onApplyPreset, onDeletePreset, onRestoreActivity }: Props) {
   const { colors } = useTheme();
-  const { user, } = useAuth();
+  const { user } = useAuth();
+  // Fix 5 — tag context for conversation tag selector
+  const { tags, getConvTags, assignTag, unassignTag } = useTagContext();
+
   const [detail, setDetail] = useState<ConversationDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [showThread, setShowThread] = useState(false);
@@ -159,40 +187,42 @@ export default function RightPanel({ selected, presets = [], activityLog = [], o
   const [translating, setTranslating] = useState(false);
   const [translateError, setTranslateError] = useState("");
 
-  // DB-backed history (per-user, persisted)
-  const [dbHistory, setDbHistory] = useState<HistoryItem[]>([]);
+  // ── Fix 2: My History — localStorage-backed persistent log ──────────────────
+  const [myHistory, setMyHistory] = useState<MyHistoryEntry[]>(() => {
+    try { return JSON.parse(localStorage.getItem(MY_HISTORY_KEY) || "[]"); }
+    catch { return []; }
+  });
+  // Ref prevents StrictMode double-fire from adding the same activityLog entry twice
+  const lastMyHistoryId = useRef<string | null>(null);
 
-  useEffect(() => {
-    if (!user) { setDbHistory([]); return; }
-    fetchHistory(user.token).then(data => setDbHistory(Array.isArray(data) ? data : [])).catch(() => setDbHistory([]));
-  }, [user?.user_id]);
+  function addMyHistoryEntry(type: MyHistoryEntry["type"], label: string) {
+    const entry: MyHistoryEntry = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      type, label,
+      timestamp: new Date().toISOString(),
+    };
+    setMyHistory(prev => {
+      const next = [entry, ...prev].slice(0, MY_HISTORY_MAX);
+      localStorage.setItem(MY_HISTORY_KEY, JSON.stringify(next));
+      return next;
+    });
+  }
 
-  // Sync new activity entries to DB when user is logged in
+  function clearMyHistory() {
+    setMyHistory([]);
+    localStorage.removeItem(MY_HISTORY_KEY);
+  }
+
+  // Sync new activityLog entries → My History (all types except raw "filter" which are too noisy)
   useEffect(() => {
-    if (!user?.token || activityLog.length === 0) return;
+    if (activityLog.length === 0) return;
     const latest = activityLog[0];
-    if (!["conversation", "country", "preset"].includes(latest.type)) return;
-    addHistory(latest.label, user.token)
-      .then((item) => setDbHistory((prev) => [item, ...prev]))
-      .catch(() => {});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activityLog[0]?.id, user?.token]);
-
-  async function removeHistoryItem(historyId: number) {
-    if (!user) return;
-    try {
-      await deleteHistory(historyId, user.token);
-      setDbHistory((prev) => prev.filter((h) => h.history_id !== historyId));
-    } catch {}
-  }
-
-  async function handleClearHistory() {
-    if (!user) return;
-    try {
-      await clearHistory(user.token);
-      setDbHistory([]);
-    } catch {}
-  }
+    if (latest.id === lastMyHistoryId.current) return; // Fix 1 guard against StrictMode double-fire
+    lastMyHistoryId.current = latest.id;
+    // Log all meaningful event types; raw "filter" changes are covered by Session History
+    addMyHistoryEntry(latest.type as MyHistoryEntry["type"], latest.label);
+  }, [activityLog[0]?.id]);
+  // ─────────────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     if (!selected) { setDetail(null); return; }
@@ -245,6 +275,8 @@ export default function RightPanel({ selected, presets = [], activityLog = [], o
       const created = await createAnnotation(selected.full_hash, noteInput.trim(), user.token);
       setAnnotations(prev => [...prev, created]);
       setNoteInput("");
+      // Fix 2 — log annotation event to My History
+      addMyHistoryEntry("annotation", `Annotated ${detail?.conversation_hash?.slice(0, 8) ?? selected.conversation_hash}`);
     } catch {
       setAnnotationError("Failed to save note.");
     }
@@ -259,8 +291,33 @@ export default function RightPanel({ selected, presets = [], activityLog = [], o
       setAnnotationError("Failed to delete note.");
     }
   }
-  const recentActivity = activityLog.slice(0, 10);
-  const trackingHistory = activityLog.filter(e => ["conversation", "country", "search"].includes(e.type)).slice(0, 15);
+
+  // Fix 5 — handle tag toggling for the selected conversation
+  function handleToggleTag(tagId: string) {
+    if (!detail) return;
+    const hash = detail.full_hash;
+    const assigned = getConvTags(hash).some(t => t.id === tagId);
+    if (assigned) {
+      unassignTag(hash, tagId);
+    } else {
+      assignTag(hash, tagId);
+      // Fix 2 — log tag assignment to My History
+      const tagName = tags.find(t => t.id === tagId)?.name ?? tagId;
+      addMyHistoryEntry("tag", `Tagged "${detail.conversation_hash.slice(0, 8)}…" as ${tagName}`);
+    }
+  }
+
+  // ── Fix 2: Session History — filter entries only (max 10) ──────────────────
+  // Shows only entries where the user changed a filter combination.
+  const sessionHistory = activityLog
+    .filter(e => e.type === "filter" || e.type === "country")
+    .slice(0, 10);
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  const myHistoryIcon: Record<MyHistoryEntry["type"], string> = {
+    conversation: "💬", annotation: "📝", search: "🔍",
+    country: "🌍", filter: "⊞", tag: "🏷", graph: "📊", preset: "📌",
+  };
 
   return (
     <>
@@ -293,7 +350,7 @@ export default function RightPanel({ selected, presets = [], activityLog = [], o
           ) : detail ? (
             <>
               <div className="flex items-center gap-2 mb-2">
-              <span className="font-mono text-xs" style={{ color: colors.accent }}>{detail.conversation_hash.slice(0, 8)}…</span>
+                <span className="font-mono text-xs" style={{ color: colors.accent }}>{detail.conversation_hash.slice(0, 8)}…</span>
                 <span className="text-text-secondary text-xs">{detail.turns} turns</span>
                 <span className="text-text-secondary text-xs">· {detail.language}</span>
               </div>
@@ -310,6 +367,8 @@ export default function RightPanel({ selected, presets = [], activityLog = [], o
               <button className="text-xs text-accent-green hover:underline mt-1" onClick={() => setShowThread(true)}>
                 View full thread ({detail.messages.length} messages) →
               </button>
+
+              {/* Translation controls */}
               {detail.language !== "English" && (
                 <div className="mt-2 flex flex-col gap-1">
                   {translatedMessages ? (
@@ -329,6 +388,35 @@ export default function RightPanel({ selected, presets = [], activityLog = [], o
                     </button>
                   )}
                   {translateError && <div className="text-xs" style={{ color: "#ef4444" }}>{translateError}</div>}
+                </div>
+              )}
+
+              {/* Fix 5 — Tag selector for this conversation */}
+              {tags.length > 0 && (
+                <div className="mt-3">
+                  <div className="text-xs text-text-muted mb-1.5">Your tags</div>
+                  <div className="flex flex-wrap gap-1">
+                    {tags.map(tag => {
+                      const isAssigned = getConvTags(detail.full_hash).some(t => t.id === tag.id);
+                      return (
+                        <button
+                          key={tag.id}
+                          onClick={() => handleToggleTag(tag.id)}
+                          className="text-xs px-2 py-0.5 rounded-full transition-opacity"
+                          style={{
+                            background: isAssigned ? tag.color + "33" : colors.bgHover,
+                            color: isAssigned ? tag.color : colors.textMuted,
+                            border: `1px solid ${isAssigned ? tag.color + "66" : colors.borderBase}`,
+                            fontWeight: isAssigned ? 600 : 400,
+                            cursor: "pointer",
+                          }}
+                          title={isAssigned ? `Remove tag "${tag.name}"` : `Apply tag "${tag.name}"`}
+                        >
+                          {isAssigned ? "✓ " : ""}{tag.name}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </>
@@ -432,69 +520,76 @@ export default function RightPanel({ selected, presets = [], activityLog = [], o
           )}
         </div>
 
-        {/* Session History */}
+        {/* ── Fix 2: Session History — filter combinations only ──────────────── */}
         <div className="p-4 border-b border-border-base">
           <div className="flex items-center justify-between mb-2">
             <div className="label">Session History</div>
-            {recentActivity.length > 0 && (
-              <span className="text-xs text-text-muted">{recentActivity.length} actions</span>
-            )}
+            <span className="text-xs text-text-muted">{sessionHistory.length} filters</span>
           </div>
-          {recentActivity.length === 0 ? (
-            <div className="text-text-muted text-xs">No activity yet.</div>
+          <div className="text-xs text-text-muted mb-2" style={{ fontSize: "0.65rem" }}>
+            Filter combinations this session. Click to restore.
+          </div>
+          {sessionHistory.length === 0 ? (
+            <div className="text-text-muted text-xs">No filter changes yet.</div>
           ) : (
-            recentActivity.map((entry) => (
+            sessionHistory.map((entry) => (
               <div
                 key={entry.id}
-                className="flex items-start gap-2 py-1.5 cursor-pointer hover:bg-bg-hover rounded px-1 group"
+                className="flex flex-col gap-0.5 py-1.5 px-1 rounded cursor-pointer hover:bg-bg-hover group"
                 onClick={() => onRestoreActivity && onRestoreActivity(entry)}
                 title="Click to restore this filter state"
               >
-                <span className="text-xs flex-shrink-0">{activityIcon(entry.type)}</span>
-                <div className="flex flex-col gap-0.5 flex-1 min-w-0">
-                  <span className="text-xs text-text-secondary group-hover:text-text-primary truncate">{entry.label}</span>
-                  <span className="text-xs text-text-muted">{timeAgo(entry.timestamp)}</span>
-                </div>
+                <span className="text-xs text-text-secondary group-hover:text-text-primary leading-snug">
+                  {formatFilterSnapshot(entry.filterSnapshot)}
+                </span>
+                <span className="text-xs" style={{ color: colors.textMuted, fontSize: "0.65rem" }}>
+                  {timeAgo(entry.timestamp)}
+                  {entry.type === "country" && " · via map"}
+                </span>
               </div>
             ))
           )}
         </div>
+        {/* ─────────────────────────────────────────────────────────────────── */}
 
-        {/* User History — DB-backed, user-scoped */}
+        {/* ── Fix 2: My History — localStorage, all action types, 500 entries ── */}
         <div className="p-4">
           <div className="flex items-center justify-between mb-2">
             <div className="label">My History</div>
-            {user && dbHistory.length > 0 && (
+            {myHistory.length > 0 && (
               <button
                 className="text-xs text-text-muted hover:text-text-primary"
-                onClick={handleClearHistory}
+                onClick={clearMyHistory}
                 title="Clear all history"
               >
                 Clear all
               </button>
             )}
           </div>
-          {!user ? (
-            <div className="text-text-muted text-xs">Log in to save your history across sessions.</div>
-          ) : dbHistory.length === 0 ? (
-            <div className="text-text-muted text-xs">No history saved yet.</div>
+          <div className="text-xs text-text-muted mb-2" style={{ fontSize: "0.65rem" }}>
+            Persists across sessions · {myHistory.length}/{MY_HISTORY_MAX} entries
+          </div>
+          {myHistory.length === 0 ? (
+            <div className="text-text-muted text-xs">No history yet.</div>
           ) : (
-            dbHistory.slice(0, 20).map((item) => (
-              <div key={item.history_id} className="flex items-start gap-2 py-1.5 group hover:bg-bg-hover rounded px-1">
-                <span className="text-xs flex-shrink-0">🕑</span>
-                <div className="flex flex-col gap-0.5 flex-1 min-w-0">
-                  <span className="text-xs text-text-secondary truncate">{item.search_query}</span>
-                  <span className="text-xs text-text-muted">{timeAgo(item.timestamp)}</span>
+            <div style={{ maxHeight: 280, overflowY: "auto" }} className="flex flex-col gap-0">
+              {myHistory.map((item) => (
+                <div key={item.id} className="flex items-start gap-2 py-1.5 px-1 rounded hover:bg-bg-hover">
+                  <span className="text-xs flex-shrink-0" style={{ marginTop: 1 }}>
+                    {myHistoryIcon[item.type] ?? "↳"}
+                  </span>
+                  <div className="flex flex-col gap-0 flex-1 min-w-0">
+                    <span className="text-xs text-text-secondary truncate">{item.label}</span>
+                    <span className="text-xs" style={{ color: colors.textMuted, fontSize: "0.65rem" }}>
+                      {fullTimestamp(item.timestamp)}
+                    </span>
+                  </div>
                 </div>
-                <button
-                  className="text-text-muted hover:text-text-primary text-xs opacity-0 group-hover:opacity-100 flex-shrink-0"
-                  onClick={() => removeHistoryItem(item.history_id)}
-                  title="Remove"
-                >✕</button>
-              </div>
-            ))
+              ))}
+            </div>
           )}
         </div>
+        {/* ─────────────────────────────────────────────────────────────────── */}
       </aside>
     </>
   );

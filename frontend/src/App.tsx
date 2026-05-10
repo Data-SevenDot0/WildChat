@@ -39,14 +39,19 @@ import WildchatLogo from "./components/WildchatLogo";
 import ModelTopicMatrix from "./components/ModelTopicMatrix";
 import ContinentView from "./components/ContinentView";
 import LoginModal from "./components/LoginModal";
+import GraphBuilder from "./components/GraphBuilder";      // Fix 4
+import TagManager from "./components/TagManager";          // Fix 5
 import { useTheme } from "./context/ThemeContext";
 import { AuthProvider } from "./context/AuthContext";
+import { TagProvider } from "./context/TagContext";        // Fix 5
 
-type View = "overview" | "explorer" | "geographic" | "language" | "model" | "etl" | "turns" | "matrix" | "continent";
+// Fix 4 + Fix 5 — expanded view type
+type View = "overview" | "explorer" | "geographic" | "language" | "model" | "etl" | "turns" | "matrix" | "continent" | "graph" | "tags";
 
 const DEFAULT_FILTERS: Filters = {
   model: "", language: "", country: "", redactedOnly: false, search: "",
   dateFrom: "", dateTo: "", topicFilter: "", turnMin: 0, turnMax: 0,
+  tagFilter: "", // Fix 5 — client-side only, not synced to URL or sent to server
 };
 
 function filtersFromURL(): Partial<Filters> {
@@ -62,6 +67,7 @@ function filtersFromURL(): Partial<Filters> {
   if (p.get("topicFilter")) partial.topicFilter = p.get("topicFilter")!;
   if (p.get("turnMin")) partial.turnMin = Number(p.get("turnMin"));
   if (p.get("turnMax")) partial.turnMax = Number(p.get("turnMax"));
+  // tagFilter intentionally excluded — it is client-side only
   return partial;
 }
 
@@ -77,6 +83,7 @@ function filtersToURL(f: Filters) {
   if (f.topicFilter) p.set("topicFilter", f.topicFilter);
   if (f.turnMin > 0) p.set("turnMin", String(f.turnMin));
   if (f.turnMax > 0) p.set("turnMax", String(f.turnMax));
+  // tagFilter intentionally excluded — client-side only
   const qs = p.toString();
   window.history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
 }
@@ -119,7 +126,6 @@ export default function App() {
   const [activityLog, setActivityLog] = useState<ActivityEntry[]>(() => {
     try {
       const raw: ActivityEntry[] = JSON.parse(sessionStorage.getItem("wc_activity") || "[]");
-      // Deduplicate by id in case of stale data with duplicate keys
       const seen = new Set<string>();
       return raw.filter(e => { if (seen.has(e.id)) return false; seen.add(e.id); return true; });
     } catch { return []; }
@@ -144,8 +150,15 @@ export default function App() {
     setFilters((f) => {
       const next = { ...f, [key]: value };
       filtersToURL(next);
-      if (key !== "search") {
+      // Fix 1 — Only log filter events for non-search, non-country keys.
+      // Country clicks come through handleCountryFilter which logs type="country";
+      // logging here too would create a duplicate entry.
+      if (key !== "search" && key !== "country" && key !== "tagFilter") {
         logActivity("filter", `Filter: ${key} = ${value || "any"}`, next);
+      }
+      // Fix 2 — Log searches to activityLog so My History can pick them up
+      if (key === "search" && value) {
+        logActivity("search", `Search: "${value}"`, next);
       }
       return next;
     });
@@ -181,18 +194,31 @@ export default function App() {
   }
 
   function handleTopicFilter(cat: string) {
+    // Fix 1 — Previously this called logActivity a second time after handleFilterChange,
+    // creating a duplicate entry. handleFilterChange already logs type="filter".
     handleFilterChange("topicFilter", cat);
-    if (cat) logActivity("filter", `Topic filter: ${cat}`, { ...filters, topicFilter: cat });
   }
 
+  // Fix 1 — handleCountryFilter no longer calls handleFilterChange to avoid a duplicate
+  // "filter" entry alongside the intentional "country" entry. State is updated directly.
   function handleCountryFilter(country: string) {
-    handleFilterChange("country", country);
-    if (country) logActivity("country", `Country filter: ${country}`, { ...filters, country });
+    setFilters((f) => {
+      const next = { ...f, country };
+      filtersToURL(next);
+      return next;
+    });
+    logActivity("country", country ? `Country: ${country}` : "Country filter cleared", { ...filters, country });
   }
 
   function handleRestoreActivity(entry: ActivityEntry) {
     setFilters(entry.filterSnapshot);
     filtersToURL(entry.filterSnapshot);
+  }
+
+  // Fix 4 — callback so GraphBuilder can log "graph saved" to activityLog
+  // (RightPanel watches activityLog and syncs meaningful entries to My History)
+  function handleGraphSaved(name: string) {
+    logActivity("preset", `Graph saved: "${name}"`, filters);
   }
 
   useEffect(() => {
@@ -215,7 +241,6 @@ export default function App() {
     fetchModelTopicMatrix().then(setModelTopicMatrix).catch(() => {}).finally(() => setLoadingMatrix(false));
   }, []);
 
-  // Re-fetch countries whenever date range changes
   useEffect(() => {
     fetchCountries(250, filters.dateFrom || undefined, filters.dateTo || undefined)
       .then(setCountries)
@@ -223,6 +248,8 @@ export default function App() {
   }, [filters.dateFrom, filters.dateTo]);
 
   return (
+    // Fix 5 — TagProvider wraps the entire app so any component can read/write tags
+    <TagProvider>
     <AuthProvider>
     <div className="flex flex-col h-screen overflow-hidden">
       {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} />}
@@ -353,6 +380,21 @@ export default function App() {
               </>
             )}
 
+            {/* Fix 4 — Graph builder view */}
+            {view === "graph" && (
+              <GraphBuilder
+                models={models}
+                languages={languages}
+                countries={countries}
+                onGraphSaved={handleGraphSaved}
+              />
+            )}
+
+            {/* Fix 5 — Tag manager view */}
+            {view === "tags" && (
+              <TagManager />
+            )}
+
           </main>
         </div>
 
@@ -367,5 +409,6 @@ export default function App() {
       </div>
     </div>
     </AuthProvider>
+    </TagProvider>
   );
 }

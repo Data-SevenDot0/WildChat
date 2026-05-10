@@ -1,5 +1,11 @@
+// ── Fix 3: Geographic view with country drill-down ───────────────────────────
+// GeographicDrilldown panel is shown beneath the map when a country is selected.
+// It opens automatically on country click and closes via its own button.
+
+import { useState } from "react";
 import type { CountryItem, Filters } from "../types";
 import WorldMap from "./WorldMap";
+import GeographicDrilldown from "./GeographicDrilldown";
 
 const MONTH_OPTIONS = (() => {
   const months: { value: string; label: string }[] = [];
@@ -25,6 +31,19 @@ interface Props {
 
 export default function GeographicView({ countries, filters, onFilterChange, onCountryClick, activeCountry }: Props) {
   const max = countries[0]?.pct ?? 1;
+
+  // Fix 3 — tracks whether the drill-down panel is open for the active country
+  const [drilldownCountry, setDrilldownCountry] = useState<string | null>(null);
+
+  function handleCountryClick(country: string) {
+    if (onCountryClick) onCountryClick(country);
+    // Open drill-down when a country is selected; close when the same is cleared
+    if (country) {
+      setDrilldownCountry(country);
+    } else {
+      setDrilldownCountry(null);
+    }
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -67,7 +86,16 @@ export default function GeographicView({ countries, filters, onFilterChange, onC
           </button>
         )}
       </div>
-      <WorldMap countries={countries} onCountryClick={onCountryClick} activeCountry={activeCountry} />
+
+      <WorldMap countries={countries} onCountryClick={handleCountryClick} activeCountry={activeCountry} />
+
+      {/* Fix 3 — Drill-down panel appears beneath the map when a country is selected */}
+      {drilldownCountry && (
+        <GeographicDrilldown
+          country={drilldownCountry}
+          onClose={() => setDrilldownCountry(null)}
+        />
+      )}
 
       <div className="card p-4">
         <div className="label mb-3">Country Breakdown</div>
@@ -81,7 +109,7 @@ export default function GeographicView({ countries, filters, onFilterChange, onC
             <div
               key={country}
               className="cursor-pointer hover:bg-bg-hover rounded px-1"
-              onClick={() => onCountryClick && onCountryClick(country)}
+              onClick={() => handleCountryClick(country)}
             >
               <div className="grid grid-cols-3 gap-2 text-xs mb-1 px-1">
                 <span className={`text-text-primary font-medium ${activeCountry === country ? "text-accent-green" : ""}`}>{country}</span>

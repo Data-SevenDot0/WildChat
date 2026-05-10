@@ -469,6 +469,118 @@ def get_model_topic_matrix():
     return _get_stats()["model_topic_matrix"]
 
 
+
+# ── Fix 3: Geographic drill-down endpoint ─────────────────────────────────────
+
+@data_router.get("/geographic-drilldown")
+def get_geographic_drilldown(
+    country: str = Query(..., description="Country name to drill into"),
+    state: Optional[str] = Query(None, description="State name for city-level (not yet available)"),
+):
+    """
+    Returns state-level aggregation for a country.
+    If state is provided, returns a message that city-level data is not in this dataset.
+    """
+    df = _load_df()
+    df_country = df[df["country"] == country]
+
+    if len(df_country) == 0:
+        return {"level": "state", "items": [], "message": f"No data found for '{country}'"}
+
+    if state is not None:
+        # City-level data is not available in the dataset
+        return {
+            "level": "city",
+            "items": [],
+            "message": "City-level data is not available in this dataset",
+        }
+
+    # Filter to rows that have a non-empty state value
+    state_df = df_country[df_country["state"].notna() & (df_country["state"].astype(str).str.strip() != "")]
+
+    if len(state_df) == 0:
+        return {"level": "state", "items": [], "message": f"Sub-national data is not available for {country}"}
+
+    total_country = len(df_country)
+    grouped = (
+        state_df.groupby("state")
+        .agg(count=("turn", "count"), avg_turns=("turn", "mean"))
+        .reset_index()
+        .sort_values("count", ascending=False)
+        .head(30)
+    )
+
+    items = []
+    for _, row in grouped.iterrows():
+        state_rows = state_df[state_df["state"] == row["state"]]
+        model_counts = state_rows["model"].value_counts()
+        lang_counts = state_rows["language"].value_counts()
+        items.append({
+            "name": str(row["state"]),
+            "count": int(row["count"]),
+            "pct": round(row["count"] / total_country * 100, 1),
+            "avg_turns": round(float(row["avg_turns"]), 1),
+            "dominant_model": str(model_counts.index[0]) if len(model_counts) > 0 else "",
+            "dominant_language": str(lang_counts.index[0]) if len(lang_counts) > 0 else "",
+        })
+
+    return {"level": "state", "items": items, "total_country": total_country}
+
+
+# ── Fix 4: Graph builder data endpoint ───────────────────────────────────────
+
+@data_router.get("/graph-builder")
+def get_graph_builder_data(
+    x_axis: str = Query("model", regex="^(model|language|country|turn_depth)$"),
+    y_axis: str = Query("conversation_count", regex="^(conversation_count|avg_turn_depth)$"),
+    model: Optional[str] = None,
+    language: Optional[str] = None,
+    country: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+):
+    """
+    Returns aggregated data for the graph builder.
+    Supports optional filter scoping so graphs can be built on a data subset.
+    """
+    df = _load_df()
+
+    # Apply optional filters to scope the graph data
+    if model:
+        df = df[df["model"] == model]
+    if language:
+        df = df[df["language"] == language]
+    if country:
+        df = df[df["country"] == country]
+    if date_from:
+        df = df[df["timestamp"] >= pd.Timestamp(date_from)]
+    if date_to:
+        df = df[df["timestamp"] <= pd.Timestamp(date_to)]
+
+    total = len(df)
+    if total == 0:
+        return []
+
+    dim_col = "model" if x_axis == "turn_depth" else x_axis
+    grouped = (
+        df.groupby(dim_col)
+        .agg(count=("turn", "count"), avg_turns=("turn", "mean"))
+        .reset_index()
+        .sort_values("count", ascending=False)
+        .head(20)
+    )
+
+    return [
+        {
+            "dimension": str(row[dim_col]),
+            "conversation_count": int(row["count"]),
+            "avg_turn_depth": round(float(row["avg_turns"]), 1),
+            "pct": round(row["count"] / total * 100, 1),
+        }
+        for _, row in grouped.iterrows()
+    ]
+
+
 @data_router.get("/etl-runs")
 def get_etl_runs(limit: int = Query(20, ge=1, le=100)):
     """Return the most recent ETL run records from the database."""

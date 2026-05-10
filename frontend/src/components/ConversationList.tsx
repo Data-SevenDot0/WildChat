@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import type { ConversationRow, ConversationsResponse, Filters } from "../types";
 import { fetchConversations } from "../api";
 import { useTheme } from "../context/ThemeContext";
+// Fix 5 — read tag assignments to show pills and support tag filtering
+import { useTagContext } from "../context/TagContext";
 
 const TOPIC_CATEGORIES: Record<string, string[]> = {
   "Coding / tech": ["python code", "javascript frontend", "sql database", "cybersecurity", "data science ml ai", "cloud devops", "api rest integration", "software architecture", "chatgpt jailbreak", "+ more"],
@@ -33,12 +35,18 @@ function StatusCell({ row }: { row: ConversationRow }) {
 
 export default function ConversationList({ filters, onSelect, selectedHash, onFilterChange }: Props) {
   const { colors } = useTheme();
+  // Fix 5 — tag context for pills and filtering
+  const { tags, getConvTags } = useTagContext();
+
   const [data, setData] = useState<ConversationsResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [inputVal, setInputVal] = useState(filters.search || "");
   const [topicOpen, setTopicOpen] = useState(false);
+  // Fix 5 — tag filter dropdown state
+  const [tagOpen, setTagOpen] = useState(false);
   const topicRef = useRef<HTMLDivElement>(null);
+  const tagRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(async (p: number, f: Filters) => {
@@ -57,6 +65,7 @@ export default function ConversationList({ filters, onSelect, selectedHash, onFi
         topic_filter: f.topicFilter || undefined,
         turn_min: f.turnMin > 0 ? f.turnMin : undefined,
         turn_max: f.turnMax > 0 ? f.turnMax : undefined,
+        // tagFilter is client-side only — not sent to server
       });
       setData(res);
     } finally {
@@ -64,7 +73,6 @@ export default function ConversationList({ filters, onSelect, selectedHash, onFi
     }
   }, []);
 
-  // Reload when filters (except search, handled by debounce) or page changes
   useEffect(() => {
     setPage(1);
     load(1, filters);
@@ -78,18 +86,16 @@ export default function ConversationList({ filters, onSelect, selectedHash, onFi
     load(page, filters);
   }, [page]);
 
-  // Close topic dropdown on outside click
+  // Close dropdowns on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (topicRef.current && !topicRef.current.contains(e.target as Node)) {
-        setTopicOpen(false);
-      }
+      if (topicRef.current && !topicRef.current.contains(e.target as Node)) setTopicOpen(false);
+      if (tagRef.current && !tagRef.current.contains(e.target as Node)) setTagOpen(false);
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  // Debounced search
   function handleInputChange(val: string) {
     setInputVal(val);
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -98,18 +104,28 @@ export default function ConversationList({ filters, onSelect, selectedHash, onFi
     }, 300);
   }
 
-  const hasChips = filters.model || filters.language || filters.country || filters.redactedOnly || filters.topicFilter || filters.dateFrom || filters.dateTo;
+  // Fix 5 — client-side tag filter applied on top of server results for the current page
+  const activeTag = filters.tagFilter
+    ? tags.find(t => t.id === filters.tagFilter)
+    : null;
+
+  const displayRows = data?.data.filter(row =>
+    activeTag ? (getConvTags(row.full_hash).some(t => t.id === activeTag.id)) : true
+  ) ?? [];
+
+  const hasChips = filters.model || filters.language || filters.country || filters.redactedOnly || filters.topicFilter || filters.dateFrom || filters.dateTo || filters.tagFilter;
 
   return (
     <div className="card flex flex-col" style={{ minHeight: 260 }}>
       {/* Search bar */}
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-border-subtle">
+      <div className="flex items-center gap-2 px-4 py-2 border-b border-border-subtle flex-wrap">
         <span className="text-text-muted text-sm">🔍</span>
         <input
           className="flex-1 bg-transparent text-text-primary text-xs outline-none placeholder-text-muted"
           placeholder="Search — keyword, hash, country, topic..."
           value={inputVal}
           onChange={(e) => handleInputChange(e.target.value)}
+          style={{ minWidth: 140 }}
         />
         {inputVal && (
           <button
@@ -120,16 +136,16 @@ export default function ConversationList({ filters, onSelect, selectedHash, onFi
             ✕
           </button>
         )}
+
         {/* Topic dropdown */}
         <div ref={topicRef} style={{ position: "relative" }}>
           <button
             className={`filter-btn text-xs ${filters.topicFilter ? "active" : ""}`}
             style={{ padding: "3px 10px", whiteSpace: "nowrap" }}
-            onClick={() => setTopicOpen(o => !o)}
+            onClick={() => { setTopicOpen(o => !o); setTagOpen(false); }}
           >
             {filters.topicFilter ? filters.topicFilter : "Topic"} ▾
           </button>
-
           {topicOpen && (
             <div style={{
               position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 200,
@@ -137,7 +153,6 @@ export default function ConversationList({ filters, onSelect, selectedHash, onFi
               borderRadius: 6, boxShadow: "0 6px 24px rgba(0,0,0,0.3)",
               width: 280, maxHeight: 420, overflowY: "auto",
             }}>
-              {/* Clear option */}
               {filters.topicFilter && (
                 <button
                   className="w-full text-left px-3 py-2 text-xs"
@@ -147,7 +162,7 @@ export default function ConversationList({ filters, onSelect, selectedHash, onFi
                   Clear topic filter ✕
                 </button>
               )}
-              {Object.entries(TOPIC_CATEGORIES).map(([cat, tags]) => {
+              {Object.entries(TOPIC_CATEGORIES).map(([cat, tagItems]) => {
                 const isActive = filters.topicFilter === cat;
                 return (
                   <div key={cat} style={{ borderBottom: `1px solid ${colors.borderBase}` }}>
@@ -157,7 +172,6 @@ export default function ConversationList({ filters, onSelect, selectedHash, onFi
                         background: isActive ? `${colors.accent}20` : "transparent",
                         color: isActive ? colors.accent : colors.textPrimary,
                         fontSize: "0.8rem", fontWeight: 600,
-                        transition: "background 0.1s",
                       }}
                       onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = colors.bgHover; }}
                       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = isActive ? `${colors.accent}20` : "transparent"; }}
@@ -166,12 +180,8 @@ export default function ConversationList({ filters, onSelect, selectedHash, onFi
                       {cat}
                     </button>
                     <div className="px-3 pb-2 flex flex-wrap gap-1">
-                      {tags.map(tag => (
-                        <span key={tag} style={{
-                          fontSize: "0.65rem", color: colors.textMuted,
-                          background: colors.bgHover, borderRadius: 3,
-                          padding: "1px 5px",
-                        }}>
+                      {tagItems.map(tag => (
+                        <span key={tag} style={{ fontSize: "0.65rem", color: colors.textMuted, background: colors.bgHover, borderRadius: 3, padding: "1px 5px" }}>
                           {tag}
                         </span>
                       ))}
@@ -183,9 +193,63 @@ export default function ConversationList({ filters, onSelect, selectedHash, onFi
           )}
         </div>
 
+        {/* Fix 5 — Tags filter dropdown */}
+        {tags.length > 0 && (
+          <div ref={tagRef} style={{ position: "relative" }}>
+            <button
+              className={`filter-btn text-xs ${filters.tagFilter ? "active" : ""}`}
+              style={{ padding: "3px 10px", whiteSpace: "nowrap" }}
+              onClick={() => { setTagOpen(o => !o); setTopicOpen(false); }}
+            >
+              {activeTag ? (
+                <span style={{ color: activeTag.color }}>{activeTag.name}</span>
+              ) : "Tags"} ▾
+            </button>
+            {tagOpen && (
+              <div style={{
+                position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 200,
+                background: colors.bgCard, border: `1px solid ${colors.borderBase}`,
+                borderRadius: 6, boxShadow: "0 6px 24px rgba(0,0,0,0.3)",
+                minWidth: 180,
+              }}>
+                {filters.tagFilter && (
+                  <button
+                    className="w-full text-left px-3 py-2 text-xs"
+                    style={{ color: colors.accent, borderBottom: `1px solid ${colors.borderBase}` }}
+                    onClick={() => { onFilterChange?.("tagFilter", ""); setTagOpen(false); }}
+                  >
+                    Clear tag filter ✕
+                  </button>
+                )}
+                {tags.map(tag => (
+                  <button
+                    key={tag.id}
+                    className="w-full text-left px-3 py-2 flex items-center gap-2"
+                    style={{
+                      background: filters.tagFilter === tag.id ? `${tag.color}20` : "transparent",
+                      fontSize: "0.8rem",
+                    }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = colors.bgHover; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = filters.tagFilter === tag.id ? `${tag.color}20` : "transparent"; }}
+                    onClick={() => { onFilterChange?.("tagFilter", filters.tagFilter === tag.id ? "" : tag.id); setTagOpen(false); }}
+                  >
+                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: tag.color, flexShrink: 0, display: "inline-block" }} />
+                    <span style={{ color: colors.textPrimary }}>{tag.name}</span>
+                  </button>
+                ))}
+                <div className="px-3 py-1.5 text-xs border-t" style={{ color: colors.textMuted, borderColor: colors.borderBase }}>
+                  Filters current page only
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {data && (
           <span className="text-text-secondary text-xs whitespace-nowrap">
-            {data.total.toLocaleString()} records
+            {activeTag
+              ? `${displayRows.length} / ${data.total.toLocaleString()} records`
+              : `${data.total.toLocaleString()} records`}
           </span>
         )}
       </div>
@@ -194,59 +258,48 @@ export default function ConversationList({ filters, onSelect, selectedHash, onFi
       {hasChips && (
         <div className="flex items-center gap-2 px-4 py-2 border-b border-border-subtle flex-wrap">
           {filters.model && (
-            <span
-              className="tag-pill removable cursor-pointer"
-              onClick={() => onFilterChange && onFilterChange("model", "")}
-            >
+            <span className="tag-pill removable cursor-pointer" onClick={() => onFilterChange && onFilterChange("model", "")}>
               {filters.model} ✕
             </span>
           )}
           {filters.language && (
-            <span
-              className="tag-pill removable cursor-pointer"
-              onClick={() => onFilterChange && onFilterChange("language", "")}
-            >
+            <span className="tag-pill removable cursor-pointer" onClick={() => onFilterChange && onFilterChange("language", "")}>
               {filters.language} ✕
             </span>
           )}
           {filters.country && (
-            <span
-              className="tag-pill removable cursor-pointer"
-              onClick={() => onFilterChange && onFilterChange("country", "")}
-            >
+            <span className="tag-pill removable cursor-pointer" onClick={() => onFilterChange && onFilterChange("country", "")}>
               {filters.country} ✕
             </span>
           )}
           {filters.redactedOnly && (
-            <span
-              className="tag-pill removable cursor-pointer"
-              onClick={() => onFilterChange && onFilterChange("redactedOnly", false)}
-            >
+            <span className="tag-pill removable cursor-pointer" onClick={() => onFilterChange && onFilterChange("redactedOnly", false)}>
               Redacted only ✕
             </span>
           )}
           {filters.topicFilter && (
-            <span
-              className="tag-pill removable cursor-pointer"
-              onClick={() => onFilterChange && onFilterChange("topicFilter", "")}
-            >
+            <span className="tag-pill removable cursor-pointer" onClick={() => onFilterChange && onFilterChange("topicFilter", "")}>
               Topic: {filters.topicFilter} ✕
             </span>
           )}
           {filters.dateFrom && (
-            <span
-              className="tag-pill removable cursor-pointer"
-              onClick={() => onFilterChange && onFilterChange("dateFrom", "")}
-            >
+            <span className="tag-pill removable cursor-pointer" onClick={() => onFilterChange && onFilterChange("dateFrom", "")}>
               From: {filters.dateFrom} ✕
             </span>
           )}
           {filters.dateTo && (
+            <span className="tag-pill removable cursor-pointer" onClick={() => onFilterChange && onFilterChange("dateTo", "")}>
+              To: {filters.dateTo} ✕
+            </span>
+          )}
+          {/* Fix 5 — tag filter chip */}
+          {activeTag && (
             <span
               className="tag-pill removable cursor-pointer"
-              onClick={() => onFilterChange && onFilterChange("dateTo", "")}
+              style={{ background: activeTag.color + "22", color: activeTag.color, border: `1px solid ${activeTag.color}55` }}
+              onClick={() => onFilterChange && onFilterChange("tagFilter", "")}
             >
-              To: {filters.dateTo} ✕
+              Tag: {activeTag.name} ✕
             </span>
           )}
         </div>
@@ -262,7 +315,8 @@ export default function ConversationList({ filters, onSelect, selectedHash, onFi
         <span className="label">Language</span>
         <span className="label">Turns</span>
         <span className="label">Country</span>
-        <span className="label">Status</span>
+        {/* Fix 5 — Tags column header */}
+        <span className="label">Tags / Status</span>
       </div>
 
       {/* Rows */}
@@ -271,23 +325,51 @@ export default function ConversationList({ filters, onSelect, selectedHash, onFi
           <div className="flex items-center justify-center py-12">
             <div className="spinner" />
           </div>
-        ) : data?.data.length === 0 ? (
-          <div className="text-text-secondary text-center py-12 text-xs">No conversations match the current filters.</div>
+        ) : displayRows.length === 0 ? (
+          <div className="text-text-secondary text-center py-12 text-xs">
+            {activeTag ? `No conversations on this page tagged "${activeTag.name}".` : "No conversations match the current filters."}
+          </div>
         ) : (
-          data?.data.map((row) => (
-            <div
-              key={row.full_hash}
-              className={`conv-row ${selectedHash === row.full_hash ? "selected" : ""}`}
-              onClick={() => onSelect(row)}
-            >
-              <span className="font-mono text-xs text-accent-green">{row.conversation_hash}</span>
-              <ModelBadge model={row.model} />
-              <span className="text-text-primary text-xs">{row.language}</span>
-              <span className="text-text-primary text-xs">{row.turns}</span>
-              <span className="text-text-primary text-xs truncate">{row.country}</span>
-              <StatusCell row={row} />
-            </div>
-          ))
+          displayRows.map((row) => {
+            // Fix 5 — look up user-defined tags assigned to this conversation
+            const convTags = getConvTags(row.full_hash);
+            return (
+              <div
+                key={row.full_hash}
+                className={`conv-row ${selectedHash === row.full_hash ? "selected" : ""}`}
+                onClick={() => onSelect(row)}
+              >
+                <span className="font-mono text-xs text-accent-green">{row.conversation_hash}</span>
+                <ModelBadge model={row.model} />
+                <span className="text-text-primary text-xs">{row.language}</span>
+                <span className="text-text-primary text-xs">{row.turns}</span>
+                <span className="text-text-primary text-xs truncate">{row.country}</span>
+                {/* Fix 5 — show user tag pills if any, otherwise status */}
+                <span className="flex items-center gap-1 flex-wrap min-w-0">
+                  {convTags.length > 0 ? (
+                    convTags.map(tag => (
+                      <span
+                        key={tag.id}
+                        className="text-xs px-1.5 py-0.5 rounded-full"
+                        style={{
+                          background: tag.color + "30",
+                          color: tag.color,
+                          border: `1px solid ${tag.color}55`,
+                          fontSize: "0.6rem",
+                          fontWeight: 600,
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {tag.name}
+                      </span>
+                    ))
+                  ) : (
+                    <StatusCell row={row} />
+                  )}
+                </span>
+              </div>
+            );
+          })
         )}
       </div>
 

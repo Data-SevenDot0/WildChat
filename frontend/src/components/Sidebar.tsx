@@ -1,7 +1,8 @@
 import WildchatLogo from "./WildchatLogo";
 import { useTheme } from "../context/ThemeContext";
 
-type View = "overview" | "explorer" | "geographic" | "language" | "model" | "etl" | "turns" | "matrix" | "continent";
+// Fix 4 + Fix 5 — expanded view type to include graph and tags views
+type View = "overview" | "explorer" | "geographic" | "language" | "model" | "etl" | "turns" | "matrix" | "continent" | "graph" | "tags";
 
 interface Props {
   activeView: View;
@@ -9,15 +10,15 @@ interface Props {
 }
 
 const NAV: { label: string; view: View }[] = [
-  { label: "Overview", view: "overview" },
-  { label: "Conversation explorer", view: "explorer" },
-  { label: "Geographic breakdown", view: "geographic" },
-  { label: "Continent drill-down", view: "continent" },
-  { label: "Language analysis", view: "language" },
-  { label: "Model comparison", view: "model" },
-  { label: "Model × topic matrix", view: "matrix" },
-  { label: "ETL run log", view: "etl" },
-  { label: "Turn depth compare", view: "turns" },
+  { label: "Overview",               view: "overview"   },
+  { label: "Conversation explorer",  view: "explorer"   },
+  { label: "Geographic breakdown",   view: "geographic" },
+  { label: "Continent drill-down",   view: "continent"  },
+  { label: "Language analysis",      view: "language"   },
+  { label: "Model comparison",       view: "model"      },
+  { label: "Model × topic matrix",   view: "matrix"     },
+  { label: "ETL run log",            view: "etl"        },
+  { label: "Turn depth compare",     view: "turns"      },
 ];
 
 const TOOLS: { label: string; view: View }[] = [
@@ -25,6 +26,10 @@ const TOOLS: { label: string; view: View }[] = [
   { label: "Interactive map",        view: "geographic" },
   { label: "Time / date slider",     view: "geographic" },
   { label: "Search refinement",      view: "explorer"   },
+  // Fix 4 — Graph builder tool
+  { label: "Graph builder",          view: "graph"      },
+  // Fix 5 — Tag management
+  { label: "Manage tags",            view: "tags"       },
 ];
 
 export default function Sidebar({ activeView, onSelect }: Props) {
