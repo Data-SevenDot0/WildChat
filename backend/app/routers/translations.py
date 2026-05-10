@@ -38,23 +38,14 @@ def get_or_create_translation(
     # 2. Cache miss — translate each message and save
     translator = GoogleTranslator(source="auto", target="en")
     translated_messages = []
-    failed = []
 
     for msg in body.messages:
         content = msg.get("content") or ""
         try:
             translated = translator.translate(content[:4999]) if content.strip() else content
-        except Exception as exc:
-            translated = content          # keep original rather than silently drop
-            failed.append(str(exc))
+        except Exception:
+            translated = content          # keep original on failure, still save result
         translated_messages.append({"role": msg.get("role"), "content": translated})
-
-    if failed:
-        # Surface failures in the response header so the frontend can warn the user
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Translation failed for {len(failed)} message(s): {failed[0]}",
-        )
 
     # 3. Save to database
     translation = crud_translation.create_translation(
