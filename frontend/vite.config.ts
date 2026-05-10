@@ -12,6 +12,7 @@ export default defineConfig({
       "/annotations": "http://localhost:8001",
       "/tags": "http://localhost:8001",
       "/translations": "http://localhost:8001",
+      "/notes": "http://localhost:8001",
     },
   },
 });
