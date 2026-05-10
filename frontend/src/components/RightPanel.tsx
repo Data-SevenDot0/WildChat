@@ -359,6 +359,25 @@ export default function RightPanel({ selected, presets = [], activityLog = [], o
                 <span className="text-text-secondary text-xs">{detail.turns} turns</span>
                 <span className="text-text-secondary text-xs">· {detail.language}</span>
               </div>
+
+              {/* Topic tags — max 3 in preview, rest visible in full thread */}
+              {detail.tags.filter(t => t !== "untagged").length > 0 && (
+                <div className="mb-2 flex flex-wrap gap-1 items-center">
+                  {detail.tags.filter(t => t !== "untagged").slice(0, 3).map(tag => (
+                    <span key={tag} className="tag-pill">{tag}</span>
+                  ))}
+                  {detail.tags.filter(t => t !== "untagged").length > 3 && (
+                    <button
+                      className="text-xs hover:underline"
+                      style={{ color: colors.textMuted }}
+                      onClick={() => setShowThread(true)}
+                    >
+                      +{detail.tags.filter(t => t !== "untagged").length - 3} more
+                    </button>
+                  )}
+                </div>
+              )}
+
               {(translatedMessages ?? detail.messages).slice(0, 3).map((msg: Message, i: number) => (
                 <div key={i} className="mb-2">
                   <div className="text-xs font-medium mb-0.5" style={{ color: msg.role === "user" ? colors.accent : colors.textPrimary }}>
