@@ -280,8 +280,8 @@ export default function RightPanel({ selected, presets = [], activityLog = [], o
       );
       setNotes((prev) => [created, ...prev]);
       setNoteInput("");
-      // Fix 2 — log annotation event to My History
-      addMyHistoryEntry("annotation", `Annotated ${detail?.conversation_hash?.slice(0, 8) ?? selected.conversation_hash}`);
+      window.dispatchEvent(new CustomEvent("wc:note-created", { detail: created }));
+      addMyHistoryEntry("annotation", detail?.conversation_hash ? `Note on ${detail.conversation_hash.slice(0, 8)}…` : "General note");
     } catch {
       setNoteError("Failed to save note.");
     }

@@ -34,6 +34,15 @@ export default function NotesView() {
       .finally(() => setLoading(false));
   }, [user?.user_id, user?.token]);
 
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const note = (e as CustomEvent<Note>).detail;
+      setNotes((prev) => [note, ...prev]);
+    };
+    window.addEventListener("wc:note-created", handler);
+    return () => window.removeEventListener("wc:note-created", handler);
+  }, []);
+
   async function removeNote(noteId: number) {
     if (!user) return;
     try {
