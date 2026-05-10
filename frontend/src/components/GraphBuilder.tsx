@@ -76,19 +76,35 @@ export default function GraphBuilder({ models, languages, countries, onGraphSave
   });
   const [saveMsg, setSaveMsg] = useState("");
 
-  async function handleGenerate() {
+  async function handleGenerate(overrides?: {
+    xAxis?: SavedGraph["xAxis"];
+    yAxis?: SavedGraph["yAxis"];
+    filterModel?: string;
+    filterLanguage?: string;
+    filterCountry?: string;
+    filterDateFrom?: string;
+    filterDateTo?: string;
+  }) {
+    const x = overrides?.xAxis ?? xAxis;
+    const y = overrides?.yAxis ?? yAxis;
+    const model = overrides?.filterModel ?? filterModel;
+    const language = overrides?.filterLanguage ?? filterLanguage;
+    const country = overrides?.filterCountry ?? filterCountry;
+    const dateFrom = overrides?.filterDateFrom ?? filterDateFrom;
+    const dateTo = overrides?.filterDateTo ?? filterDateTo;
+
     setLoading(true);
     setError("");
     setGenerated(false);
     try {
       const data = await fetchGraphBuilderData({
-        x_axis: xAxis === "turn_depth" ? "model" : xAxis,
-        y_axis: yAxis,
-        model: filterModel || undefined,
-        language: filterLanguage || undefined,
-        country: filterCountry || undefined,
-        date_from: filterDateFrom || undefined,
-        date_to: filterDateTo || undefined,
+        x_axis: x === "turn_depth" ? "model" : x,
+        y_axis: y,
+        model: model || undefined,
+        language: language || undefined,
+        country: country || undefined,
+        date_from: dateFrom || undefined,
+        date_to: dateTo || undefined,
       });
       setChartData(data);
       setGenerated(true);
@@ -138,8 +154,16 @@ export default function GraphBuilder({ models, languages, countries, onGraphSave
     setFilterCountry(g.filters.country);
     setFilterDateFrom(g.filters.dateFrom);
     setFilterDateTo(g.filters.dateTo);
-    setGenerated(false);
-    setChartData([]);
+    // State updates are async — pass values directly so the fetch uses the correct params
+    handleGenerate({
+      xAxis: g.xAxis,
+      yAxis: g.yAxis,
+      filterModel: g.filters.model,
+      filterLanguage: g.filters.language,
+      filterCountry: g.filters.country,
+      filterDateFrom: g.filters.dateFrom,
+      filterDateTo: g.filters.dateTo,
+    });
   }
 
   const dataKey = yAxis === "conversation_count" ? "conversation_count" : "avg_turn_depth";
