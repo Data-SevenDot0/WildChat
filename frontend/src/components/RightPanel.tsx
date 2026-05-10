@@ -6,6 +6,7 @@ import type {
 import {
   fetchConversationDetail, fetchAnnotations, createAnnotation, deleteAnnotation,
   fetchTranslation, requestTranslation,
+  setTopicCorrection, deleteTopicCorrection,
 } from "../api";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -186,6 +187,8 @@ export default function RightPanel({ selected, presets = [], activityLog = [], o
   const [translatedMessages, setTranslatedMessages] = useState<Message[] | null>(null);
   const [translating, setTranslating] = useState(false);
   const [translateError, setTranslateError] = useState("");
+  const [correctionOpen, setCorrectionOpen] = useState(false);
+  const [correctionSaving, setCorrectionSaving] = useState(false);
 
   // ── Fix 2: My History — localStorage-backed persistent log ──────────────────
   const [myHistory, setMyHistory] = useState<MyHistoryEntry[]>(() => {
@@ -229,6 +232,7 @@ export default function RightPanel({ selected, presets = [], activityLog = [], o
     setDetail(null);
     setTranslatedMessages(null);
     setTranslateError("");
+    setCorrectionOpen(false);
     setLoading(true);
     fetchConversationDetail(selected.full_hash)
       .then(async (d) => {
@@ -290,6 +294,26 @@ export default function RightPanel({ selected, presets = [], activityLog = [], o
     } catch {
       setAnnotationError("Failed to delete note.");
     }
+  }
+
+  async function handleSetCorrection(topic: string) {
+    if (!detail) return;
+    setCorrectionSaving(true);
+    try {
+      await setTopicCorrection(detail.full_hash, topic, JSON.stringify(detail.tags));
+      setDetail(prev => prev ? { ...prev, corrected_topic: topic } : null);
+      setCorrectionOpen(false);
+    } finally {
+      setCorrectionSaving(false);
+    }
+  }
+
+  async function handleClearCorrection() {
+    if (!detail) return;
+    try {
+      await deleteTopicCorrection(detail.full_hash);
+      setDetail(prev => prev ? { ...prev, corrected_topic: null } : null);
+    } catch { /* already cleared */ }
   }
 
   // Fix 5 — handle tag toggling for the selected conversation
@@ -450,12 +474,67 @@ export default function RightPanel({ selected, presets = [], activityLog = [], o
             <div className="text-xs text-text-muted">Select a conversation to annotate.</div>
           ) : (
             <div className="flex flex-col gap-1.5">
-              {detail.tags.slice(0, 3).map((tag) => (
-                <div key={tag} className="flex items-center gap-2">
-                  <span className="status-dot ok" />
-                  <span className="text-xs text-text-primary capitalize">{tag}</span>
+              {/* Dataset topic tags + correction UI */}
+              <div className="mb-1">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-text-muted">Dataset topic</span>
+                  {detail.corrected_topic ? (
+                    <button
+                      className="text-xs hover:underline"
+                      style={{ color: colors.textMuted }}
+                      onClick={handleClearCorrection}
+                    >
+                      Clear correction
+                    </button>
+                  ) : (
+                    <button
+                      className="text-xs hover:underline"
+                      style={{ color: colors.accent }}
+                      onClick={() => setCorrectionOpen(o => !o)}
+                    >
+                      {correctionOpen ? "Cancel" : "Correct topic"}
+                    </button>
+                  )}
                 </div>
-              ))}
+
+                {detail.corrected_topic ? (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs line-through" style={{ color: colors.textMuted }}>
+                      {detail.tags.slice(0, 2).join(", ") || "untagged"}
+                    </span>
+                    <span className="text-xs">→</span>
+                    <span className="text-xs font-medium" style={{ color: colors.accent }}>
+                      {detail.corrected_topic}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-1">
+                    {detail.tags.slice(0, 3).map(tag => (
+                      <span key={tag} className="tag-pill" style={{ fontSize: "0.6rem" }}>{tag}</span>
+                    ))}
+                    {detail.tags.length === 0 && (
+                      <span className="text-xs" style={{ color: colors.textMuted }}>No topic tags</span>
+                    )}
+                  </div>
+                )}
+
+                {correctionOpen && !detail.corrected_topic && (
+                  <div className="mt-1.5 flex flex-col gap-0.5">
+                    {["Coding / tech", "Writing", "Research / info", "Math / science", "Translation", "Other"].map(topic => (
+                      <button
+                        key={topic}
+                        className="text-left text-xs px-2 py-1 rounded hover:bg-bg-hover"
+                        style={{ color: colors.textSecondary }}
+                        onClick={() => handleSetCorrection(topic)}
+                        disabled={correctionSaving}
+                      >
+                        {topic}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {detail.redacted && (
                 <div className="flex items-center gap-2">
                   <span className="status-dot redacted" />
