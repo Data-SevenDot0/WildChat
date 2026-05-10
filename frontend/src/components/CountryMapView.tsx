@@ -41,150 +41,74 @@ const FIPS_TO_STATE: Record<string, string> = {
 
 interface CountryGeoConfig {
   url: string;
-  nameProperty: string;
   projection: string;
   scale: number;
   center: [number, number];
 }
 
-// Per-country TopoJSON via jsDelivr CDN (deldersveld/topojson).
-// nameProperty is the geo.properties key that holds the English region name.
+// All GeoJSON files are served locally from /geo/ (Natural Earth 10m admin-1, per-country).
+// The `name` property from NE is used for all; REGION_ALIASES handles NE→parquet name differences.
 const COUNTRY_GEO_CONFIG: Record<string, CountryGeoConfig> = {
-  "Canada": {
-    url: "https://cdn.jsdelivr.net/gh/deldersveld/topojson@master/countries/canada/canada-provinces.json",
-    nameProperty: "NAME_1",
-    projection: "geoMercator",
-    scale: 300,
-    center: [-97, 62],
-  },
-  "China": {
-    url: "https://cdn.jsdelivr.net/gh/deldersveld/topojson@master/countries/china/china-provinces.json",
-    nameProperty: "NAME_1",
-    projection: "geoMercator",
-    scale: 500,
-    center: [104, 35],
-  },
-  "India": {
-    url: "https://cdn.jsdelivr.net/gh/deldersveld/topojson@master/countries/india/india-states.json",
-    nameProperty: "NAME_1",
-    projection: "geoMercator",
-    scale: 700,
-    center: [80, 23],
-  },
-  "Brazil": {
-    url: "https://cdn.jsdelivr.net/gh/deldersveld/topojson@master/countries/brazil/brazil-states.json",
-    nameProperty: "NAME_1",
-    projection: "geoMercator",
-    scale: 550,
-    center: [-53, -14],
-  },
-  "Australia": {
-    url: "https://cdn.jsdelivr.net/gh/deldersveld/topojson@master/countries/australia/australia-states.json",
-    nameProperty: "STATE_NAME",
-    projection: "geoMercator",
-    scale: 450,
-    center: [133, -27],
-  },
-  "Germany": {
-    url: "https://cdn.jsdelivr.net/gh/deldersveld/topojson@master/countries/germany/germany-states.json",
-    nameProperty: "NAME_1",
-    projection: "geoMercator",
-    scale: 2500,
-    center: [10, 51],
-  },
-  "France": {
-    url: "https://cdn.jsdelivr.net/gh/deldersveld/topojson@master/countries/france/fr-departments.json",
-    nameProperty: "NAME_2",
-    projection: "geoMercator",
-    scale: 2200,
-    center: [2, 47],
-  },
-  "United Kingdom": {
-    url: "https://cdn.jsdelivr.net/gh/deldersveld/topojson@master/countries/united-kingdom/uk-counties.json",
-    nameProperty: "NAME_2",
-    projection: "geoMercator",
-    scale: 2200,
-    center: [-2, 54],
-  },
-  "Japan": {
-    url: "https://cdn.jsdelivr.net/gh/deldersveld/topojson@master/countries/japan/japan-prefectures.json",
-    nameProperty: "NAME_1",
-    projection: "geoMercator",
-    scale: 1200,
-    center: [138, 37],
-  },
-  "Russia": {
-    url: "https://cdn.jsdelivr.net/gh/deldersveld/topojson@master/countries/russia/russia-federal-subjects.json",
-    nameProperty: "NAME_1",
-    projection: "geoNaturalEarth1",
-    scale: 340,
-    center: [97, 65],
-  },
-  "Mexico": {
-    url: "https://cdn.jsdelivr.net/gh/deldersveld/topojson@master/countries/mexico/mexico-states.json",
-    nameProperty: "NAME_1",
-    projection: "geoMercator",
-    scale: 850,
-    center: [-102, 24],
-  },
-  "Argentina": {
-    url: "https://cdn.jsdelivr.net/gh/deldersveld/topojson@master/countries/argentina/argentina-provinces.json",
-    nameProperty: "NAME_1",
-    projection: "geoMercator",
-    scale: 600,
-    center: [-65, -35],
-  },
-  "Spain": {
-    url: "https://cdn.jsdelivr.net/gh/deldersveld/topojson@master/countries/spain/spain-communities.json",
-    nameProperty: "NAME_1",
-    projection: "geoMercator",
-    scale: 2500,
-    center: [-4, 40],
-  },
-  "Italy": {
-    url: "https://cdn.jsdelivr.net/gh/deldersveld/topojson@master/countries/italy/italy-regions.json",
-    nameProperty: "NAME_1",
-    projection: "geoMercator",
-    scale: 2200,
-    center: [12, 42],
-  },
-  "Poland": {
-    url: "https://cdn.jsdelivr.net/gh/deldersveld/topojson@master/countries/poland/poland-provinces.json",
-    nameProperty: "NAME_1",
-    projection: "geoMercator",
-    scale: 2500,
-    center: [19, 52],
-  },
-  "Türkiye": {
-    url: "https://cdn.jsdelivr.net/gh/deldersveld/topojson@master/countries/turkey/turkey-provinces.json",
-    nameProperty: "NAME_1",
-    projection: "geoMercator",
-    scale: 1800,
-    center: [35, 39],
-  },
-  "South Korea": {
-    url: "https://cdn.jsdelivr.net/gh/deldersveld/topojson@master/countries/south-korea/south-korea-provinces.json",
-    nameProperty: "NAME_1",
-    projection: "geoMercator",
-    scale: 3500,
-    center: [128, 36],
-  },
-  "Indonesia": {
-    url: "https://cdn.jsdelivr.net/gh/deldersveld/topojson@master/countries/indonesia/indonesia-provinces.json",
-    nameProperty: "NAME_1",
-    projection: "geoMercator",
-    scale: 700,
-    center: [118, -2],
-  },
+  "Russia":               { url: "/geo/rus.json", projection: "geoNaturalEarth1", scale: 340,  center: [97, 65]   },
+  "China":                { url: "/geo/chn.json", projection: "geoMercator",      scale: 500,  center: [104, 35]  },
+  "United Kingdom":       { url: "/geo/gbr.json", projection: "geoMercator",      scale: 2200, center: [-2, 54]   },
+  "Germany":              { url: "/geo/deu.json", projection: "geoMercator",      scale: 2500, center: [10, 51]   },
+  "France":               { url: "/geo/fra.json", projection: "geoMercator",      scale: 2200, center: [2, 47]    },
+  "Japan":                { url: "/geo/jpn.json", projection: "geoMercator",      scale: 1200, center: [138, 37]  },
+  "India":                { url: "/geo/ind.json", projection: "geoMercator",      scale: 700,  center: [80, 23]   },
+  "Canada":               { url: "/geo/can.json", projection: "geoMercator",      scale: 300,  center: [-97, 62]  },
+  "Brazil":               { url: "/geo/bra.json", projection: "geoMercator",      scale: 550,  center: [-53, -14] },
+  "Australia":            { url: "/geo/aus.json", projection: "geoMercator",      scale: 450,  center: [133, -27] },
+  "Egypt":                { url: "/geo/egy.json", projection: "geoMercator",      scale: 1500, center: [29, 26]   },
+  "Philippines":          { url: "/geo/phl.json", projection: "geoMercator",      scale: 1500, center: [122, 12]  },
+  "Türkiye":              { url: "/geo/tur.json", projection: "geoMercator",      scale: 1800, center: [35, 39]   },
+  "Italy":                { url: "/geo/ita.json", projection: "geoMercator",      scale: 2200, center: [12, 42]   },
+  "Vietnam":              { url: "/geo/vnm.json", projection: "geoMercator",      scale: 2000, center: [107, 16]  },
+  "South Korea":          { url: "/geo/kor.json", projection: "geoMercator",      scale: 3500, center: [128, 36]  },
+  "Indonesia":            { url: "/geo/idn.json", projection: "geoMercator",      scale: 700,  center: [118, -2]  },
+  "Mexico":               { url: "/geo/mex.json", projection: "geoMercator",      scale: 850,  center: [-102, 24] },
+  "Argentina":            { url: "/geo/arg.json", projection: "geoMercator",      scale: 600,  center: [-65, -35] },
+  "South Africa":         { url: "/geo/zaf.json", projection: "geoMercator",      scale: 1000, center: [25, -29]  },
+  "Poland":               { url: "/geo/pol.json", projection: "geoMercator",      scale: 2500, center: [19, 52]   },
+  "Spain":                { url: "/geo/esp.json", projection: "geoMercator",      scale: 2500, center: [-4, 40]   },
+  "Ukraine":              { url: "/geo/ukr.json", projection: "geoMercator",      scale: 2200, center: [31, 49]   },
+  "Thailand":             { url: "/geo/tha.json", projection: "geoMercator",      scale: 1500, center: [101, 15]  },
+  "Malaysia":             { url: "/geo/mys.json", projection: "geoMercator",      scale: 1800, center: [109, 4]   },
+  "Morocco":              { url: "/geo/mar.json", projection: "geoMercator",      scale: 2000, center: [-5, 32]   },
+  "Nigeria":              { url: "/geo/nga.json", projection: "geoMercator",      scale: 1500, center: [8, 9]     },
+  "Pakistan":             { url: "/geo/pak.json", projection: "geoMercator",      scale: 1200, center: [69, 30]   },
+  "Bangladesh":           { url: "/geo/bgd.json", projection: "geoMercator",      scale: 4000, center: [90, 24]   },
+  "Romania":              { url: "/geo/rou.json", projection: "geoMercator",      scale: 2500, center: [25, 46]   },
+  "Hungary":              { url: "/geo/hun.json", projection: "geoMercator",      scale: 3000, center: [19, 47]   },
+  "Portugal":             { url: "/geo/prt.json", projection: "geoMercator",      scale: 3000, center: [-8, 39]   },
+  "Greece":               { url: "/geo/grc.json", projection: "geoMercator",      scale: 3000, center: [22, 39]   },
+  "Belgium":              { url: "/geo/bel.json", projection: "geoMercator",      scale: 5000, center: [4, 50]    },
+  "Switzerland":          { url: "/geo/che.json", projection: "geoMercator",      scale: 5000, center: [8, 47]    },
+  "Austria":              { url: "/geo/aut.json", projection: "geoMercator",      scale: 4000, center: [14, 47]   },
+  "Denmark":              { url: "/geo/dnk.json", projection: "geoMercator",      scale: 3500, center: [10, 56]   },
+  "Norway":               { url: "/geo/nor.json", projection: "geoMercator",      scale: 1200, center: [15, 65]   },
+  "Finland":              { url: "/geo/fin.json", projection: "geoMercator",      scale: 1500, center: [26, 64]   },
+  "Israel":               { url: "/geo/isr.json", projection: "geoMercator",      scale: 7000, center: [35, 31]   },
+  "Iran":                 { url: "/geo/irn.json", projection: "geoMercator",      scale: 1200, center: [53, 33]   },
+  "Iraq":                 { url: "/geo/irq.json", projection: "geoMercator",      scale: 1500, center: [43, 33]   },
+  "Saudi Arabia":         { url: "/geo/sau.json", projection: "geoMercator",      scale: 1000, center: [45, 24]   },
+  "United Arab Emirates": { url: "/geo/are.json", projection: "geoMercator",      scale: 5000, center: [54, 24]   },
+  "Sweden":               { url: "/geo/swe.json", projection: "geoMercator",      scale: 1200, center: [17, 63]   },
+  "The Netherlands":      { url: "/geo/nld.json", projection: "geoMercator",      scale: 5000, center: [5, 52]    },
+  "Chile":                { url: "/geo/chl.json", projection: "geoMercator",      scale: 800,  center: [-71, -35] },
+  "Colombia":             { url: "/geo/col.json", projection: "geoMercator",      scale: 1200, center: [-74, 4]   },
+  "Taiwan":               { url: "/geo/twn.json", projection: "geoMercator",      scale: 5000, center: [121, 24]  },
+  "Hong Kong":            { url: "/geo/hkg.json", projection: "geoMercator",      scale: 15000, center: [114, 22] },
+  "Czechia":              { url: "/geo/cze.json", projection: "geoMercator",      scale: 4000, center: [15, 50]   },
+  "Singapore":            { url: "/geo/sgp.json", projection: "geoMercator",      scale: 60000, center: [104, 1]  },
 };
 
-// Strip accents and lowercase for fuzzy name matching across data sources
+// Strip accents + lowercase for fuzzy fallback matching
 function norm(s: string): string {
   return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 }
 
-// TopoJSON (GADM) region name → parquet (MaxMind) region name, per country.
-// Only needed where the official/local names differ from English geolocation names.
+// NE `name` → parquet `state` for countries where they differ systematically.
 const REGION_ALIASES: Record<string, Record<string, string>> = {
   "Germany": {
     "Bayern": "Bavaria",
@@ -199,17 +123,16 @@ const REGION_ALIASES: Record<string, Record<string, string>> = {
   },
   "Russia": {
     "Moskva": "Moscow",
-    "Moscow City": "Moscow",
-    "Sankt-Peterburg": "St.-Petersburg",
-    "Saint Petersburg": "St.-Petersburg",
+    "City of St. Petersburg": "St.-Petersburg",
     "Krasnodar": "Krasnodar Krai",
     "Novosibirsk": "Novosibirsk Oblast",
+    "Bashkortostan": "Bashkortostan Republic",
+    "Tatarstan": "Tatarstan Republic",
     "Chelyabinsk": "Chelyabinsk Oblast",
     "Samara": "Samara Oblast",
     "Kaliningrad": "Kaliningrad Oblast",
-    "Tatarstan": "Tatarstan Republic",
-    "Bashkortostan": "Bashkortostan Republic",
     "Sverdlovsk": "Sverdlovsk Oblast",
+    "Nizhegorod": "Nizhny Novgorod Oblast",
     "Rostov": "Rostov Oblast",
     "Perm": "Perm Krai",
     "Krasnoyarsk": "Krasnoyarsk Krai",
@@ -217,7 +140,18 @@ const REGION_ALIASES: Record<string, Record<string, string>> = {
     "Omsk": "Omsk Oblast",
     "Saratov": "Saratov Oblast",
     "Voronezh": "Voronezh Oblast",
-    "Nizhny Novgorod": "Nizhegorodskaya Oblast",
+    "Moscow Oblast": "Moscow Oblast",
+  },
+  "South Korea": {
+    "Gyeonggi": "Gyeonggi-do",
+    "Gangwon": "Gangwon-do",
+    "South Chungcheong": "Chungcheongnam-do",
+    "North Chungcheong": "Chungcheongbuk-do",
+    "South Gyeongsang": "Gyeongsangnam-do",
+    "North Gyeongsang": "Gyeongsangbuk-do",
+    "South Jeolla": "Jeollanam-do",
+    "North Jeolla": "Jeollabuk-do",
+    "Jeju": "Jeju-do",
   },
   "France": {
     "Nord": "North",
@@ -340,7 +274,7 @@ export default function CountryMapView({ country, items, selectedState, onStateC
     </div>
   );
 
-  // US: use Albers USA projection with FIPS lookup
+  // ── US: Albers USA projection with FIPS lookup ──────────────────────────────
   if (country === "United States") {
     return (
       <div style={{ position: "relative" }}>
@@ -367,8 +301,7 @@ export default function CountryMapView({ country, items, selectedState, onStateC
                     }}
                     onMouseEnter={evt => {
                       setTooltip({
-                        x: evt.clientX + 12,
-                        y: evt.clientY - 28,
+                        x: evt.clientX + 12, y: evt.clientY - 28,
                         content: item ? tooltipContent(stateName, item) : (stateName ?? ""),
                       });
                     }}
@@ -389,7 +322,7 @@ export default function CountryMapView({ country, items, selectedState, onStateC
     );
   }
 
-  // Configured countries: generic choropleth
+  // ── Configured countries: local NE GeoJSON choropleth ──────────────────────
   const geoConfig = COUNTRY_GEO_CONFIG[country];
   if (geoConfig) {
     return (
@@ -404,9 +337,11 @@ export default function CountryMapView({ country, items, selectedState, onStateC
           <Geographies geography={geoConfig.url}>
             {({ geographies }) =>
               geographies.map(geo => {
-                const regionName = geo.properties[geoConfig.nameProperty] as string | undefined;
+                const regionName = geo.properties["name"] as string | undefined;
                 const item = resolveItem(regionName);
-                const isSelected = regionName === selectedState;
+                const isSelected = item
+                  ? item.name === selectedState
+                  : regionName === selectedState;
                 return (
                   <Geography
                     key={geo.rsmKey}
@@ -421,16 +356,19 @@ export default function CountryMapView({ country, items, selectedState, onStateC
                     }}
                     onMouseEnter={evt => {
                       setTooltip({
-                        x: evt.clientX + 12,
-                        y: evt.clientY - 28,
-                        content: item ? tooltipContent(regionName!, item) : (regionName ?? ""),
+                        x: evt.clientX + 12, y: evt.clientY - 28,
+                        content: item
+                          ? tooltipContent(item.name, item)
+                          : (regionName ?? ""),
                       });
                     }}
                     onMouseMove={evt =>
                       setTooltip(t => t ? { ...t, x: evt.clientX + 12, y: evt.clientY - 28 } : null)
                     }
                     onMouseLeave={() => setTooltip(null)}
-                    onClick={() => { if (item && onStateClick && regionName) onStateClick(regionName); }}
+                    onClick={() => {
+                      if (item && onStateClick) onStateClick(item.name);
+                    }}
                   />
                 );
               })
@@ -443,7 +381,7 @@ export default function CountryMapView({ country, items, selectedState, onStateC
     );
   }
 
-  // Fallback: proportional bubble grid for countries without a TopoJSON config
+  // ── Fallback: proportional bubble grid ─────────────────────────────────────
   if (items.length === 0) {
     return <div className="text-text-muted text-xs py-2">No regional breakdown available.</div>;
   }
