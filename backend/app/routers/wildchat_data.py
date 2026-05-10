@@ -158,7 +158,7 @@ def _load_df() -> pd.DataFrame:
 
 def _get_stats() -> dict:
     """Compute and cache all aggregated stats (runs once)."""
-    if _stats_cache:
+    if "model_topic_matrix" in _stats_cache:
         return _stats_cache
 
     df = _load_df()
