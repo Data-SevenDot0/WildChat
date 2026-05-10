@@ -15,7 +15,7 @@ export interface Overview {
 export interface TopicItem { category: string; count: number; pct: number; }
 export interface LanguageItem { language: string; count: number; pct: number; }
 export interface ModelItem { model: string; count: number; pct: number; avg_turns: number; }
-export interface CountryItem { country: string; count: number; pct: number; }
+export interface CountryItem { country: string; count: number; pct: number; dominant_language?: string; dominant_model?: string; }
 export interface SummaryStats {
   gpt35_avg_turns: number;
   gpt4_avg_turns: number;

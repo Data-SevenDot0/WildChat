@@ -71,6 +71,19 @@ const NUM_TO_COUNTRY: Record<number, string> = Object.fromEntries(
   Object.entries(COUNTRY_TO_NUM).map(([name, num]) => [num, name])
 );
 
+// Deterministic color per categorical string (language / model name)
+const CAT_PALETTE = [
+  "#60a5fa", "#34d399", "#f59e0b", "#f87171", "#a78bfa",
+  "#fb923c", "#38bdf8", "#4ade80", "#facc15", "#f472b6",
+  "#94a3b8", "#2dd4bf", "#c084fc", "#fb7185", "#818cf8",
+  "#e879f9", "#22d3ee", "#86efac",
+];
+function catColor(str: string): string {
+  let h = 5381;
+  for (let i = 0; i < str.length; i++) h = ((h << 5) + h) ^ str.charCodeAt(i);
+  return CAT_PALETTE[Math.abs(h) % CAT_PALETTE.length];
+}
+
 interface TooltipState {
   x: number;
   y: number;
@@ -111,9 +124,22 @@ export default function WorldMap({ countries, onCountryClick, activeCountry }: P
   function getColor(numId: number): string {
     const countryName = NUM_TO_COUNTRY[numId];
     if (activeCountry && countryName === activeCountry) return colors.mapHover;
-    const pct = pctMap[numId];
-    if (!pct) return colors.mapNoData;
-    return getVolumeColor(pct);
+    const item = countryName ? nameToItem[countryName] : undefined;
+    if (!item) return colors.mapNoData;
+    if (viewMode === "language") return item.dominant_language ? catColor(item.dominant_language) : colors.mapNoData;
+    if (viewMode === "model")    return item.dominant_model    ? catColor(item.dominant_model)    : colors.mapNoData;
+    return getVolumeColor(item.pct);
+  }
+
+  // Build top-N legend entries for categorical modes
+  function getCatLegend(): { label: string; color: string }[] {
+    const seen = new Map<string, string>();
+    for (const item of countries) {
+      const val = viewMode === "language" ? item.dominant_language : item.dominant_model;
+      if (val && !seen.has(val)) seen.set(val, catColor(val));
+      if (seen.size >= 8) break;
+    }
+    return Array.from(seen.entries()).map(([label, color]) => ({ label, color }));
   }
 
   return (
@@ -160,10 +186,13 @@ export default function WorldMap({ countries, onCountryClick, activeCountry }: P
                     }}
                     onMouseEnter={(evt) => {
                       if (countryName && item) {
+                        const extra =
+                          viewMode === "language" ? ` · ${item.dominant_language ?? "unknown"}` :
+                          viewMode === "model"    ? ` · ${item.dominant_model ?? "unknown"}` : "";
                         setTooltip({
                           x: evt.clientX + 12,
                           y: evt.clientY - 28,
-                          content: `${countryName}: ${item.count.toLocaleString()} convs (${item.pct}%)`,
+                          content: `${countryName}: ${item.count.toLocaleString()} convs (${item.pct}%)${extra}`,
                         });
                       } else if (countryName) {
                         setTooltip({ x: evt.clientX + 12, y: evt.clientY - 28, content: countryName });
@@ -188,16 +217,25 @@ export default function WorldMap({ countries, onCountryClick, activeCountry }: P
         </ComposableMap>
       </div>
       {/* Legend */}
-      <div className="flex items-center gap-2 mt-1">
-        <span className="text-text-secondary text-xs">low</span>
-        <div
-          className="flex-1 h-2 rounded"
-          style={{
-            background: `linear-gradient(90deg, ${colors.mapScale[0]}, ${colors.mapScale[2]}, ${colors.mapScale[5]})`,
-          }}
-        />
-        <span className="text-text-secondary text-xs">high</span>
-      </div>
+      {viewMode === "volume" ? (
+        <div className="flex items-center gap-2 mt-1">
+          <span className="text-text-secondary text-xs">low</span>
+          <div
+            className="flex-1 h-2 rounded"
+            style={{ background: `linear-gradient(90deg, ${colors.mapScale[0]}, ${colors.mapScale[2]}, ${colors.mapScale[5]})` }}
+          />
+          <span className="text-text-secondary text-xs">high</span>
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
+          {getCatLegend().map(({ label, color }) => (
+            <div key={label} className="flex items-center gap-1">
+              <span className="inline-block w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: color }} />
+              <span className="text-text-secondary text-xs truncate" style={{ maxWidth: 120 }}>{label}</span>
+            </div>
+          ))}
+        </div>
+      )}
       {activeCountry && onCountryClick && (
         <div className="text-xs text-text-secondary">
           Filtered: <span style={{ color: colors.accent }}>{activeCountry}</span>

@@ -216,10 +216,18 @@ def _get_stats() -> dict:
         for _, row in model_stats.iterrows()
     ]
 
-    # Countries
+    # Countries — include dominant language and model for map coloring
     country_counts = df["country"].value_counts()
+    dom_lang = df.groupby("country")["language"].agg(lambda x: x.value_counts().index[0])
+    dom_model = df.groupby("country")["model"].agg(lambda x: x.value_counts().index[0])
     _stats_cache["countries"] = [
-        {"country": c, "count": int(n), "pct": round(n / total * 100, 1)}
+        {
+            "country": c,
+            "count": int(n),
+            "pct": round(n / total * 100, 1),
+            "dominant_language": str(dom_lang.get(c, "")),
+            "dominant_model": str(dom_model.get(c, "")),
+        }
         for c, n in country_counts.items()
     ]
 
@@ -309,8 +317,16 @@ def get_countries(
 
     total = max(len(df), 1)
     country_counts = df["country"].value_counts()
+    dom_lang = df.groupby("country")["language"].agg(lambda x: x.value_counts().index[0])
+    dom_model = df.groupby("country")["model"].agg(lambda x: x.value_counts().index[0])
     return [
-        {"country": c, "count": int(n), "pct": round(n / total * 100, 1)}
+        {
+            "country": c,
+            "count": int(n),
+            "pct": round(n / total * 100, 1),
+            "dominant_language": str(dom_lang.get(c, "")),
+            "dominant_model": str(dom_model.get(c, "")),
+        }
         for c, n in country_counts.items()
     ][:limit]
 
