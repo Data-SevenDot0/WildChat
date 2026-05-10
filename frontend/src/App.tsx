@@ -147,23 +147,21 @@ export default function App() {
   }
 
   function handleFilterChange(key: string, value: string | boolean | number) {
-    // Compute next directly from current filters — safe in an event handler because
-    // `filters` is always the committed state at call time. This avoids the functional
-    // updater form, which React StrictMode intentionally runs TWICE to detect side
-    // effects; any call to logActivity inside that updater would fire twice and create
-    // a duplicate Session History entry.
-    const next = { ...filters, [key]: value };
-    filtersToURL(next);
-    setFilters(next);
-
-    // logActivity is now called exactly once, outside any state updater.
-    if (key !== "search" && key !== "country" && key !== "tagFilter") {
-      logActivity("filter", `Filter: ${key} = ${value || "any"}`, next);
-    }
-    // Fix 2 — Log searches to activityLog so My History can pick them up
-    if (key === "search" && value) {
-      logActivity("search", `Search: "${value}"`, next);
-    }
+    setFilters((f) => {
+      const next = { ...f, [key]: value };
+      filtersToURL(next);
+      // Fix 1 — Only log filter events for non-search, non-country keys.
+      // Country clicks come through handleCountryFilter which logs type="country";
+      // logging here too would create a duplicate entry.
+      if (key !== "search" && key !== "country" && key !== "tagFilter") {
+        logActivity("filter", `Filter: ${key} = ${value || "any"}`, next);
+      }
+      // Fix 2 — Log searches to activityLog so My History can pick them up
+      if (key === "search" && value) {
+        logActivity("search", `Search: "${value}"`, next);
+      }
+      return next;
+    });
   }
 
   function savePreset(name: string) {
