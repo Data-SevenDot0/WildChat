@@ -37,8 +37,19 @@ function activityIcon(type: ActivityEntry["type"]): string {
   }
 }
 
-function ThreadModal({ detail, onClose }: { detail: ConversationDetail; onClose: () => void }) {
+interface ThreadModalProps {
+  detail: ConversationDetail;
+  onClose: () => void;
+  translatedMessages: Message[] | null;
+  translating: boolean;
+  translateError: string;
+  onTranslate: () => void;
+  onShowOriginal: () => void;
+}
+
+function ThreadModal({ detail, onClose, translatedMessages, translating, translateError, onTranslate, onShowOriginal }: ThreadModalProps) {
   const { colors } = useTheme();
+  const messages = translatedMessages ?? detail.messages;
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
@@ -57,8 +68,32 @@ function ThreadModal({ detail, onClose }: { detail: ConversationDetail; onClose:
             {detail.redacted && <span className="status-dot redacted" />}
             {detail.toxic && <span className="status-dot toxic" />}
           </div>
-          <button className="text-text-secondary hover:text-text-primary text-lg leading-none" onClick={onClose}>×</button>
+          <div className="flex items-center gap-3">
+            {detail.language !== "English" && (
+              translatedMessages ? (
+                <div className="flex items-center gap-1.5">
+                  <span className="status-dot ok" />
+                  <span className="text-xs text-text-muted">Translated</span>
+                  <button className="text-xs text-text-muted hover:underline" onClick={onShowOriginal}>Show original</button>
+                </div>
+              ) : (
+                <button
+                  className="filter-btn text-xs"
+                  style={{ padding: "3px 8px" }}
+                  onClick={onTranslate}
+                  disabled={translating}
+                >
+                  {translating ? "Translating…" : "Translate to English"}
+                </button>
+              )
+            )}
+            <button className="text-text-secondary hover:text-text-primary text-lg leading-none" onClick={onClose}>×</button>
+          </div>
         </div>
+
+        {translateError && (
+          <div className="px-5 py-1.5 border-b border-border-subtle flex-shrink-0 text-xs" style={{ color: "#ef4444" }}>{translateError}</div>
+        )}
 
         {detail.tags.length > 0 && (
           <div className="px-5 py-2 border-b border-border-subtle flex flex-wrap gap-1 flex-shrink-0">
@@ -67,7 +102,7 @@ function ThreadModal({ detail, onClose }: { detail: ConversationDetail; onClose:
         )}
 
         <div className="overflow-y-auto flex-1 px-5 py-4 flex flex-col gap-4">
-          {detail.messages.map((msg, i) => (
+          {messages.map((msg, i) => (
             <div key={i} className={`flex flex-col gap-1 ${msg.role === "assistant" ? "pl-4 border-l-2 border-border-base" : ""}`}>
               <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: msg.role === "user" ? colors.accent : colors.textPrimary }}>
                 {msg.role === "user" ? "User" : "Assistant"}
@@ -229,7 +264,17 @@ export default function RightPanel({ selected, presets = [], activityLog = [], o
 
   return (
     <>
-      {showThread && detail && <ThreadModal detail={detail} onClose={() => setShowThread(false)} />}
+      {showThread && detail && (
+        <ThreadModal
+          detail={detail}
+          onClose={() => setShowThread(false)}
+          translatedMessages={translatedMessages}
+          translating={translating}
+          translateError={translateError}
+          onTranslate={handleTranslate}
+          onShowOriginal={() => setTranslatedMessages(null)}
+        />
+      )}
 
       <aside
         style={{ width: 260, minWidth: 260 }}
