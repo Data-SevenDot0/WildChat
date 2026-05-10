@@ -4,6 +4,8 @@ tagger.py — Tag all conversations in 0000–0013.parquet and write
 """
 
 import json
+import math
+import re
 import time
 from pathlib import Path
 
@@ -72,10 +74,12 @@ TOPIC_KEYWORDS = {
         "JavaScript代码", "React组件",
     ],
     "lua roblox scripting": [
+        # Removed "character" (common English word) and "tween" is kept but
+        # word-boundary matching now prevents it matching inside "between".
         "roblox", "lua", "localscript", "script.parent", "game.players",
         "game:getservice", "humanoid", "workspace", "pathfindingservice",
         "remoteevent", "bindableevent", "tween", "cframe", "vector3",
-        "part.position", "character", "localplayer", "playeradded", "touched event",
+        "part.position", "localplayer", "playeradded", "touched event",
         "tool script", "gui script", "datastoreservice", "roblox studio", "luau",
         "modulescript", "Roblox脚本", "Lua编程",
     ],
@@ -88,12 +92,15 @@ TOPIC_KEYWORDS = {
         "std::string", "помоги исправить ошибки компиляции",
     ],
     "sql database": [
-        "sql", "select", "from", "where", "join", "inner join", "left join",
+        # Removed "select", "from", "where", "join", "index", "view", "trigger",
+        # "orm" — all appear in ordinary English sentences and cause false positives.
+        # "inner join", "left join" etc. are retained as multi-word anchors.
+        "sql", "inner join", "left join", "outer join", "cross join",
         "group by", "order by", "having", "insert into", "update set", "delete from",
-        "create table", "alter table", "index", "foreign key", "primary key",
-        "stored procedure", "trigger", "view", "mysql", "postgresql", "sqlite",
+        "create table", "alter table", "foreign key", "primary key",
+        "stored procedure", "mysql", "postgresql", "sqlite",
         "mssql", "oracle", "mongodb", "nosql", "database schema", "query optimization",
-        "orm", "migration", "normalization", "что делает запрос", "SQL查询", "数据库",
+        "migration", "normalization", "что делает запрос", "SQL查询", "数据库",
         "write a query", "write a sql query",
     ],
     "data science ml ai": [
@@ -606,6 +613,53 @@ TOPIC_KEYWORDS = {
 }
 
 # ── Tagging logic ──────────────────────────────────────────────────────────────
+#
+# Precompile one regex per topic at import time.  Using word-boundary anchors
+# (\b) prevents short keywords from false-matching inside longer words — the
+# classic example being "tween" matching inside "between" with naive `in`.
+#
+# Strategy per keyword:
+#   • If the keyword starts/ends with a word character (letter, digit, _) we
+#     attach \b on that side so it must land on a real word boundary.
+#   • If the keyword starts/ends with punctuation or non-ASCII we leave that
+#     side open, because \b is meaningless next to a non-word character anyway
+#     (e.g. "--ar", "/imagine", "Lua编程").
+#
+# All keywords are lowercased to match the lowercased conversation text.
+#
+# MIN_KEYWORD_FRACTION: what share of a topic's keyword list must appear in
+# the conversation before that tag is applied.  0.25 means at least 25% of
+# the topic's keywords must be found (e.g. 5 of 20).  Per-topic min_hits are
+# computed at import time as max(1, ceil(len(keywords) * fraction)), so short
+# keyword lists still require at least 1 match.  Raise the fraction for
+# stricter tagging; set to 0.0 to require only 1 match (original behaviour).
+
+MIN_KEYWORD_FRACTION = 0.25
+
+
+def _word_char(c: str) -> bool:
+    return c.isascii() and (c.isalnum() or c == "_")
+
+def _make_topic_pattern(keywords: list) -> re.Pattern:
+    parts = []
+    for kw in keywords:
+        kw_l = kw.lower()
+        escaped = re.escape(kw_l)
+        prefix = r"\b" if _word_char(kw_l[0]) else ""
+        suffix = r"\b" if _word_char(kw_l[-1]) else ""
+        parts.append(prefix + escaped + suffix)
+    # Longest alternatives first so greedy alternation doesn't swallow partial matches
+    parts.sort(key=len, reverse=True)
+    return re.compile("|".join(parts))
+
+_TOPIC_PATTERNS: dict[str, tuple[re.Pattern, int]] = {
+    topic: (
+        _make_topic_pattern(keywords),
+        max(1, math.ceil(len(keywords) * MIN_KEYWORD_FRACTION)),
+    )
+    for topic, keywords in TOPIC_KEYWORDS.items()
+}
+
 
 def get_tags(messages) -> list:
     if not hasattr(messages, "__iter__") or len(messages) == 0:
@@ -614,8 +668,14 @@ def get_tags(messages) -> list:
         msg.get("content", "") if isinstance(msg, dict) else str(msg)
         for msg in messages
     ).lower()
-    tags = [topic for topic, keywords in TOPIC_KEYWORDS.items()
-            if any(kw in full_text for kw in keywords)]
+    tags = []
+    for topic, (pattern, min_hits) in _TOPIC_PATTERNS.items():
+        if not pattern.search(full_text):
+            continue
+        # Count distinct keywords that actually appear (not total occurrences).
+        # findall returns the matched string at each position; set() deduplicates.
+        if len(set(pattern.findall(full_text))) >= min_hits:
+            tags.append(topic)
     return tags if tags else ["untagged"]
 
 
