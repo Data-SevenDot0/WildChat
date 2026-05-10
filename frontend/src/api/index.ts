@@ -12,6 +12,7 @@ import type {
   EtlRunItem,
   ModelTopicMatrixItem,
   Annotation,
+  Note,
   AuthUser,
   HistoryItem,
   Translation,
@@ -167,6 +168,25 @@ export async function createAnnotation(conversationHash: string, text: string, t
 
 export async function deleteAnnotation(id: number, token: string): Promise<void> {
   await api.delete(`/annotations/${id}`, authHeaders(token));
+}
+
+export async function fetchNotes(token: string, conversationHash?: string): Promise<Note[]> {
+  const query = new URLSearchParams();
+  if (conversationHash) query.set("conversation_hash", conversationHash);
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  const { data } = await api.get(`/notes/${suffix}`, authHeaders(token));
+  return Array.isArray(data) ? data : [];
+}
+
+export async function createNote(content: string, token: string, conversationHash?: string): Promise<Note> {
+  const payload: { content: string; conversation_hash?: string } = { content };
+  if (conversationHash) payload.conversation_hash = conversationHash;
+  const { data } = await api.post("/notes/", payload, authHeaders(token));
+  return data;
+}
+
+export async function deleteNote(noteId: number, token: string): Promise<void> {
+  await api.delete(`/notes/${noteId}`, authHeaders(token));
 }
 
 export async function fetchTranslation(conversationHash: string): Promise<Translation | null> {

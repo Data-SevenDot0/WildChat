@@ -1,8 +1,8 @@
 import WildchatLogo from "./WildchatLogo";
 import { useTheme } from "../context/ThemeContext";
 
-// Fix 4 + Fix 5 — expanded view type to include graph and tags views
-type View = "overview" | "explorer" | "geographic" | "language" | "model" | "etl" | "turns" | "matrix" | "continent" | "graph" | "tags";
+// Fix 4 + Fix 5 — expanded view type to include graph, tags, and notes views
+type View = "overview" | "explorer" | "notes" | "geographic" | "language" | "model" | "etl" | "turns" | "matrix" | "continent" | "graph" | "tags";
 
 interface Props {
   activeView: View;
@@ -12,6 +12,7 @@ interface Props {
 const NAV: { label: string; view: View }[] = [
   { label: "Overview",               view: "overview"   },
   { label: "Conversation explorer",  view: "explorer"   },
+  { label: "Notes",                  view: "notes"      },
   { label: "Geographic breakdown",   view: "geographic" },
   { label: "Continent drill-down",   view: "continent"  },
   { label: "Language analysis",      view: "language"   },

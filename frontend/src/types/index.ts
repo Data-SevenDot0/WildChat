@@ -87,6 +87,15 @@ export interface Annotation {
   created_at: string;
 }
 
+export interface Note {
+  note_id: number;
+  user_id: number;
+  conversation_hash: string | null;
+  content: string;
+  created_at: string;
+  updated_at: string | null;
+}
+
 export interface ModelTopicMatrixItem {
   model: string;
   topic: string;

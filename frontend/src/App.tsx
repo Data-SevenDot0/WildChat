@@ -31,6 +31,7 @@ import ConversationList from "./components/ConversationList";
 import EtlLog from "./components/EtlLog";
 import SummaryStatsPanel from "./components/SummaryStats";
 import RightPanel from "./components/RightPanel";
+import NotesView from "./components/NotesView";
 import GeographicView from "./components/GeographicView";
 import LanguageView from "./components/LanguageView";
 import ModelView from "./components/ModelView";
@@ -46,7 +47,7 @@ import { AuthProvider } from "./context/AuthContext";
 import { TagProvider } from "./context/TagContext";        // Fix 5
 
 // Fix 4 + Fix 5 — expanded view type
-type View = "overview" | "explorer" | "geographic" | "language" | "model" | "etl" | "turns" | "matrix" | "continent" | "graph" | "tags";
+type View = "overview" | "explorer" | "notes" | "geographic" | "language" | "model" | "etl" | "turns" | "matrix" | "continent" | "graph" | "tags";
 
 const DEFAULT_FILTERS: Filters = {
   model: "", language: "", country: "", redactedOnly: false, search: "",
@@ -350,6 +351,9 @@ export default function App() {
                 />
               </>
             )}
+
+            {/* Notes */}
+            {view === "notes" && <NotesView />}
 
             {/* Geographic */}
             {view === "geographic" && (
