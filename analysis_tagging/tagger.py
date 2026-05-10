@@ -630,7 +630,7 @@ TOPIC_KEYWORDS = {
 # conversation before that tag is applied.  2 means a single word can no longer
 # trigger a tag on its own.  Set to 1 to restore the original any-match behaviour.
 
-MIN_KEYWORD_HITS = 2
+MIN_KEYWORD_HITS = 1
 
 
 def _word_char(c: str) -> bool:
