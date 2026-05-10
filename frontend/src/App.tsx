@@ -31,6 +31,7 @@ import ConversationList from "./components/ConversationList";
 import EtlLog from "./components/EtlLog";
 import SummaryStatsPanel from "./components/SummaryStats";
 import RightPanel from "./components/RightPanel";
+import NotesView from "./components/NotesView";
 import GeographicView from "./components/GeographicView";
 import LanguageView from "./components/LanguageView";
 import ModelView from "./components/ModelView";
@@ -42,7 +43,7 @@ import LoginModal from "./components/LoginModal";
 import { useTheme } from "./context/ThemeContext";
 import { AuthProvider } from "./context/AuthContext";
 
-type View = "overview" | "explorer" | "geographic" | "language" | "model" | "etl" | "turns" | "matrix" | "continent";
+type View = "overview" | "explorer" | "notes" | "geographic" | "language" | "model" | "etl" | "turns" | "matrix" | "continent";
 
 const DEFAULT_FILTERS: Filters = {
   model: "", language: "", country: "", redactedOnly: false, search: "",
@@ -298,6 +299,9 @@ export default function App() {
                 />
               </>
             )}
+
+            {/* Notes */}
+            {view === "notes" && <NotesView />}
 
             {/* Geographic */}
             {view === "geographic" && (

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import type { ConversationRow, ConversationDetail, FilterPreset, ActivityEntry, Filters, Annotation, HistoryItem } from "../types";
-import { fetchConversationDetail, fetchAnnotations, createAnnotation, deleteAnnotation, fetchHistory, addHistory, deleteHistory, clearHistory, fetchTranslation, requestTranslation } from "../api";
+import type { ConversationRow, ConversationDetail, FilterPreset, ActivityEntry, Filters, Note, HistoryItem } from "../types";
+import { fetchConversationDetail, fetchNotes, createNote, deleteNote, fetchHistory, addHistory, deleteHistory, clearHistory, fetchTranslation, requestTranslation } from "../api";
 import type { Message } from "../types";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -152,9 +152,10 @@ export default function RightPanel({ selected, presets = [], activityLog = [], o
   const [detail, setDetail] = useState<ConversationDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [showThread, setShowThread] = useState(false);
-  const [annotations, setAnnotations] = useState<Annotation[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
   const [noteInput, setNoteInput] = useState("");
-  const [annotationError, setAnnotationError] = useState("");
+  const [noteError, setNoteError] = useState("");
+  const [linkToConversation, setLinkToConversation] = useState(true);
   const [translatedMessages, setTranslatedMessages] = useState<Message[] | null>(null);
   const [translating, setTranslating] = useState(false);
   const [translateError, setTranslateError] = useState("");
@@ -229,34 +230,38 @@ export default function RightPanel({ selected, presets = [], activityLog = [], o
   useEffect(() => {
     setShowThread(false);
     setNoteInput("");
-    setAnnotationError("");
-    setAnnotations([]);
-    if (selected && user) {
-      fetchAnnotations(selected.full_hash, user.token)
-        .then(setAnnotations)
-        .catch(() => setAnnotations([]));
-    }
+    setNoteError("");
+    setNotes([]);
+    setLinkToConversation(Boolean(selected));
+    if (!user) return;
+    fetchNotes(user.token, selected?.full_hash)
+      .then(setNotes)
+      .catch(() => setNotes([]));
   }, [selected?.full_hash, user?.user_id]);
 
   async function addNote() {
-    if (!noteInput.trim() || !selected || !user) return;
-    setAnnotationError("");
+    if (!noteInput.trim() || !user) return;
+    setNoteError("");
     try {
-      const created = await createAnnotation(selected.full_hash, noteInput.trim(), user.token);
-      setAnnotations(prev => [...prev, created]);
+      const created = await createNote(
+        noteInput.trim(),
+        user.token,
+        selected && linkToConversation ? selected.full_hash : undefined,
+      );
+      setNotes((prev) => [created, ...prev]);
       setNoteInput("");
     } catch {
-      setAnnotationError("Failed to save note.");
+      setNoteError("Failed to save note.");
     }
   }
 
   async function removeNote(id: number) {
     if (!user) return;
     try {
-      await deleteAnnotation(id, user.token);
-      setAnnotations(prev => prev.filter(a => a.id !== id));
+      await deleteNote(id, user.token);
+      setNotes((prev) => prev.filter((note) => note.note_id !== id));
     } catch {
-      setAnnotationError("Failed to delete note.");
+      setNoteError("Failed to delete note.");
     }
   }
   const recentActivity = activityLog.slice(0, 10);
@@ -344,12 +349,12 @@ export default function RightPanel({ selected, presets = [], activityLog = [], o
           </div>
         )}
 
-        {/* Annotation Tool */}
+        {/* Notes */}
         <div className="p-4 border-b border-border-base">
-          <div className="label mb-2">Annotation Tool</div>
+          <div className="label mb-2">Notes</div>
           {!user ? (
             <div className="flex flex-col gap-2">
-              <div className="text-xs text-text-muted">Log in to save personal annotations to conversations.</div>
+              <div className="text-xs text-text-muted">Log in to save personal notes.</div>
               <button
                 className="filter-btn active text-xs"
                 style={{ justifyContent: "center", padding: "6px" }}
@@ -358,48 +363,58 @@ export default function RightPanel({ selected, presets = [], activityLog = [], o
                 Log in
               </button>
             </div>
-          ) : !detail ? (
-            <div className="text-xs text-text-muted">Select a conversation to annotate.</div>
           ) : (
-            <div className="flex flex-col gap-1.5">
-              {detail.tags.slice(0, 3).map((tag) => (
-                <div key={tag} className="flex items-center gap-2">
-                  <span className="status-dot ok" />
-                  <span className="text-xs text-text-primary capitalize">{tag}</span>
-                </div>
-              ))}
-              {detail.redacted && (
-                <div className="flex items-center gap-2">
-                  <span className="status-dot redacted" />
-                  <span className="text-xs text-text-primary">Redacted content</span>
-                </div>
+            <div className="flex flex-col gap-2">
+              {selected ? (
+                <label className="flex items-center gap-2 text-xs text-text-muted">
+                  <input
+                    type="checkbox"
+                    checked={linkToConversation}
+                    onChange={(e) => setLinkToConversation(e.target.checked)}
+                  />
+                  Link this note to the selected conversation
+                </label>
+              ) : (
+                <div className="text-xs text-text-muted">No conversation is selected, so this will be a general note.</div>
               )}
-              {annotations.map((note) => (
-                <div key={note.id} className="flex flex-col gap-0.5 mt-1 p-2 rounded group" style={{ background: colors.bgHover, border: `1px solid ${colors.borderBase}` }}>
-                  <div className="flex items-start justify-between gap-1">
-                    <span className="text-xs text-text-primary flex-1">{note.text}</span>
-                    <button
-                      className="text-text-muted hover:text-text-primary text-xs opacity-0 group-hover:opacity-100 flex-shrink-0"
-                      onClick={() => removeNote(note.id)}
-                      title="Delete note"
-                    >✕</button>
-                  </div>
-                  <span className="text-xs text-text-muted">{timeAgo(note.created_at)}</span>
+              <textarea
+                className="w-full bg-transparent text-text-primary text-xs outline-none border border-border-subtle rounded p-2 placeholder-text-muted min-h-[72px]"
+                placeholder="Add note…"
+                value={noteInput}
+                onChange={(e) => setNoteInput(e.target.value)}
+              />
+              <div className="flex items-center justify-between gap-2">
+                <button className="text-xs hover:underline" style={{ color: colors.accent }} onClick={addNote} disabled={!noteInput.trim()}>
+                  Save note
+                </button>
+                <span className="text-xs text-text-muted">
+                  {selected && linkToConversation ? "Conversation note" : "General note"}
+                </span>
+              </div>
+              {noteError && <div className="text-xs" style={{ color: "#ef4444" }}>{noteError}</div>}
+              <div className="mt-2 flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-text-muted">Recent notes</span>
+                  <span className="text-xs text-text-muted">{notes.length}</span>
                 </div>
-              ))}
-              {annotationError && (
-                <div className="text-xs" style={{ color: "#ef4444" }}>{annotationError}</div>
-              )}
-              <div className="flex gap-1 mt-1">
-                <input
-                  className="flex-1 bg-transparent text-text-primary text-xs outline-none border-b border-border-subtle placeholder-text-muted"
-                  placeholder="Add note…"
-                  value={noteInput}
-                  onChange={(e) => setNoteInput(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") addNote(); }}
-                />
-                {noteInput && (
-                  <button className="text-xs hover:underline" style={{ color: colors.accent }} onClick={addNote}>Save</button>
+                {notes.length === 0 ? (
+                  <div className="text-xs text-text-muted">No notes found yet.</div>
+                ) : (
+                  notes.slice(0, 4).map((note) => (
+                    <div key={note.note_id} className="flex flex-col gap-0.5 mt-1 p-2 rounded group" style={{ background: colors.bgHover, border: `1px solid ${colors.borderBase}` }}>
+                      <div className="flex items-start justify-between gap-1">
+                        <span className="text-xs text-text-primary flex-1 whitespace-pre-wrap">{note.content}</span>
+                        <button
+                          className="text-text-muted hover:text-text-primary text-xs opacity-0 group-hover:opacity-100 flex-shrink-0"
+                          onClick={() => removeNote(note.note_id)}
+                          title="Delete note"
+                        >✕</button>
+                      </div>
+                      <span className="text-xs text-text-muted">
+                        {timeAgo(note.created_at)}{note.conversation_hash ? ` · ${note.conversation_hash.slice(0, 8)}…` : " · general"}
+                      </span>
+                    </div>
+                  ))
                 )}
               </div>
             </div>

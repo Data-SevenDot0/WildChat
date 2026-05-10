@@ -1,7 +1,7 @@
 import WildchatLogo from "./WildchatLogo";
 import { useTheme } from "../context/ThemeContext";
 
-type View = "overview" | "explorer" | "geographic" | "language" | "model" | "etl" | "turns" | "matrix" | "continent";
+type View = "overview" | "explorer" | "notes" | "geographic" | "language" | "model" | "etl" | "turns" | "matrix" | "continent";
 
 interface Props {
   activeView: View;
@@ -11,6 +11,7 @@ interface Props {
 const NAV: { label: string; view: View }[] = [
   { label: "Overview", view: "overview" },
   { label: "Conversation explorer", view: "explorer" },
+  { label: "Notes", view: "notes" },
   { label: "Geographic breakdown", view: "geographic" },
   { label: "Continent drill-down", view: "continent" },
   { label: "Language analysis", view: "language" },
