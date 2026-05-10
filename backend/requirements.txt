@@ -1,0 +1,12 @@
+fastapi==0.135.2
+uvicorn==0.42.0
+sqlalchemy==2.0.48
+passlib==1.7.4
+bcrypt<4.0.0          # passlib 1.7.4 is incompatible with bcrypt 4+
+python-jose==3.5.0
+cryptography           # required by python-jose
+pydantic==2.12.5
+pydantic-settings==2.14.0
+deep-translator
+pandas==3.0.1
+pyarrow==24.0.0
