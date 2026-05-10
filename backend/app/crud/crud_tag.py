@@ -1,30 +1,66 @@
 from sqlalchemy.orm import Session
-from app.models import tag
-from app.core.security import verify_password, get_password_hash
+from sqlalchemy.exc import IntegrityError
 from typing import Optional
-from app.schemas.tag_schema import TagBase
-from app.models.tag import Tag
-from app.models.user import User
+from app.models.tag import Tag, UserTagAssignment
 
-def get_tag(db: Session, tag_id: int):
-        tag = db.query(Tag).filter(Tag.tag_id == tag_id).first()
-        return tag
 
-def create_tag(db: Session, name: str, keywords: Optional[str] = None, user_id: Optional[int] = None):
-    tag = Tag(name=name, keywords=keywords, user_id=user_id)
+def get_user_tags(db: Session, user_id: int) -> list[Tag]:
+    return db.query(Tag).filter(Tag.user_id == user_id).all()
+
+
+def get_tag(db: Session, tag_id: int, user_id: int) -> Optional[Tag]:
+    return db.query(Tag).filter(Tag.tag_id == tag_id, Tag.user_id == user_id).first()
+
+
+def create_tag(db: Session, user_id: int, name: str, color: str, keywords: list[str]) -> Tag:
+    tag = Tag(name=name, color=color, keywords=",".join(keywords), user_id=user_id)
     db.add(tag)
     db.commit()
     db.refresh(tag)
     return tag
 
-def delete_tag(db: Session, tag_id: int):
-    tag = db.query(Tag).filter(Tag.tag_id == tag_id).first()
-    if tag:
-        db.delete(tag)
-        db.commit()
-        return True
-    return False
 
-def get_tag_by_name(db: Session, name: str):
-    tag = db.query(Tag).filter(Tag.name == name).first()
+def update_tag(db: Session, tag: Tag, name: Optional[str], color: Optional[str], keywords: Optional[list[str]]) -> Tag:
+    if name is not None:
+        tag.name = name
+    if color is not None:
+        tag.color = color
+    if keywords is not None:
+        tag.keywords = ",".join(keywords)
+    db.commit()
+    db.refresh(tag)
     return tag
+
+
+def delete_tag(db: Session, tag: Tag) -> None:
+    db.delete(tag)
+    db.commit()
+
+
+def set_assignments(db: Session, tag_id: int, hashes: list[str]) -> int:
+    """Replace all assignments for a tag with the given conversation hashes."""
+    db.query(UserTagAssignment).filter(UserTagAssignment.tag_id == tag_id).delete()
+    for h in hashes:
+        db.add(UserTagAssignment(tag_id=tag_id, conversation_hash=h))
+    db.commit()
+    return len(hashes)
+
+
+def get_assignment_hashes(db: Session, tag_id: int) -> list[str]:
+    rows = db.query(UserTagAssignment.conversation_hash).filter(
+        UserTagAssignment.tag_id == tag_id
+    ).all()
+    return [r[0] for r in rows]
+
+
+def get_tags_for_conversation(db: Session, user_id: int, conversation_hash: str) -> list[Tag]:
+    return (
+        db.query(Tag)
+        .join(UserTagAssignment, Tag.tag_id == UserTagAssignment.tag_id)
+        .filter(Tag.user_id == user_id, UserTagAssignment.conversation_hash == conversation_hash)
+        .all()
+    )
+
+
+def assignment_count(db: Session, tag_id: int) -> int:
+    return db.query(UserTagAssignment).filter(UserTagAssignment.tag_id == tag_id).count()

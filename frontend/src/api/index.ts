@@ -19,6 +19,7 @@ import type {
   Message,
   GeoDrilldownResponse,
   GraphDataPoint,
+  UserTag,
 } from "../types";
 
 const api = axios.create({ baseURL: "" }); // proxied by Vite to localhost:8001
@@ -240,4 +241,39 @@ export async function fetchGraphBuilderData(params: {
   if (params.date_to) p.set("date_to", params.date_to);
   const { data } = await api.get(`/data/graph-builder?${p}`);
   return data as GraphDataPoint[];
+}
+// ── User keyword tags ─────────────────────────────────────────────────────────
+export interface TagPayload { name: string; color: string; keywords: string[]; }
+
+function tagFromApi(raw: { tag_id: number; name: string; color: string; keywords: string[]; match_count: number }): UserTag {
+  return { id: String(raw.tag_id), name: raw.name, color: raw.color, keywords: raw.keywords, matchCount: raw.match_count };
+}
+
+export async function fetchUserTags(token: string): Promise<UserTag[]> {
+  const { data } = await api.get("/tags/", authHeaders(token));
+  return (data as Parameters<typeof tagFromApi>[0][]).map(tagFromApi);
+}
+
+export async function createUserTag(payload: TagPayload, token: string): Promise<UserTag> {
+  const { data } = await api.post("/tags/", payload, authHeaders(token));
+  return tagFromApi(data);
+}
+
+export async function updateUserTag(id: string, payload: Partial<TagPayload>, token: string): Promise<UserTag> {
+  const { data } = await api.put(`/tags/${id}`, payload, authHeaders(token));
+  return tagFromApi(data);
+}
+
+export async function deleteUserTag(id: string, token: string): Promise<void> {
+  await api.delete(`/tags/${id}`, authHeaders(token));
+}
+
+export async function fetchTagsForConversation(conversationHash: string, token: string): Promise<UserTag[]> {
+  const { data } = await api.get(`/tags/for-conversation/${conversationHash}`, authHeaders(token));
+  return (data as Parameters<typeof tagFromApi>[0][]).map(tagFromApi);
+}
+
+export async function fetchTagHashes(tagId: string, token: string): Promise<string[]> {
+  const { data } = await api.get(`/tags/${tagId}/hashes`, authHeaders(token));
+  return data as string[];
 }

@@ -36,7 +36,7 @@ function StatusCell({ row }: { row: ConversationRow }) {
 export default function ConversationList({ filters, onSelect, selectedHash, onFilterChange }: Props) {
   const { colors } = useTheme();
   // Fix 5 — tag context for pills and filtering
-  const { tags, getConvTags, getTaggedConversations } = useTagContext();
+  const { tags, getConvTags, loadTagHashes, isHashInTag } = useTagContext();
 
   const [data, setData] = useState<ConversationsResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -108,10 +108,15 @@ export default function ConversationList({ filters, onSelect, selectedHash, onFi
     ? tags.find(t => t.id === filters.tagFilter)
     : null;
 
-  // When a tag filter is active, pull ALL tagged conversations from context so the
-  // filter works across every page, not just the current server page.
-  const taggedConvs = activeTag ? getTaggedConversations(activeTag.id) : [];
-  const displayRows = activeTag ? taggedConvs : (data?.data ?? []);
+  // Lazily load hashes for the active tag so the filter works client-side.
+  useEffect(() => {
+    if (activeTag) loadTagHashes(activeTag.id);
+  }, [activeTag?.id]);
+
+  // Filter current page rows by hash membership when a tag filter is active.
+  const displayRows = activeTag
+    ? (data?.data ?? []).filter((r: ConversationRow) => isHashInTag(r.full_hash, activeTag.id))
+    : (data?.data ?? []);
 
   const hasChips = filters.model || filters.language || filters.country || filters.redactedOnly || filters.topicFilter || filters.dateFrom || filters.dateTo || filters.tagFilter;
 
@@ -247,7 +252,7 @@ export default function ConversationList({ filters, onSelect, selectedHash, onFi
 
         <span className="text-text-secondary text-xs whitespace-nowrap">
           {activeTag
-            ? `${taggedConvs.length} tagged`
+            ? `${displayRows.length} matched this page`
             : data ? `${data.total.toLocaleString()} records` : ""}
         </span>
       </div>

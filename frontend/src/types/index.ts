@@ -165,10 +165,12 @@ export interface SavedGraph {
 
 // ── Fix 5: User tag types ────────────────────────────────────────────────────
 export interface UserTag {
-  id: string;
+  id: string;          // tag_id as string
   name: string;
   color: string;
-  createdAt: string;
+  keywords: string[];  // keywords used for auto-assignment
+  matchCount: number;  // conversations currently assigned
+  createdAt?: string;
 }
 
 export interface TagAssignments {

@@ -175,7 +175,7 @@ export default function RightPanel({ selected, presets = [], activityLog = [], o
   const { colors } = useTheme();
   const { user } = useAuth();
   // Fix 5 — tag context for conversation tag selector
-  const { tags, getConvTags, assignTag, unassignTag } = useTagContext();
+  const { getConvTags } = useTagContext();
 
   const [detail, setDetail] = useState<ConversationDetail | null>(null);
   const [loading, setLoading] = useState(false);
@@ -297,20 +297,6 @@ export default function RightPanel({ selected, presets = [], activityLog = [], o
     }
   }
 
-  // Fix 5 — handle tag toggling for the selected conversation
-  function handleToggleTag(tagId: string) {
-    if (!detail) return;
-    const hash = detail.full_hash;
-    const assigned = getConvTags(hash).some(t => t.id === tagId);
-    if (assigned) {
-      unassignTag(hash, tagId);
-    } else {
-      // Pass selected so TagContext can store the conversation row for cross-page tag filtering
-      assignTag(hash, tagId, selected ?? undefined);
-      const tagName = tags.find(t => t.id === tagId)?.name ?? tagId;
-      addMyHistoryEntry("tag", `Tagged "${detail.conversation_hash.slice(0, 8)}…" as ${tagName}`);
-    }
-  }
 
   // ── Fix 2: Session History — filter entries only (max 10) ──────────────────
   // Shows only entries where the user changed a filter combination.
@@ -415,34 +401,32 @@ export default function RightPanel({ selected, presets = [], activityLog = [], o
                 </div>
               )}
 
-              {/* Fix 5 — Tag selector for this conversation */}
-              {tags.length > 0 && (
-                <div className="mt-3">
-                  <div className="text-xs text-text-muted mb-1.5">Your tags</div>
-                  <div className="flex flex-wrap gap-1">
-                    {tags.map(tag => {
-                      const isAssigned = getConvTags(detail.full_hash).some(t => t.id === tag.id);
-                      return (
-                        <button
+              {/* Auto-assigned user tags for this conversation */}
+              {(() => {
+                const convTags = getConvTags(detail.full_hash);
+                if (convTags.length === 0) return null;
+                return (
+                  <div className="mt-3">
+                    <div className="text-xs text-text-muted mb-1.5">Your tags</div>
+                    <div className="flex flex-wrap gap-1">
+                      {convTags.map(tag => (
+                        <span
                           key={tag.id}
-                          onClick={() => handleToggleTag(tag.id)}
-                          className="text-xs px-2 py-0.5 rounded-full transition-opacity"
+                          className="text-xs px-2 py-0.5 rounded-full"
                           style={{
-                            background: isAssigned ? tag.color + "33" : colors.bgHover,
-                            color: isAssigned ? tag.color : colors.textMuted,
-                            border: `1px solid ${isAssigned ? tag.color + "66" : colors.borderBase}`,
-                            fontWeight: isAssigned ? 600 : 400,
-                            cursor: "pointer",
+                            background: tag.color + "33",
+                            color: tag.color,
+                            border: `1px solid ${tag.color}66`,
+                            fontWeight: 500,
                           }}
-                          title={isAssigned ? `Remove tag "${tag.name}"` : `Apply tag "${tag.name}"`}
                         >
-                          {isAssigned ? "✓ " : ""}{tag.name}
-                        </button>
-                      );
-                    })}
+                          {tag.name}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </>
           ) : (
             <div className="text-text-muted text-xs">Could not load conversation.</div>

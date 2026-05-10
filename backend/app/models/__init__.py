@@ -3,6 +3,7 @@ from .history import History
 from .etl_run import EtlRun
 from .annotation import Annotation
 from .note import Note
+from .tag import Tag, UserTagAssignment
 
 __all__ = [
     "User",
@@ -10,4 +11,6 @@ __all__ = [
     "EtlRun",
     "Annotation",
     "Note",
+    "Tag",
+    "UserTagAssignment",
 ]
