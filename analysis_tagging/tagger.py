@@ -4,7 +4,6 @@ tagger.py — Tag all conversations in 0000–0013.parquet and write
 """
 
 import json
-import math
 import re
 import time
 from pathlib import Path
@@ -627,14 +626,11 @@ TOPIC_KEYWORDS = {
 #
 # All keywords are lowercased to match the lowercased conversation text.
 #
-# MIN_KEYWORD_FRACTION: what share of a topic's keyword list must appear in
-# the conversation before that tag is applied.  0.25 means at least 25% of
-# the topic's keywords must be found (e.g. 5 of 20).  Per-topic min_hits are
-# computed at import time as max(1, ceil(len(keywords) * fraction)), so short
-# keyword lists still require at least 1 match.  Raise the fraction for
-# stricter tagging; set to 0.0 to require only 1 match (original behaviour).
+# MIN_KEYWORD_HITS: how many distinct keywords from a topic must appear in the
+# conversation before that tag is applied.  2 means a single word can no longer
+# trigger a tag on its own.  Set to 1 to restore the original any-match behaviour.
 
-MIN_KEYWORD_FRACTION = 0.25
+MIN_KEYWORD_HITS = 2
 
 
 def _word_char(c: str) -> bool:
@@ -652,11 +648,8 @@ def _make_topic_pattern(keywords: list) -> re.Pattern:
     parts.sort(key=len, reverse=True)
     return re.compile("|".join(parts))
 
-_TOPIC_PATTERNS: dict[str, tuple[re.Pattern, int]] = {
-    topic: (
-        _make_topic_pattern(keywords),
-        max(1, math.ceil(len(keywords) * MIN_KEYWORD_FRACTION)),
-    )
+_TOPIC_PATTERNS: dict[str, re.Pattern] = {
+    topic: _make_topic_pattern(keywords)
     for topic, keywords in TOPIC_KEYWORDS.items()
 }
 
@@ -669,12 +662,12 @@ def get_tags(messages) -> list:
         for msg in messages
     ).lower()
     tags = []
-    for topic, (pattern, min_hits) in _TOPIC_PATTERNS.items():
+    for topic, pattern in _TOPIC_PATTERNS.items():
         if not pattern.search(full_text):
             continue
         # Count distinct keywords that actually appear (not total occurrences).
         # findall returns the matched string at each position; set() deduplicates.
-        if len(set(pattern.findall(full_text))) >= min_hits:
+        if len(set(pattern.findall(full_text))) >= MIN_KEYWORD_HITS:
             tags.append(topic)
     return tags if tags else ["untagged"]
 
