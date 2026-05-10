@@ -3,6 +3,20 @@ import { ComposableMap, Geographies, Geography, Sphere } from "react-simple-maps
 import type { GeoDrilldownItem } from "../types";
 import { useTheme } from "../context/ThemeContext";
 
+type ViewMode = "volume" | "language" | "model";
+
+const CAT_PALETTE = [
+  "#60a5fa", "#34d399", "#f59e0b", "#f87171", "#a78bfa",
+  "#fb923c", "#38bdf8", "#4ade80", "#facc15", "#f472b6",
+  "#94a3b8", "#2dd4bf", "#c084fc", "#fb7185", "#818cf8",
+  "#e879f9", "#22d3ee", "#86efac",
+];
+function catColor(str: string): string {
+  let h = 5381;
+  for (let i = 0; i < str.length; i++) h = ((h << 5) + h) ^ str.charCodeAt(i);
+  return CAT_PALETTE[Math.abs(h) % CAT_PALETTE.length];
+}
+
 const US_GEO_URL = "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
 
 const FIPS_TO_STATE: Record<string, string> = {
@@ -173,6 +187,7 @@ interface Props {
 
 export default function CountryMapView({ country, items, selectedState, onStateClick }: Props) {
   const { colors } = useTheme();
+  const [viewMode, setViewMode] = useState<ViewMode>("volume");
   const [tooltip, setTooltip] = useState<{ x: number; y: number; content: string } | null>(null);
 
   const maxCount = Math.max(...items.map(i => i.count), 1);
@@ -182,6 +197,8 @@ export default function CountryMapView({ country, items, selectedState, onStateC
   function getColor(name: string): string {
     const item = itemByName[name];
     if (!item) return colors.mapNoData;
+    if (viewMode === "language") return item.dominant_language ? catColor(item.dominant_language) : colors.mapNoData;
+    if (viewMode === "model")    return item.dominant_model    ? catColor(item.dominant_model)    : colors.mapNoData;
     const ratio = item.count / maxCount;
     const s = colors.mapScale;
     if (ratio > 0.8) return s[5];
@@ -192,7 +209,39 @@ export default function CountryMapView({ country, items, selectedState, onStateC
     return s[0];
   }
 
-  const legend = (
+  function getCatLegend(): { label: string; color: string }[] {
+    const seen = new Map<string, string>();
+    for (const item of items) {
+      const val = viewMode === "language" ? item.dominant_language : item.dominant_model;
+      if (val && !seen.has(val)) seen.set(val, catColor(val));
+      if (seen.size >= 8) break;
+    }
+    return Array.from(seen.entries()).map(([label, color]) => ({ label, color }));
+  }
+
+  function tooltipContent(name: string, item: GeoDrilldownItem): string {
+    const extra =
+      viewMode === "language" ? ` · ${item.dominant_language ?? "unknown"}` :
+      viewMode === "model"    ? ` · ${item.dominant_model    ?? "unknown"}` : "";
+    return `${name}: ${item.count.toLocaleString()} convs${extra}`;
+  }
+
+  const modeBtns = (
+    <div className="flex gap-1 mb-1">
+      {(["volume", "language", "model"] as ViewMode[]).map(mode => (
+        <button
+          key={mode}
+          className={`filter-btn text-xs ${viewMode === mode ? "active" : ""}`}
+          style={{ padding: "2px 8px", fontSize: 10 }}
+          onClick={() => setViewMode(mode)}
+        >
+          {mode.charAt(0).toUpperCase() + mode.slice(1)}
+        </button>
+      ))}
+    </div>
+  );
+
+  const legend = viewMode === "volume" ? (
     <div className="flex items-center gap-2 mt-1 mb-2">
       <span className="text-text-secondary text-xs">fewer</span>
       <div
@@ -200,6 +249,15 @@ export default function CountryMapView({ country, items, selectedState, onStateC
         style={{ background: `linear-gradient(90deg, ${colors.mapScale[0]}, ${colors.mapScale[2]}, ${colors.mapScale[5]})` }}
       />
       <span className="text-text-secondary text-xs">more</span>
+    </div>
+  ) : (
+    <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 mb-2">
+      {getCatLegend().map(({ label, color }) => (
+        <div key={label} className="flex items-center gap-1">
+          <span className="inline-block w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: color }} />
+          <span className="text-text-secondary text-xs truncate" style={{ maxWidth: 120 }}>{label}</span>
+        </div>
+      ))}
     </div>
   );
 
@@ -218,6 +276,7 @@ export default function CountryMapView({ country, items, selectedState, onStateC
   if (country === "United States") {
     return (
       <div style={{ position: "relative" }}>
+        {modeBtns}
         <ComposableMap projection="geoAlbersUsa" style={{ width: "100%", height: "auto" }}>
           <Geographies geography={US_GEO_URL}>
             {({ geographies }) =>
@@ -242,9 +301,7 @@ export default function CountryMapView({ country, items, selectedState, onStateC
                       setTooltip({
                         x: evt.clientX + 12,
                         y: evt.clientY - 28,
-                        content: item
-                          ? `${stateName}: ${item.count.toLocaleString()} convs · ${item.dominant_language}`
-                          : (stateName ?? ""),
+                        content: item ? tooltipContent(stateName, item) : (stateName ?? ""),
                       });
                     }}
                     onMouseMove={evt =>
@@ -269,6 +326,7 @@ export default function CountryMapView({ country, items, selectedState, onStateC
   if (geoConfig) {
     return (
       <div style={{ position: "relative" }}>
+        {modeBtns}
         <ComposableMap
           projection={geoConfig.projection}
           projectionConfig={{ scale: geoConfig.scale, center: geoConfig.center }}
@@ -297,9 +355,7 @@ export default function CountryMapView({ country, items, selectedState, onStateC
                       setTooltip({
                         x: evt.clientX + 12,
                         y: evt.clientY - 28,
-                        content: item
-                          ? `${regionName}: ${item.count.toLocaleString()} convs · ${item.dominant_language}`
-                          : (regionName ?? ""),
+                        content: item ? tooltipContent(regionName!, item) : (regionName ?? ""),
                       });
                     }}
                     onMouseMove={evt =>
