@@ -133,6 +133,15 @@ export default function App() {
   const activityCounter = useRef(0);
 
   function logActivity(type: ActivityEntry["type"], label: string, currentFilters: Filters) {
+    // Never log when all filters are at their default values — this ensures that clearing
+    // filters (via any path) never writes a spurious entry to Session History.
+    const isAllDefault =
+      !currentFilters.model && !currentFilters.language && !currentFilters.country &&
+      !currentFilters.redactedOnly && !currentFilters.search && !currentFilters.dateFrom &&
+      !currentFilters.dateTo && !currentFilters.topicFilter &&
+      !currentFilters.turnMin && !currentFilters.turnMax;
+    if (isAllDefault) return;
+
     const entry: ActivityEntry = {
       id: `${Date.now()}-${++activityCounter.current}`,
       type, label,
@@ -147,21 +156,36 @@ export default function App() {
   }
 
   function handleFilterChange(key: string, value: string | boolean | number) {
+    // Compute next for logging before the state update. Using filters directly here is
+    // safe because handleFilterChange is always called from a discrete user event, so
+    // the filters closure is the current committed state at call time.
+    const next = { ...filters, [key]: value };
+
+    // Keep the functional updater so that rapid or batched calls (e.g. restoring a preset)
+    // still chain correctly on the latest state rather than a stale closure.
     setFilters((f) => {
-      const next = { ...f, [key]: value };
-      filtersToURL(next);
-      // Fix 1 — Only log filter events for non-search, non-country keys.
-      // Country clicks come through handleCountryFilter which logs type="country";
-      // logging here too would create a duplicate entry.
-      if (key !== "search" && key !== "country" && key !== "tagFilter") {
-        logActivity("filter", `Filter: ${key} = ${value || "any"}`, next);
-      }
-      // Fix 2 — Log searches to activityLog so My History can pick them up
-      if (key === "search" && value) {
-        logActivity("search", `Search: "${value}"`, next);
-      }
-      return next;
+      const computed = { ...f, [key]: value };
+      filtersToURL(computed);
+      return computed;
     });
+
+    // logActivity is called exactly once here, outside the functional updater.
+    // StrictMode double-invokes the updater above but does not re-run this call.
+    if (key !== "search" && key !== "country" && key !== "tagFilter") {
+      logActivity("filter", `Filter: ${key} = ${value || "any"}`, next);
+    }
+    // Fix 2 — Log searches to activityLog so My History can pick them up
+    if (key === "search" && value) {
+      logActivity("search", `Search: "${value}"`, next);
+    }
+  }
+
+  // Clears all filters in a single state update so no log entry is written.
+  // TopBar's clearAll previously called onFilterChange ~10 times; each call would
+  // have triggered a separate log entry. A dedicated handler avoids that entirely.
+  function handleClearFilters() {
+    setFilters(DEFAULT_FILTERS);
+    filtersToURL(DEFAULT_FILTERS);
   }
 
   function savePreset(name: string) {
@@ -266,6 +290,7 @@ export default function App() {
             countries={countries}
             filters={filters}
             onFilterChange={handleFilterChange}
+            onClearAll={handleClearFilters}
             presets={presets}
             onSavePreset={savePreset}
             onApplyPreset={applyPreset}

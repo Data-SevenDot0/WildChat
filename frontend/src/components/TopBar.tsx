@@ -29,6 +29,7 @@ interface Props {
   countries: CountryItem[];
   filters: Filters;
   onFilterChange: (k: string, v: string | boolean | number) => void;
+  onClearAll: () => void;
   presets?: FilterPreset[];
   onSavePreset?: (name: string) => void;
   onApplyPreset?: (preset: FilterPreset) => void;
@@ -77,7 +78,7 @@ function Dropdown({
 }
 
 export default function TopBar({
-  models, languages, countries, filters, onFilterChange,
+  models, languages, countries, filters, onFilterChange, onClearAll,
   presets = [], onSavePreset, onApplyPreset, onDeletePreset,
 }: Props) {
   const [presetsOpen, setPresetsOpen] = useState(false);
@@ -107,16 +108,7 @@ export default function TopBar({
   ].filter(Boolean).length;
 
   function clearAll() {
-    onFilterChange("model", "");
-    onFilterChange("language", "");
-    onFilterChange("country", "");
-    onFilterChange("redactedOnly", false);
-    onFilterChange("search", "");
-    onFilterChange("dateFrom", "");
-    onFilterChange("dateTo", "");
-    onFilterChange("topicFilter", "");
-    onFilterChange("turnMin", 0);
-    onFilterChange("turnMax", 0);
+    onClearAll();
   }
 
   function handleSavePreset() {
