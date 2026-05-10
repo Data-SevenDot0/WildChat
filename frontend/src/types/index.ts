@@ -39,17 +39,7 @@ export interface ConversationsResponse {
   total: number; page: number; per_page: number; total_pages: number; data: ConversationRow[];
 }
 export interface Message { role: string; content: string; }
-export interface ConversationDetail extends ConversationRow {
-  messages: Message[];
-  corrected_topic: string | null;
-}
-
-export interface TopicCorrection {
-  id: number;
-  conversation_hash: string;
-  corrected_topic: string;
-  original_topic: string | null;
-}
+export interface ConversationDetail extends ConversationRow { messages: Message[]; }
 export interface Filters {
   model: string;
   language: string;

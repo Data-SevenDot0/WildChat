@@ -352,30 +352,13 @@ def get_conversations(
     if search:
         df = df[df["conversation_hash"].str.contains(search, case=False, na=False)]
     if topic_filter:
-        # Load topic corrections so misclassified conversations are filtered correctly
-        from app.models.topic_correction import TopicCorrection
-        with SessionLocal() as db_session:
-            corrections = db_session.query(TopicCorrection).all()
-        # Conversations corrected TO this topic should be included
-        corrected_in = {c.conversation_hash for c in corrections if c.corrected_topic == topic_filter}
-        # Conversations corrected AWAY from this topic should be excluded
-        corrected_out = {c.conversation_hash for c in corrections if c.corrected_topic != topic_filter}
-
         category_tags = set(TOPIC_CATEGORIES.get(topic_filter, []))
         if category_tags:
             def has_topic(tags_str):
                 if not tags_str: return False
                 try: return bool(set(json.loads(tags_str)) & category_tags)
                 except: return False
-            df_matched = df[df["tags"].apply(has_topic)]
-            # Remove conversations corrected away from this topic
-            df_matched = df_matched[~df_matched["conversation_hash"].isin(corrected_out)]
-            # Add conversations corrected into this topic
-            df_added = df[df["conversation_hash"].isin(corrected_in)]
-            df = pd.concat([df_matched, df_added]).drop_duplicates("conversation_hash")
-        elif corrected_in:
-            # No native keyword matches for this topic, but corrections point to it
-            df = df[df["conversation_hash"].isin(corrected_in)]
+            df = df[df["tags"].apply(has_topic)]
     if turn_min is not None and turn_min > 0:
         df = df[df["turn"] >= turn_min]
     if turn_max is not None and turn_max > 0:
@@ -448,12 +431,6 @@ def get_conversation(hash: str):
                 messages.append({"role": role, "content": content or ""})
 
         ts = row["timestamp"]
-        # Look up any topic correction for this conversation
-        from app.models.topic_correction import TopicCorrection
-        with SessionLocal() as db_session:
-            correction = db_session.query(TopicCorrection).filter(
-                TopicCorrection.conversation_hash == hash
-            ).first()
         return {
             "conversation_hash": row["conversation_hash"],
             "full_hash": row["conversation_hash"],
@@ -465,7 +442,6 @@ def get_conversation(hash: str):
             "toxic": bool(row["toxic"]),
             "timestamp": ts.isoformat() if hasattr(ts, "isoformat") else str(ts) if ts else None,
             "tags": (json.loads(row["tags"]) if isinstance(row["tags"], str) else list(row["tags"]) if row["tags"] is not None else []),
-            "corrected_topic": correction.corrected_topic if correction else None,
             "messages": messages,
         }
     except HTTPException:

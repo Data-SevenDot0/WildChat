@@ -12,7 +12,6 @@ from app.routers import (
     history_router,
     annotations,
     )
-from app.routers.corrections import corrections_router
 import app.models  # Import all models for SQLAlchemy registration
 from app.db.database import engine
 from app.models.base import Base
@@ -90,4 +89,3 @@ app.include_router(translations.translation_router)
 app.include_router(wildchat_data.data_router)
 app.include_router(annotations.annotation_router)
 app.include_router(history_router.history_router)
-app.include_router(corrections_router)

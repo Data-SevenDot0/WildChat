@@ -18,7 +18,6 @@ import type {
   Message,
   GeoDrilldownResponse,
   GraphDataPoint,
-  TopicCorrection,
 } from "../types";
 
 const api = axios.create({ baseURL: "" }); // proxied by Vite to localhost:8001
@@ -201,34 +200,6 @@ export async function fetchGeographicDrilldown(
   if (state) p.set("state", state);
   const { data } = await api.get(`/data/geographic-drilldown?${p}`);
   return data as GeoDrilldownResponse;
-}
-
-// ── Topic corrections ─────────────────────────────────────────────────────────
-export async function fetchTopicCorrection(conversationHash: string): Promise<TopicCorrection | null> {
-  try {
-    const { data } = await api.get(`/corrections/topic/${conversationHash}`);
-    return data as TopicCorrection;
-  } catch (err: any) {
-    if (err?.response?.status === 404) return null;
-    throw err;
-  }
-}
-
-export async function setTopicCorrection(
-  conversationHash: string,
-  correctedTopic: string,
-  originalTopic?: string,
-): Promise<TopicCorrection> {
-  const { data } = await api.post("/corrections/topic", {
-    conversation_hash: conversationHash,
-    corrected_topic: correctedTopic,
-    original_topic: originalTopic ?? null,
-  });
-  return data as TopicCorrection;
-}
-
-export async function deleteTopicCorrection(conversationHash: string): Promise<void> {
-  await api.delete(`/corrections/topic/${conversationHash}`);
 }
 
 // ── Fix 4: Graph builder data ─────────────────────────────────────────────────
