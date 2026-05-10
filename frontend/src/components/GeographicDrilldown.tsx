@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import type { GeoDrilldownItem, GeoDrilldownResponse } from "../types";
 import { fetchGeographicDrilldown } from "../api";
 import { useTheme } from "../context/ThemeContext";
+import CountryMapView from "./CountryMapView";
 
 interface Props {
   country: string;
@@ -113,6 +114,17 @@ export default function GeographicDrilldown({ country, onClose }: Props) {
 
       {!loading && !error && message && items.length === 0 && (
         <div className="text-xs text-text-muted py-4 text-center">{message}</div>
+      )}
+
+      {!loading && !error && level === "state" && stateData && stateData.items.length > 0 && (
+        <CountryMapView
+          country={country}
+          items={stateData.items}
+          selectedState={selectedState}
+          onStateClick={stateName => {
+            handleStateClick(stateName);
+          }}
+        />
       )}
 
       {!loading && !error && items.length > 0 && (
