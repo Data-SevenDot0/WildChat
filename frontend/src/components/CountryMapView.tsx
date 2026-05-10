@@ -155,7 +155,7 @@ const COUNTRY_GEO_CONFIG: Record<string, CountryGeoConfig> = {
     scale: 2500,
     center: [19, 52],
   },
-  "Turkey": {
+  "Türkiye": {
     url: "https://cdn.jsdelivr.net/gh/deldersveld/topojson@master/countries/turkey/turkey-provinces.json",
     nameProperty: "NAME_1",
     projection: "geoMercator",
@@ -178,6 +178,60 @@ const COUNTRY_GEO_CONFIG: Record<string, CountryGeoConfig> = {
   },
 };
 
+// Strip accents and lowercase for fuzzy name matching across data sources
+function norm(s: string): string {
+  return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+}
+
+// TopoJSON (GADM) region name → parquet (MaxMind) region name, per country.
+// Only needed where the official/local names differ from English geolocation names.
+const REGION_ALIASES: Record<string, Record<string, string>> = {
+  "Germany": {
+    "Bayern": "Bavaria",
+    "Hessen": "Hesse",
+    "Nordrhein-Westfalen": "North Rhine-Westphalia",
+    "Niedersachsen": "Lower Saxony",
+    "Sachsen": "Saxony",
+    "Sachsen-Anhalt": "Saxony-Anhalt",
+    "Thüringen": "Thuringia",
+    "Baden-Württemberg": "Baden-Wurttemberg",
+    "Berlin": "Land Berlin",
+  },
+  "Russia": {
+    "Moskva": "Moscow",
+    "Moscow City": "Moscow",
+    "Sankt-Peterburg": "St.-Petersburg",
+    "Saint Petersburg": "St.-Petersburg",
+    "Krasnodar": "Krasnodar Krai",
+    "Novosibirsk": "Novosibirsk Oblast",
+    "Chelyabinsk": "Chelyabinsk Oblast",
+    "Samara": "Samara Oblast",
+    "Kaliningrad": "Kaliningrad Oblast",
+    "Tatarstan": "Tatarstan Republic",
+    "Bashkortostan": "Bashkortostan Republic",
+    "Sverdlovsk": "Sverdlovsk Oblast",
+    "Rostov": "Rostov Oblast",
+    "Perm": "Perm Krai",
+    "Krasnoyarsk": "Krasnoyarsk Krai",
+    "Volgograd": "Volgograd Oblast",
+    "Omsk": "Omsk Oblast",
+    "Saratov": "Saratov Oblast",
+    "Voronezh": "Voronezh Oblast",
+    "Nizhny Novgorod": "Nizhegorodskaya Oblast",
+  },
+  "France": {
+    "Nord": "North",
+    "Val-d'Oise": "Val d'Oise",
+  },
+  "India": {
+    "NCT of Delhi": "National Capital Territory of Delhi",
+    "Delhi": "National Capital Territory of Delhi",
+  },
+  "Canada": {
+    "Québec": "Quebec",
+  },
+};
+
 interface Props {
   country: string;
   items: GeoDrilldownItem[];
@@ -192,10 +246,24 @@ export default function CountryMapView({ country, items, selectedState, onStateC
 
   const maxCount = Math.max(...items.map(i => i.count), 1);
   const itemByName: Record<string, GeoDrilldownItem> = {};
-  items.forEach(item => { itemByName[item.name] = item; });
+  const itemByNorm: Record<string, GeoDrilldownItem> = {};
+  items.forEach(item => {
+    itemByName[item.name] = item;
+    itemByNorm[norm(item.name)] = item;
+  });
+
+  const aliases = REGION_ALIASES[country] ?? {};
+
+  function resolveItem(topoName: string | undefined): GeoDrilldownItem | undefined {
+    if (!topoName) return undefined;
+    if (itemByName[topoName]) return itemByName[topoName];
+    const aliased = aliases[topoName];
+    if (aliased && itemByName[aliased]) return itemByName[aliased];
+    return itemByNorm[norm(topoName)];
+  }
 
   function getColor(name: string): string {
-    const item = itemByName[name];
+    const item = resolveItem(name);
     if (!item) return colors.mapNoData;
     if (viewMode === "language") return item.dominant_language ? catColor(item.dominant_language) : colors.mapNoData;
     if (viewMode === "model")    return item.dominant_model    ? catColor(item.dominant_model)    : colors.mapNoData;
@@ -283,7 +351,7 @@ export default function CountryMapView({ country, items, selectedState, onStateC
               geographies.map(geo => {
                 const fips = String(geo.id).padStart(2, "0");
                 const stateName = FIPS_TO_STATE[fips];
-                const item = stateName ? itemByName[stateName] : undefined;
+                const item = resolveItem(stateName);
                 const isSelected = stateName === selectedState;
                 return (
                   <Geography
@@ -337,7 +405,7 @@ export default function CountryMapView({ country, items, selectedState, onStateC
             {({ geographies }) =>
               geographies.map(geo => {
                 const regionName = geo.properties[geoConfig.nameProperty] as string | undefined;
-                const item = regionName ? itemByName[regionName] : undefined;
+                const item = resolveItem(regionName);
                 const isSelected = regionName === selectedState;
                 return (
                   <Geography

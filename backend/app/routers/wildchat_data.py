@@ -24,9 +24,18 @@ data_router = APIRouter(prefix="/data", tags=["wildchat-data"])
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 
-PARQUET_PATH = (
-    Path(__file__).parents[3] / "data" / "WildChatData" / "combined_data_tagged.parquet"
-)
+def _find_parquet() -> Path:
+    root = Path(__file__).parents[3]
+    candidates = [
+        root / "data"       / "WildChatData" / "combined_data_tagged.parquet",
+        root / "Step_0_Data" / "WildChatData" / "combined_data_tagged.parquet",
+    ]
+    for p in candidates:
+        if p.exists():
+            return p
+    return candidates[0]  # let the later open() surface a clear FileNotFoundError
+
+PARQUET_PATH = _find_parquet()
 
 SLIM_COLS = [
     "conversation_hash", "model", "timestamp", "turn",
