@@ -36,7 +36,7 @@ function StatusCell({ row }: { row: ConversationRow }) {
 export default function ConversationList({ filters, onSelect, selectedHash, onFilterChange }: Props) {
   const { colors } = useTheme();
   // Fix 5 — tag context for pills and filtering
-  const { tags, getConvTags } = useTagContext();
+  const { tags, getConvTags, getTaggedConversations } = useTagContext();
 
   const [data, setData] = useState<ConversationsResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -104,14 +104,14 @@ export default function ConversationList({ filters, onSelect, selectedHash, onFi
     }, 300);
   }
 
-  // Fix 5 — client-side tag filter applied on top of server results for the current page
   const activeTag = filters.tagFilter
     ? tags.find(t => t.id === filters.tagFilter)
     : null;
 
-  const displayRows = data?.data.filter(row =>
-    activeTag ? (getConvTags(row.full_hash).some(t => t.id === activeTag.id)) : true
-  ) ?? [];
+  // When a tag filter is active, pull ALL tagged conversations from context so the
+  // filter works across every page, not just the current server page.
+  const taggedConvs = activeTag ? getTaggedConversations(activeTag.id) : [];
+  const displayRows = activeTag ? taggedConvs : (data?.data ?? []);
 
   const hasChips = filters.model || filters.language || filters.country || filters.redactedOnly || filters.topicFilter || filters.dateFrom || filters.dateTo || filters.tagFilter;
 
@@ -245,13 +245,11 @@ export default function ConversationList({ filters, onSelect, selectedHash, onFi
           </div>
         )}
 
-        {data && (
-          <span className="text-text-secondary text-xs whitespace-nowrap">
-            {activeTag
-              ? `${displayRows.length} / ${data.total.toLocaleString()} records`
-              : `${data.total.toLocaleString()} records`}
-          </span>
-        )}
+        <span className="text-text-secondary text-xs whitespace-nowrap">
+          {activeTag
+            ? `${taggedConvs.length} tagged`
+            : data ? `${data.total.toLocaleString()} records` : ""}
+        </span>
       </div>
 
       {/* Active filter chips */}
@@ -327,7 +325,9 @@ export default function ConversationList({ filters, onSelect, selectedHash, onFi
           </div>
         ) : displayRows.length === 0 ? (
           <div className="text-text-secondary text-center py-12 text-xs">
-            {activeTag ? `No conversations on this page tagged "${activeTag.name}".` : "No conversations match the current filters."}
+            {activeTag
+              ? `No conversations tagged "${activeTag.name}" yet. Select a conversation and assign this tag from the right panel.`
+              : "No conversations match the current filters."}
           </div>
         ) : (
           displayRows.map((row) => {
@@ -358,7 +358,13 @@ export default function ConversationList({ filters, onSelect, selectedHash, onFi
                           fontSize: "0.6rem",
                           fontWeight: 600,
                           whiteSpace: "nowrap",
+                          cursor: "pointer",
                         }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onFilterChange?.("tagFilter", filters.tagFilter === tag.id ? "" : tag.id);
+                        }}
+                        title={`Filter by tag "${tag.name}"`}
                       >
                         {tag.name}
                       </span>
@@ -373,8 +379,8 @@ export default function ConversationList({ filters, onSelect, selectedHash, onFi
         )}
       </div>
 
-      {/* Pagination */}
-      {data && data.total_pages > 1 && (
+      {/* Pagination — hidden when tag filter is active since results come from local store */}
+      {!activeTag && data && data.total_pages > 1 && (
         <div className="flex items-center justify-between px-4 py-2 border-t border-border-subtle">
           <button
             className="filter-btn text-xs disabled:opacity-40"

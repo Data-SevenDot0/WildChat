@@ -300,8 +300,8 @@ export default function RightPanel({ selected, presets = [], activityLog = [], o
     if (assigned) {
       unassignTag(hash, tagId);
     } else {
-      assignTag(hash, tagId);
-      // Fix 2 — log tag assignment to My History
+      // Pass selected so TagContext can store the conversation row for cross-page tag filtering
+      assignTag(hash, tagId, selected ?? undefined);
       const tagName = tags.find(t => t.id === tagId)?.name ?? tagId;
       addMyHistoryEntry("tag", `Tagged "${detail.conversation_hash.slice(0, 8)}…" as ${tagName}`);
     }

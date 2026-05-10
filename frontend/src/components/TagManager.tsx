@@ -32,6 +32,12 @@ export default function TagManager() {
 
   return (
     <div className="flex flex-col gap-4" style={{ maxWidth: 560 }}>
+      <div className="card p-3 flex items-start gap-2" style={{ background: "transparent", border: "1px solid var(--color-border-subtle)" }}>
+        <span className="text-xs" style={{ color: "var(--color-accent)", flexShrink: 0, marginTop: 1 }}>ℹ</span>
+        <span className="text-xs" style={{ color: "var(--color-text-muted)", lineHeight: 1.6 }}>
+          Create tags here, then <strong style={{ color: "var(--color-text-secondary)" }}>select any conversation</strong> in the list to assign tags from the right panel. Tagged conversations can be found using the <strong style={{ color: "var(--color-text-secondary)" }}>Tags filter</strong> in the search bar.
+        </span>
+      </div>
       <div className="card p-4">
         <div className="label mb-3">Create New Tag</div>
         <div className="flex items-center gap-3 mb-3">
