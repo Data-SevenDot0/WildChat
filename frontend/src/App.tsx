@@ -40,14 +40,15 @@ import WildchatLogo from "./components/WildchatLogo";
 import ModelTopicMatrix from "./components/ModelTopicMatrix";
 import ContinentView from "./components/ContinentView";
 import LoginModal from "./components/LoginModal";
-import GraphBuilder from "./components/GraphBuilder";      // Fix 4
-import TagManager from "./components/TagManager";          // Fix 5
+import GraphBuilder from "./components/GraphBuilder";
+import TagManager from "./components/TagManager";
+import TopicFrequencyView from "./components/TopicFrequencyView";
+import ConversationPatterns from "./components/ConversationPatterns";
 import { useTheme } from "./context/ThemeContext";
 import { AuthProvider } from "./context/AuthContext";
 import { TagProvider } from "./context/TagContext";        // Fix 5
 
-// Fix 4 + Fix 5 — expanded view type
-type View = "overview" | "explorer" | "notes" | "geographic" | "language" | "model" | "etl" | "turns" | "matrix" | "continent" | "graph" | "tags";
+type View = "overview" | "explorer" | "notes" | "geographic" | "language" | "model" | "etl" | "turns" | "matrix" | "continent" | "graph" | "tags" | "topic-freq" | "patterns";
 
 const DEFAULT_FILTERS: Filters = {
   model: "", language: "", country: "", redactedOnly: false, search: "",
@@ -418,9 +419,19 @@ export default function App() {
               />
             )}
 
-            {/* Fix 5 — Tag manager view */}
+            {/* Tag manager view */}
             {view === "tags" && (
               <TagManager />
+            )}
+
+            {/* Topic frequency view */}
+            {view === "topic-freq" && (
+              <TopicFrequencyView />
+            )}
+
+            {/* Conversation patterns view */}
+            {view === "patterns" && (
+              <ConversationPatterns />
             )}
 
           </main>

@@ -1,8 +1,7 @@
 import WildchatLogo from "./WildchatLogo";
 import { useTheme } from "../context/ThemeContext";
 
-// Fix 4 + Fix 5 — expanded view type to include graph, tags, and notes views
-type View = "overview" | "explorer" | "notes" | "geographic" | "language" | "model" | "etl" | "turns" | "matrix" | "continent" | "graph" | "tags";
+type View = "overview" | "explorer" | "notes" | "geographic" | "language" | "model" | "etl" | "turns" | "matrix" | "continent" | "graph" | "tags" | "topic-freq" | "patterns";
 
 interface Props {
   activeView: View;
@@ -23,14 +22,14 @@ const NAV: { label: string; view: View }[] = [
 ];
 
 const TOOLS: { label: string; view: View }[] = [
-  { label: "Topic clustering",       view: "overview"   },
-  { label: "Interactive map",        view: "geographic" },
-  { label: "Time / date slider",     view: "geographic" },
-  { label: "Search refinement",      view: "explorer"   },
-  // Fix 4 — Graph builder tool
-  { label: "Graph builder",          view: "graph"      },
-  // Fix 5 — Tag management
-  { label: "Manage tags",            view: "tags"       },
+  { label: "Topic clustering",       view: "overview"     },
+  { label: "Interactive map",        view: "geographic"   },
+  { label: "Time / date slider",     view: "geographic"   },
+  { label: "Search refinement",      view: "explorer"     },
+  { label: "Graph builder",          view: "graph"        },
+  { label: "Manage tags",            view: "tags"         },
+  { label: "Topic frequency",        view: "topic-freq"  },
+  { label: "Conversation patterns",  view: "patterns"     },
 ];
 
 export default function Sidebar({ activeView, onSelect }: Props) {

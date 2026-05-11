@@ -20,6 +20,8 @@ import type {
   GeoDrilldownResponse,
   GraphDataPoint,
   UserTag,
+  TagFrequencyItem,
+  ConversationPatternsData,
 } from "../types";
 
 const api = axios.create({ baseURL: "" }); // proxied by Vite to localhost:8001
@@ -242,6 +244,17 @@ export async function fetchGraphBuilderData(params: {
   const { data } = await api.get(`/data/graph-builder?${p}`);
   return data as GraphDataPoint[];
 }
+// ── Conversation analytics ────────────────────────────────────────────────────
+export async function fetchTagFrequency(): Promise<TagFrequencyItem[]> {
+  const { data } = await api.get("/data/tag-frequency");
+  return data;
+}
+
+export async function fetchConversationPatterns(): Promise<ConversationPatternsData> {
+  const { data } = await api.get("/data/conversation-patterns");
+  return data;
+}
+
 // ── User keyword tags ─────────────────────────────────────────────────────────
 export interface TagPayload { name: string; color: string; keywords: string[]; }
 

@@ -283,6 +283,57 @@ def _get_stats() -> dict:
             })
     _stats_cache["model_topic_matrix"] = matrix_records
 
+    # Individual tag frequency
+    tag_freq: dict[str, int] = {}
+    for tags_str in df["tags"].dropna():
+        try:
+            for tag in json.loads(tags_str):
+                tag_freq[tag] = tag_freq.get(tag, 0) + 1
+        except Exception:
+            pass
+    tag_total = max(sum(tag_freq.values()), 1)
+    _stats_cache["tag_frequency"] = [
+        {
+            "tag": tag,
+            "category": _TAG_TO_CATEGORY.get(tag, "Other"),
+            "count": cnt,
+            "pct": round(cnt / tag_total * 100, 2),
+        }
+        for tag, cnt in sorted(tag_freq.items(), key=lambda x: -x[1])
+    ]
+
+    # Turn distribution (turns 1-20, then 20+ bucket)
+    MAX_TURNS_SHOWN = 20
+    turn_series = df["turn"]
+    dist_raw = turn_series[turn_series <= MAX_TURNS_SHOWN].value_counts().sort_index()
+    overflow = int((turn_series > MAX_TURNS_SHOWN).sum())
+    turn_dist = [{"turns": int(t), "count": int(c)} for t, c in dist_raw.items()]
+    if overflow:
+        turn_dist.append({"turns": MAX_TURNS_SHOWN + 1, "count": overflow})
+    _stats_cache["turn_distribution"] = turn_dist
+
+    # Hourly distribution (UTC hour 0-23)
+    hour_dist = df["timestamp"].dt.hour.value_counts().sort_index()
+    _stats_cache["hourly_distribution"] = [
+        {"hour": int(h), "count": int(c)} for h, c in hour_dist.items()
+    ]
+
+    # Day-of-week distribution
+    _WEEKDAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    day_dist = df["timestamp"].dt.dayofweek.value_counts().sort_index()
+    _stats_cache["weekday_distribution"] = [
+        {"day": _WEEKDAY_NAMES[int(d)], "count": int(c)} for d, c in day_dist.items()
+    ]
+
+    # Conversation flags summary
+    _stats_cache["conversation_flags"] = {
+        "toxic_count": int(df["toxic"].sum()),
+        "toxic_pct": round(float(df["toxic"].mean()) * 100, 2),
+        "redacted_count": int(df["redacted"].sum()),
+        "redacted_pct": round(float(df["redacted"].mean()) * 100, 2),
+        "total": len(df),
+    }
+
     return _stats_cache
 
 
@@ -604,6 +655,22 @@ def get_graph_builder_data(
         }
         for _, row in grouped.iterrows()
     ]
+
+
+@data_router.get("/tag-frequency")
+def get_tag_frequency():
+    return _get_stats()["tag_frequency"]
+
+
+@data_router.get("/conversation-patterns")
+def get_conversation_patterns():
+    stats = _get_stats()
+    return {
+        "turn_distribution": stats["turn_distribution"],
+        "hourly_distribution": stats["hourly_distribution"],
+        "weekday_distribution": stats["weekday_distribution"],
+        "conversation_flags": stats["conversation_flags"],
+    }
 
 
 @data_router.get("/etl-runs")

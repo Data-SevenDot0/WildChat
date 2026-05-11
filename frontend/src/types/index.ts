@@ -184,3 +184,30 @@ export interface GraphDataPoint {
   avg_turn_depth: number;
   pct: number;
 }
+
+// ── Conversation-focused analytics ───────────────────────────────────────────
+export interface TagFrequencyItem {
+  tag: string;
+  category: string;
+  count: number;
+  pct: number;
+}
+
+export interface TurnDistItem { turns: number; count: number; }
+export interface HourlyDistItem { hour: number; count: number; }
+export interface WeekdayDistItem { day: string; count: number; }
+
+export interface ConversationFlags {
+  toxic_count: number;
+  toxic_pct: number;
+  redacted_count: number;
+  redacted_pct: number;
+  total: number;
+}
+
+export interface ConversationPatternsData {
+  turn_distribution: TurnDistItem[];
+  hourly_distribution: HourlyDistItem[];
+  weekday_distribution: WeekdayDistItem[];
+  conversation_flags: ConversationFlags;
+}
