@@ -101,11 +101,12 @@ const COUNTRY_GEO_CONFIG: Record<string, CountryGeoConfig> = {
   "Hong Kong":            { url: "/geo/hkg.json", projection: "geoMercator",      scale: 15000, center: [114, 22] },
   "Czechia":              { url: "/geo/cze.json", projection: "geoMercator",      scale: 4000, center: [15, 50]   },
   "Singapore":            { url: "/geo/sgp.json", projection: "geoMercator",      scale: 60000, center: [104, 1]  },
+  "DR Congo":             { url: "/geo/cod.json", projection: "geoMercator",      scale: 900,  center: [24, -2]   },
 };
 
-// Strip accents + lowercase for fuzzy fallback matching
+// Strip accents, apostrophes + lowercase for fuzzy fallback matching
 function norm(s: string): string {
-  return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+  return s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[''ʼ`]/g, "").toLowerCase().trim();
 }
 
 // NE `name` → parquet `state` for countries where they differ systematically.
@@ -120,10 +121,12 @@ const REGION_ALIASES: Record<string, Record<string, string>> = {
     "Thüringen": "Thuringia",
     "Baden-Württemberg": "Baden-Wurttemberg",
     "Berlin": "Land Berlin",
+    "Hamburg": "Free and Hanseatic City of Hamburg",
   },
   "Russia": {
     "Moskva": "Moscow",
     "City of St. Petersburg": "St.-Petersburg",
+    "Moskovskaya": "Moscow Oblast",
     "Krasnodar": "Krasnodar Krai",
     "Novosibirsk": "Novosibirsk Oblast",
     "Bashkortostan": "Bashkortostan Republic",
@@ -133,14 +136,91 @@ const REGION_ALIASES: Record<string, Record<string, string>> = {
     "Kaliningrad": "Kaliningrad Oblast",
     "Sverdlovsk": "Sverdlovsk Oblast",
     "Nizhegorod": "Nizhny Novgorod Oblast",
+    "Novgorod": "Novgorod Oblast",
     "Rostov": "Rostov Oblast",
-    "Perm": "Perm Krai",
+    "Perm'": "Perm Krai",
     "Krasnoyarsk": "Krasnoyarsk Krai",
     "Volgograd": "Volgograd Oblast",
     "Omsk": "Omsk Oblast",
     "Saratov": "Saratov Oblast",
     "Voronezh": "Voronezh Oblast",
-    "Moscow Oblast": "Moscow Oblast",
+    "Kemerovo": "Kemerovo Oblast",
+    "Belgorod": "Belgorod Oblast",
+    "Penza": "Penza Oblast",
+    "Leningrad": "Leningrad Oblast",
+    "Yaroslavl'": "Yaroslavl Oblast",
+    "Stavropol'": "Stavropol Kray",
+    "Chita": "Transbaikal Territory",
+    "Irkutsk": "Irkutsk Oblast",
+    "Murmansk": "Murmansk Oblast",
+    "Tomsk": "Tomsk Oblast",
+    "Kursk": "Kursk Oblast",
+    "Orenburg": "Orenburg Oblast",
+    "Ivanovo": "Ivanovo Oblast",
+    "Tula": "Tula Oblast",
+    "Vladimir": "Vladimir Oblast",
+    "Kurgan": "Kurgan Oblast",
+    "Bryansk": "Bryansk Oblast",
+    "Lipetsk": "Lipetsk Oblast",
+    "Tambov": "Tambov Oblast",
+    "Smolensk": "Smolensk Oblast",
+    "Kostroma": "Kostroma Oblast",
+    "Kirov": "Kirov Oblast",
+    "Ryazan'": "Ryazan Oblast",
+    "Tver'": "Tver Oblast",
+    "Tyumen'": "Tyumen Oblast",
+    "Khabarovsk": "Khabarovsk Krai",
+    "Ul'yanovsk": "Ulyanovsk Oblast",
+    "Primor'ye": "Primorsky Krai",
+    "Sakhalin": "Sakhalin Oblast",
+    "Arkhangel'sk": "Arkhangelsk Oblast",
+    "Astrakhan'": "Astrakhan Oblast",
+    "Vologda": "Vologda Oblast",
+    "Pskov": "Pskov Oblast",
+    "Amur": "Amur Oblast",
+    "Kamchatka": "Kamchatka Krai",
+    "Buryat": "Buryat Republic",
+    "Adygey": "Republic of Adygea",
+    "Karelia": "Republic of Karelia",
+    "Komi": "Komi Republic",
+    "Chuvash": "Chuvash Republic",
+    "Dagestan": "Dagestan Republic",
+    "Chechnya": "Chechen Republic",
+    "Ingush": "Ingushetia",
+    "North Ossetia": "North Ossetia-Alania",
+    "Mariy-El": "Mari El Republic",
+    "Mordovia": "Republic of Mordovia",
+    "Udmurt": "Udmurt Republic",
+    "Tuva": "Tuva Republic",
+    "Altay": "Altai Krai",
+    "Gorno-Altay": "Altai Republic",
+    "Sakha (Yakutia)": "Sakha Republic",
+    "Khakass": "Khakassia",
+    "Orel": "Oryol Oblast",
+    "Kabardin-Balkar": "Kabardino-Balkaria",
+    "Karachay-Cherkess": "Karachay-Cherkessia",
+    "Maga Buryatdan": "Magadan Oblast",
+    "Yamal-Nenets": "Yamalo-Nenets Autonomous Okrug",
+    "Khanty-Mansiy": "Khanty-Mansiysk Autonomous Okrug",
+  },
+  "Ukraine": {
+    "Kiev City": "Kyiv City",
+    "Donets'k": "Donetsk",
+    "Dnipropetrovs'k": "Dnipropetrovsk Oblast",
+    "Luhans'k": "Luhansk",
+    "L'viv": "Lviv",
+    "Mykolayiv": "Mykolaiv",
+    "Khmel'nyts'kyy": "Khmelnytskyi Oblast",
+    "Ivano-Frankivs'k": "Ivano-Frankivsk Oblast",
+    "Ternopil'": "Ternopil Oblast",
+    "Vinnytsya": "Vinnytsia",
+    "Zaporizhzhya": "Zaporizhzhia",
+    "Transcarpathia": "Zakarpattia Oblast",
+    "Cherkasy": "Cherkasy Oblast",
+    "Kirovohrad": "Kirovohrad Oblast",
+    "Kiev": "Kyiv Oblast",
+    "Poltava": "Poltava Oblast",
+    "Sevastopol": "Sebastopol City",
   },
   "South Korea": {
     "Gyeonggi": "Gyeonggi-do",
@@ -152,17 +232,125 @@ const REGION_ALIASES: Record<string, Record<string, string>> = {
     "South Jeolla": "Jeollanam-do",
     "North Jeolla": "Jeollabuk-do",
     "Jeju": "Jeju-do",
+    "Sejong": "Sejong-si",
   },
   "France": {
     "Nord": "North",
     "Val-d'Oise": "Val d'Oise",
+    "Haute-Garonne": "Upper Garonne",
+    "Haute-Savoie": "Upper Savoy",
+    "Savoie": "Savoy",
+    "Meurthe-et-Moselle": "Meurthe et Moselle",
   },
   "India": {
     "NCT of Delhi": "National Capital Territory of Delhi",
     "Delhi": "National Capital Territory of Delhi",
+    "Puducherry": "Union Territory of Puducherry",
   },
   "Canada": {
     "Québec": "Quebec",
+  },
+  "Brazil": {
+    "Distrito Federal": "Federal District",
+  },
+  "Mexico": {
+    "Distrito Federal": "Mexico City",
+    "Ciudad de México": "Mexico City",
+  },
+  "Egypt": {
+    "Al Qahirah": "Cairo Governorate",
+    "Al Jizah": "Giza",
+    "Al Iskandariyah": "Alexandria",
+    "Al Gharbiyah": "Gharbia",
+    "Ad Daqahliyah": "Dakahlia",
+    "Ash Sharqiyah": "Sharqia",
+    "Bur Sa`id": "Port Said",
+    "Al Buhayrah": "Beheira",
+    "Al Qalyubiyah": "Qalyubia",
+    "Suhaj": "Sohag",
+    "Bani Suwayf": "Beni Suweif",
+    "Al Minufiyah": "Monufia",
+    "As Suways": "Suez",
+    "Al Isma`iliyah": "Ismailia Governorate",
+    "Dumyat": "Damietta Governorate",
+    "Al Fayyum": "Faiyum",
+    "Al Minya": "Minya",
+    "Al Bahr al Ahmar": "Red Sea",
+    "Kafr ash Shaykh": "Kafr el-Sheikh",
+    "Qina": "Qena",
+    "Janub Sina'": "South Sinai",
+    "Asyut": "Assiut",
+  },
+  "Morocco": {
+    "Grand Casablanca": "Casablanca",
+    "Marrakech - Tensift - Al Haouz": "Marrakech",
+    "Rabat - Salé - Zemmour - Zaer": "Rabat",
+    "Meknès - Tafilalet": "Meknès Prefecture",
+    "Fès - Boulemane": "Fes",
+    "Tanger - Tétouan": "Tetouan",
+    "Doukkala - Abda": "El-Jadida",
+    "Chaouia - Ouardigha": "Khouribga Province",
+    "Oriental": "Oujda-Angad",
+  },
+  "Vietnam": {
+    "Hồ Chí Minh city": "Ho Chi Minh",
+    "Ha Noi": "Hanoi",
+    "Hải Phòng": "Haiphong",
+    "Đà Nẵng": "Da Nang",
+    "Can Tho": "Can Tho",
+  },
+  "Taiwan": {
+    "New Taipei City": "New Taipei",
+    "Kaohsiung City": "Kaohsiung",
+    "Tainan City": "Tainan",
+    "Taipei City": "Taipei City",
+  },
+  "Hong Kong": {
+    "Central and Western": "Central and Western District",
+    "Yuen Long": "Yuen Long District",
+    "Tai Po": "Tai Po District",
+    "Sai Kung": "Sai Kung District",
+    "Islands": "Islands District",
+    "Eastern": "Eastern District",
+    "Southern": "Southern District",
+    "North": "North District",
+    "Sha Tin": "Sha Tin District",
+    "Kwun Tong": "Kwun Tong District",
+    "Sham Shui Po": "Sham Shui Po District",
+    "Kowloon City": "Kowloon City District",
+    "Kwai Tsing": "Kwai Tsing District",
+  },
+  "Iran": {
+    "Alborz": "Alborz Province",
+    "West Azarbaijan": "West Azerbaijan Province",
+    "East Azarbaijan": "East Azerbaijan Province",
+    "Qom": "Qom Province",
+    "Gilan": "Gilan Province",
+    "Kermanshah": "Kermanshah Province",
+    "Qazvin": "Qazvin Province",
+  },
+  "Saudi Arabia": {
+    "Ar Riyad": "Riyadh Region",
+    "Makkah": "Mecca Region",
+    "Ash Sharqiyah": "Eastern Province",
+    "Al Madinah": "Medina Region",
+    "`Asir": "'Asir Region",
+    "Al Quassim": "Al-Qassim Region",
+    "Ha'il": "Ha'il Region",
+    "Jizan": "Jazan Region",
+    "Najran": "Najran Region",
+    "Al Hudud ash Shamaliyah": "Northern Borders Region",
+    "Al Jawf": "Al Jawf Region",
+    "Tabuk": "Tabuk Region",
+    "Al Bahah": "Al Bahah Region",
+  },
+  "DR Congo": {
+    "Nord-Kivu": "Nord Kivu",
+    "Sud-Kivu": "South Kivu Province",
+    "Katanga": "Haut-Katanga",
+  },
+  "China": {
+    "Inner Mongol": "Inner Mongolia",
   },
 };
 
@@ -193,7 +381,33 @@ export default function CountryMapView({ country, items, selectedState, onStateC
     if (itemByName[topoName]) return itemByName[topoName];
     const aliased = aliases[topoName];
     if (aliased && itemByName[aliased]) return itemByName[aliased];
-    return itemByNorm[norm(topoName)];
+    const byNorm = itemByNorm[norm(topoName)];
+    if (byNorm) return byNorm;
+    // Philippines: NE uses bare province name, parquet prefixes "Province of "
+    if (country === "Philippines") {
+      const r = itemByName[`Province of ${topoName}`];
+      if (r) return r;
+    }
+    // Taiwan: NE appends " City" or parquet appends " County"
+    if (country === "Taiwan") {
+      const withoutCity = topoName.replace(/ City$/, "");
+      if (itemByName[withoutCity]) return itemByName[withoutCity];
+      const withCounty = `${topoName} County`;
+      if (itemByName[withCounty]) return itemByName[withCounty];
+    }
+    // Vietnam: NE omits " Province" suffix
+    if (country === "Vietnam") {
+      const r = itemByName[`${topoName} Province`] ?? itemByNorm[norm(`${topoName} Province`)];
+      if (r) return r;
+    }
+    // Russia/Ukraine/Iran: NE omits " Oblast" / " Krai" / " Republic" suffix
+    if (country === "Russia" || country === "Ukraine" || country === "Iran") {
+      for (const suffix of [" Oblast", " Krai", " Republic", " Province", " Autonomous Okrug"]) {
+        const r = itemByName[`${topoName}${suffix}`];
+        if (r) return r;
+      }
+    }
+    return undefined;
   }
 
   function getColor(name: string): string {
@@ -201,7 +415,8 @@ export default function CountryMapView({ country, items, selectedState, onStateC
     if (!item) return colors.mapNoData;
     if (viewMode === "language") return item.dominant_language ? catColor(item.dominant_language) : colors.mapNoData;
     if (viewMode === "model")    return item.dominant_model    ? catColor(item.dominant_model)    : colors.mapNoData;
-    const ratio = item.count / maxCount;
+    // Log scale so low-count regions stay visible against the dark background
+    const ratio = maxCount > 1 ? Math.log1p(item.count) / Math.log1p(maxCount) : 1;
     const s = colors.mapScale;
     if (ratio > 0.8) return s[5];
     if (ratio > 0.6) return s[4];
