@@ -39,11 +39,12 @@ def delete_tag(db: Session, tag: Tag) -> None:
 
 def set_assignments(db: Session, tag_id: int, hashes: list[str]) -> int:
     """Replace all assignments for a tag with the given conversation hashes."""
+    unique_hashes = list(dict.fromkeys(hashes))
     db.query(UserTagAssignment).filter(UserTagAssignment.tag_id == tag_id).delete()
-    for h in hashes:
+    for h in unique_hashes:
         db.add(UserTagAssignment(tag_id=tag_id, conversation_hash=h))
     db.commit()
-    return len(hashes)
+    return len(unique_hashes)
 
 
 def get_assignment_hashes(db: Session, tag_id: int) -> list[str]:
