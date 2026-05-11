@@ -325,6 +325,37 @@ def _get_stats() -> dict:
         {"day": _WEEKDAY_NAMES[int(d)], "count": int(c)} for d, c in day_dist.items()
     ]
 
+    # Topics by country — top 3 categories per country (cached once)
+    country_cat_counts: dict[str, dict[str, int]] = {}
+    country_conv_counts: dict[str, int] = {}
+    for country, tags_str in zip(df["country"].values, df["tags"].values):
+        country_conv_counts[country] = country_conv_counts.get(country, 0) + 1
+        if not isinstance(tags_str, str):
+            continue
+        try:
+            cats_seen: set = set()
+            for tag in json.loads(tags_str):
+                cat = _TAG_TO_CATEGORY.get(tag, "Other")
+                if cat not in cats_seen:
+                    cats_seen.add(cat)
+                    if country not in country_cat_counts:
+                        country_cat_counts[country] = {}
+                    country_cat_counts[country][cat] = country_cat_counts[country].get(cat, 0) + 1
+        except Exception:
+            pass
+    topics_by_country_list = []
+    for country, cat_counts in country_cat_counts.items():
+        total = max(country_conv_counts.get(country, 1), 1)
+        sorted_cats = sorted(cat_counts.items(), key=lambda x: -x[1])[:3]
+        topics_by_country_list.append({
+            "country": country,
+            "top_categories": [
+                {"category": cat, "count": cnt, "pct": round(cnt / total * 100, 1)}
+                for cat, cnt in sorted_cats
+            ],
+        })
+    _stats_cache["topics_by_country"] = topics_by_country_list
+
     # Conversation flags summary
     _stats_cache["conversation_flags"] = {
         "toxic_count": int(df["toxic"].sum()),
@@ -655,6 +686,11 @@ def get_graph_builder_data(
         }
         for _, row in grouped.iterrows()
     ]
+
+
+@data_router.get("/topics-by-country")
+def get_topics_by_country():
+    return _get_stats()["topics_by_country"]
 
 
 @data_router.get("/tag-frequency")

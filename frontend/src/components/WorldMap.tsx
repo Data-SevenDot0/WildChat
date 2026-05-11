@@ -66,12 +66,10 @@ const COUNTRY_TO_NUM: Record<string, number> = {
   "Taiwan": 158,
 };
 
-// reverse lookup: numericId -> country name
 const NUM_TO_COUNTRY: Record<number, string> = Object.fromEntries(
   Object.entries(COUNTRY_TO_NUM).map(([name, num]) => [num, name])
 );
 
-// Deterministic color per categorical string (language / model name)
 const CAT_PALETTE = [
   "#60a5fa", "#34d399", "#f59e0b", "#f87171", "#a78bfa",
   "#fb923c", "#38bdf8", "#4ade80", "#facc15", "#f472b6",
@@ -84,32 +82,60 @@ function catColor(str: string): string {
   return CAT_PALETTE[Math.abs(h) % CAT_PALETTE.length];
 }
 
+const CATEGORY_COLOR_IDX: Record<string, number> = {
+  "Research / info": 0,
+  "Coding / tech":   1,
+  "Writing":         2,
+  "Math / science":  3,
+  "Translation":     4,
+  "Other":           5,
+};
+
+const KNOWN_CATEGORIES = new Set(Object.keys(CATEGORY_COLOR_IDX));
+
 interface TooltipState {
   x: number;
   y: number;
-  content: string;
+  country: string;
+  count: number;
+  pct: number;
+  dominant_language?: string;
+  dominant_model?: string;
+  topCategories?: { category: string; pct: number }[];
 }
 
 interface Props {
   countries: CountryItem[];
   onCountryClick?: (country: string) => void;
   activeCountry?: string;
+  topicsByCountry?: Record<string, { category: string; pct: number }[]>;
+  onTopicDrop?: (category: string) => void;
+  activeTopicFilter?: string;
 }
 
-type ViewMode = "volume" | "language" | "model";
+type ViewMode = "volume" | "language" | "model" | "topic";
 
-export default function WorldMap({ countries, onCountryClick, activeCountry }: Props) {
+export default function WorldMap({
+  countries,
+  onCountryClick,
+  activeCountry,
+  topicsByCountry,
+  onTopicDrop,
+  activeTopicFilter,
+}: Props) {
   const { colors } = useTheme();
   const [viewMode, setViewMode] = useState<ViewMode>("volume");
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
 
-  const pctMap: Record<number, number> = {};
   const nameToItem: Record<string, CountryItem> = {};
-  countries.forEach((item) => {
-    const num = COUNTRY_TO_NUM[item.country];
-    if (num) pctMap[num] = item.pct;
-    nameToItem[item.country] = item;
-  });
+  countries.forEach((item) => { nameToItem[item.country] = item; });
+
+  function getCategoryColor(cat: string): string {
+    const idx = CATEGORY_COLOR_IDX[cat];
+    if (idx === undefined || idx === 5) return colors.chartMuted;
+    return colors.chart[idx] ?? colors.chartMuted;
+  }
 
   function getVolumeColor(pct: number): string {
     const s = colors.mapScale;
@@ -121,6 +147,12 @@ export default function WorldMap({ countries, onCountryClick, activeCountry }: P
     return s[0];
   }
 
+  function getTopicDominantColor(countryName: string): string {
+    const cats = topicsByCountry?.[countryName];
+    if (!cats || cats.length === 0) return colors.mapNoData;
+    return getCategoryColor(cats[0].category);
+  }
+
   function getColor(numId: number): string {
     const countryName = NUM_TO_COUNTRY[numId];
     if (activeCountry && countryName === activeCountry) return colors.mapHover;
@@ -128,11 +160,17 @@ export default function WorldMap({ countries, onCountryClick, activeCountry }: P
     if (!item) return colors.mapNoData;
     if (viewMode === "language") return item.dominant_language ? catColor(item.dominant_language) : colors.mapNoData;
     if (viewMode === "model")    return item.dominant_model    ? catColor(item.dominant_model)    : colors.mapNoData;
+    if (viewMode === "topic")    return getTopicDominantColor(countryName);
     return getVolumeColor(item.pct);
   }
 
-  // Build top-N legend entries for categorical modes
   function getCatLegend(): { label: string; color: string }[] {
+    if (viewMode === "topic") {
+      return Object.entries(CATEGORY_COLOR_IDX)
+        .filter(([cat]) => cat !== "Other")
+        .map(([cat, idx]) => ({ label: cat, color: colors.chart[idx] ?? colors.chartMuted }))
+        .concat([{ label: "Other", color: colors.chartMuted }]);
+    }
     const seen = new Map<string, string>();
     for (const item of countries) {
       const val = viewMode === "language" ? item.dominant_language : item.dominant_model;
@@ -142,23 +180,64 @@ export default function WorldMap({ countries, onCountryClick, activeCountry }: P
     return Array.from(seen.entries()).map(([label, color]) => ({ label, color }));
   }
 
+  const viewModes: { key: ViewMode; label: string }[] = [
+    { key: "volume", label: "Volume" },
+    { key: "language", label: "Language" },
+    { key: "model", label: "Model" },
+    { key: "topic", label: "Topic" },
+  ];
+
   return (
-    <div className="card p-4 flex flex-col gap-2" style={{ position: "relative" }}>
+    <div
+      className="card p-4 flex flex-col gap-2"
+      style={{ position: "relative" }}
+      onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+      onDragLeave={(e) => {
+        // only clear if leaving the card itself, not a child
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDragOver(false);
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        setIsDragOver(false);
+        const cat =
+          e.dataTransfer.getData("application/x-wc-topic") ||
+          e.dataTransfer.getData("text/plain");
+        if (cat && KNOWN_CATEGORIES.has(cat) && onTopicDrop) onTopicDrop(cat);
+      }}
+    >
+      {/* Drop zone overlay */}
+      {isDragOver && (
+        <div
+          style={{
+            position: "absolute", inset: 0, borderRadius: 8, zIndex: 10,
+            background: `${colors.chart[0]}18`,
+            border: `2px dashed ${colors.chart[0]}`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            pointerEvents: "none",
+          }}
+        >
+          <span style={{ color: colors.chart[0], fontWeight: 600, fontSize: 13 }}>
+            Drop to filter by topic
+          </span>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div className="label">Interactive Map</div>
         <div className="flex gap-1">
-          {(["volume", "language", "model"] as ViewMode[]).map((mode) => (
+          {viewModes.map(({ key, label }) => (
             <button
-              key={mode}
-              className={`filter-btn text-xs ${viewMode === mode ? "active" : ""}`}
+              key={key}
+              className={`filter-btn text-xs ${viewMode === key ? "active" : ""}`}
               style={{ padding: "2px 8px", fontSize: 10 }}
-              onClick={() => setViewMode(mode)}
+              onClick={() => setViewMode(key)}
             >
-              {mode.charAt(0).toUpperCase() + mode.slice(1)}
+              {label}
             </button>
           ))}
         </div>
       </div>
+
       <div style={{ marginTop: -8, marginBottom: -8, position: "relative" }}>
         <ComposableMap
           projection="geoNaturalEarth1"
@@ -186,29 +265,27 @@ export default function WorldMap({ countries, onCountryClick, activeCountry }: P
                     }}
                     onMouseEnter={(evt) => {
                       if (countryName && item) {
-                        const extra =
-                          viewMode === "language" ? ` · ${item.dominant_language ?? "unknown"}` :
-                          viewMode === "model"    ? ` · ${item.dominant_model ?? "unknown"}` : "";
                         setTooltip({
-                          x: evt.clientX + 12,
-                          y: evt.clientY - 28,
-                          content: `${countryName}: ${item.count.toLocaleString()} convs (${item.pct}%)${extra}`,
+                          x: evt.clientX + 16,
+                          y: evt.clientY - 20,
+                          country: countryName,
+                          count: item.count,
+                          pct: item.pct,
+                          dominant_language: item.dominant_language,
+                          dominant_model: item.dominant_model,
+                          topCategories: topicsByCountry?.[countryName],
                         });
                       } else if (countryName) {
-                        setTooltip({ x: evt.clientX + 12, y: evt.clientY - 28, content: countryName });
+                        setTooltip({ x: evt.clientX + 16, y: evt.clientY - 20, country: countryName, count: 0, pct: 0 });
                       }
                     }}
                     onMouseMove={(evt) => {
                       if (tooltip) {
-                        setTooltip((t) => t ? { ...t, x: evt.clientX + 12, y: evt.clientY - 28 } : null);
+                        setTooltip((t) => t ? { ...t, x: evt.clientX + 16, y: evt.clientY - 20 } : null);
                       }
                     }}
                     onMouseLeave={() => setTooltip(null)}
-                    onClick={() => {
-                      if (countryName && onCountryClick) {
-                        onCountryClick(countryName);
-                      }
-                    }}
+                    onClick={() => { if (countryName && onCountryClick) onCountryClick(countryName); }}
                   />
                 );
               })
@@ -216,6 +293,7 @@ export default function WorldMap({ countries, onCountryClick, activeCountry }: P
           </Geographies>
         </ComposableMap>
       </div>
+
       {/* Legend */}
       {viewMode === "volume" ? (
         <div className="flex items-center gap-2 mt-1">
@@ -236,31 +314,90 @@ export default function WorldMap({ countries, onCountryClick, activeCountry }: P
           ))}
         </div>
       )}
-      {activeCountry && onCountryClick && (
-        <div className="text-xs text-text-secondary">
-          Filtered: <span style={{ color: colors.accent }}>{activeCountry}</span>
-          <button className="ml-2 hover:underline" style={{ color: colors.accent }} onClick={() => onCountryClick("")}>✕ clear</button>
-        </div>
-      )}
-      {/* Tooltip */}
-      {tooltip && (
+
+      {/* Active filters */}
+      <div className="flex flex-wrap gap-3">
+        {activeCountry && onCountryClick && (
+          <div className="text-xs text-text-secondary">
+            Country: <span style={{ color: colors.accent }}>{activeCountry}</span>
+            <button className="ml-1 hover:underline" style={{ color: colors.accent }} onClick={() => onCountryClick("")}>✕</button>
+          </div>
+        )}
+        {activeTopicFilter && onTopicDrop && (
+          <div className="text-xs text-text-secondary">
+            Topic: <span style={{ color: getCategoryColor(activeTopicFilter) }}>{activeTopicFilter}</span>
+            <button className="ml-1 hover:underline" style={{ color: getCategoryColor(activeTopicFilter) }} onClick={() => onTopicDrop("")}>✕</button>
+          </div>
+        )}
+      </div>
+
+      {/* Rich tooltip bubble */}
+      {tooltip && tooltip.count > 0 && (
         <div
           style={{
             position: "fixed",
             left: tooltip.x,
             top: tooltip.y,
-            background: colors.tooltipBg,
-            border: `1px solid ${colors.tooltipBorder}`,
-            borderRadius: 4,
-            padding: "4px 8px",
-            fontSize: 11,
-            color: colors.tooltipText,
-            pointerEvents: "none",
             zIndex: 9999,
-            whiteSpace: "nowrap",
+            pointerEvents: "none",
           }}
         >
-          {tooltip.content}
+          {/* left-pointing arrow tail */}
+          <div style={{
+            position: "absolute", left: -6, top: 18,
+            width: 0, height: 0,
+            borderTop: "6px solid transparent",
+            borderBottom: "6px solid transparent",
+            borderRight: `6px solid ${colors.tooltipBorder}`,
+          }} />
+          <div style={{
+            background: colors.tooltipBg,
+            border: `1px solid ${colors.tooltipBorder}`,
+            borderRadius: 6,
+            padding: "10px 12px",
+            minWidth: 200,
+            maxWidth: 240,
+          }}>
+            <div style={{ fontWeight: 600, fontSize: 13, color: colors.tooltipText, marginBottom: 2 }}>
+              {tooltip.country}
+            </div>
+            <div style={{ fontSize: 11, color: colors.textSecondary, marginBottom: 8 }}>
+              {tooltip.count.toLocaleString()} conversations · {tooltip.pct}%
+            </div>
+
+            {(tooltip.dominant_language || tooltip.dominant_model) && (
+              <div style={{ borderTop: `1px solid ${colors.tooltipBorder}`, paddingTop: 7, marginBottom: 7 }}>
+                {tooltip.dominant_language && (
+                  <div style={{ fontSize: 11, color: colors.textSecondary, marginBottom: 3 }}>
+                    Language: <span style={{ color: colors.tooltipText }}>{tooltip.dominant_language}</span>
+                  </div>
+                )}
+                {tooltip.dominant_model && (
+                  <div style={{ fontSize: 11, color: colors.textSecondary }}>
+                    Model: <span style={{ color: colors.tooltipText, fontFamily: "monospace", fontSize: 10 }}>{tooltip.dominant_model}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {tooltip.topCategories && tooltip.topCategories.length > 0 && (
+              <div style={{ borderTop: `1px solid ${colors.tooltipBorder}`, paddingTop: 7 }}>
+                <div style={{ fontSize: 9, color: colors.textSecondary, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 5 }}>
+                  Top Topics
+                </div>
+                {tooltip.topCategories.map(({ category, pct }) => {
+                  const c = getCategoryColor(category);
+                  return (
+                    <div key={category} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                      <span style={{ width: 7, height: 7, borderRadius: "50%", background: c, flexShrink: 0 }} />
+                      <span style={{ fontSize: 11, color: colors.tooltipText, flex: 1 }}>{category}</span>
+                      <span style={{ fontSize: 11, fontFamily: "monospace", color: c }}>{pct}%</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

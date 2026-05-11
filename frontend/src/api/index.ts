@@ -22,6 +22,7 @@ import type {
   UserTag,
   TagFrequencyItem,
   ConversationPatternsData,
+  CountryTopicBreakdown,
 } from "../types";
 
 const api = axios.create({ baseURL: "" }); // proxied by Vite to localhost:8001
@@ -245,6 +246,11 @@ export async function fetchGraphBuilderData(params: {
   return data as GraphDataPoint[];
 }
 // ── Conversation analytics ────────────────────────────────────────────────────
+export async function fetchTopicsByCountry(): Promise<CountryTopicBreakdown[]> {
+  const { data } = await api.get("/data/topics-by-country");
+  return data;
+}
+
 export async function fetchTagFrequency(): Promise<TagFrequencyItem[]> {
   const { data } = await api.get("/data/tag-frequency");
   return data;

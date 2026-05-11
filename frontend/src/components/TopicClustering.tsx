@@ -62,15 +62,24 @@ export default function TopicClustering({ topics, loading, onTopicFilter, active
             return (
               <div
                 key={category}
-                className="cursor-pointer rounded px-1 transition-colors"
+                className="cursor-grab rounded px-1 transition-colors"
                 style={{
                   borderLeft: isActive ? `3px solid ${color}` : "3px solid transparent",
                   background: isActive ? `${color}14` : undefined,
                 }}
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData("text/plain", category);
+                  e.dataTransfer.setData("application/x-wc-topic", category);
+                  e.dataTransfer.effectAllowed = "copy";
+                }}
                 onClick={() => onTopicFilter && onTopicFilter(isActive ? "" : category)}
               >
                 <div className="flex justify-between items-center mb-1">
-                  <span className="text-text-primary text-xs">{category}</span>
+                  <span className="text-text-primary text-xs flex items-center gap-1">
+                    <span className="text-text-secondary select-none" style={{ fontSize: 10, letterSpacing: "-1px" }}>⠿</span>
+                    {category}
+                  </span>
                   <span className="text-xs font-mono font-medium" style={{ color }}>
                     {pct}%
                   </span>

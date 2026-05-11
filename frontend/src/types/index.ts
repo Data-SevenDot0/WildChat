@@ -205,6 +205,11 @@ export interface ConversationFlags {
   total: number;
 }
 
+export interface CountryTopicBreakdown {
+  country: string;
+  top_categories: { category: string; count: number; pct: number }[];
+}
+
 export interface ConversationPatternsData {
   turn_distribution: TurnDistItem[];
   hourly_distribution: HourlyDistItem[];

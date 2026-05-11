@@ -20,6 +20,7 @@ import {
   fetchCountries,
   fetchSummary,
   fetchModelTopicMatrix,
+  fetchTopicsByCountry,
 } from "./api";
 
 import Sidebar from "./components/Sidebar";
@@ -112,6 +113,7 @@ export default function App() {
   const [summaryStats, setSummaryStats] = useState<SummaryStats | null>(null);
   const [modelTopicMatrix, setModelTopicMatrix] = useState<ModelTopicMatrixItem[]>([]);
   const [loadingMatrix, setLoadingMatrix] = useState(true);
+  const [topicsByCountry, setTopicsByCountry] = useState<Record<string, { category: string; pct: number }[]>>({});
   const [loadingOverview, setLoadingOverview] = useState(true);
   const [loadingTopics, setLoadingTopics] = useState(true);
   const [selectedConv, setSelectedConv] = useState<ConversationRow | null>(null);
@@ -265,6 +267,11 @@ export default function App() {
     fetchModels().then(setModels).catch(() => {});
     fetchSummary().then(setSummaryStats).catch(() => {});
     fetchModelTopicMatrix().then(setModelTopicMatrix).catch(() => {}).finally(() => setLoadingMatrix(false));
+    fetchTopicsByCountry().then((rows) => {
+      const map: Record<string, { category: string; pct: number }[]> = {};
+      rows.forEach((r) => { map[r.country] = r.top_categories; });
+      setTopicsByCountry(map);
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -318,6 +325,9 @@ export default function App() {
                     countries={countries}
                     onCountryClick={handleCountryFilter}
                     activeCountry={filters.country}
+                    topicsByCountry={topicsByCountry}
+                    onTopicDrop={handleTopicFilter}
+                    activeTopicFilter={filters.topicFilter}
                   />
                   <TopicClustering
                     topics={topics}
@@ -365,6 +375,7 @@ export default function App() {
                   onFilterChange={handleFilterChange}
                   onCountryClick={handleCountryFilter}
                   activeCountry={filters.country}
+                  topicsByCountry={topicsByCountry}
                 />
               </>
             )}
