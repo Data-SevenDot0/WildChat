@@ -273,9 +273,8 @@ export default function App() {
   }, [filters.dateFrom, filters.dateTo]);
 
   return (
-    // Fix 5 — TagProvider wraps the entire app so any component can read/write tags
-    <TagProvider>
     <AuthProvider>
+    <TagProvider>
     <div className="flex flex-col h-screen overflow-hidden">
       {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} />}
       {loadingOverview && <LoadingBanner />}
@@ -437,7 +436,7 @@ export default function App() {
         />
       </div>
     </div>
-    </AuthProvider>
     </TagProvider>
+    </AuthProvider>
   );
 }
