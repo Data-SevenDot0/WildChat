@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   ComposableMap,
   Geographies,
@@ -127,6 +127,9 @@ export default function WorldMap({
   const [viewMode, setViewMode] = useState<ViewMode>("volume");
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  // Counts nested dragenter/dragleave pairs so moving over SVG child elements
+  // (each <Geography> is a separate <path>) doesn't spuriously clear the drop zone.
+  const dragCounter = useRef(0);
 
   const nameToItem: Record<string, CountryItem> = {};
   countries.forEach((item) => { nameToItem[item.country] = item; });
@@ -158,6 +161,18 @@ export default function WorldMap({
     if (activeCountry && countryName === activeCountry) return colors.mapHover;
     const item = countryName ? nameToItem[countryName] : undefined;
     if (!item) return colors.mapNoData;
+
+    // Active topic filter overrides view mode — paint a heatmap for that topic's share per country
+    if (activeTopicFilter) {
+      const cats = topicsByCountry?.[countryName];
+      const match = cats?.find((c) => c.category === activeTopicFilter);
+      if (!match) return colors.mapNoData;
+      const base = getCategoryColor(activeTopicFilter);
+      // Opacity: 25% floor → 100% at 40%+ share
+      const alpha = Math.round((0.25 + Math.min(match.pct / 40, 1) * 0.75) * 255);
+      return base + alpha.toString(16).padStart(2, "0");
+    }
+
     if (viewMode === "language") return item.dominant_language ? catColor(item.dominant_language) : colors.mapNoData;
     if (viewMode === "model")    return item.dominant_model    ? catColor(item.dominant_model)    : colors.mapNoData;
     if (viewMode === "topic")    return getTopicDominantColor(countryName);
@@ -191,13 +206,12 @@ export default function WorldMap({
     <div
       className="card p-4 flex flex-col gap-2"
       style={{ position: "relative" }}
-      onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
-      onDragLeave={(e) => {
-        // only clear if leaving the card itself, not a child
-        if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDragOver(false);
-      }}
+      onDragEnter={(e) => { e.preventDefault(); dragCounter.current++; setIsDragOver(true); }}
+      onDragLeave={() => { if (--dragCounter.current === 0) setIsDragOver(false); }}
+      onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => {
         e.preventDefault();
+        dragCounter.current = 0;
         setIsDragOver(false);
         const cat =
           e.dataTransfer.getData("application/x-wc-topic") ||
@@ -295,7 +309,21 @@ export default function WorldMap({
       </div>
 
       {/* Legend */}
-      {viewMode === "volume" ? (
+      {activeTopicFilter ? (
+        <div className="flex items-center gap-2 mt-1">
+          <span className="text-text-secondary text-xs">less</span>
+          <div
+            className="flex-1 h-2 rounded"
+            style={{
+              background: `linear-gradient(90deg, ${getCategoryColor(activeTopicFilter)}40, ${getCategoryColor(activeTopicFilter)})`,
+            }}
+          />
+          <span className="text-text-secondary text-xs">more</span>
+          <span className="text-xs font-semibold ml-1" style={{ color: getCategoryColor(activeTopicFilter) }}>
+            {activeTopicFilter}
+          </span>
+        </div>
+      ) : viewMode === "volume" ? (
         <div className="flex items-center gap-2 mt-1">
           <span className="text-text-secondary text-xs">low</span>
           <div

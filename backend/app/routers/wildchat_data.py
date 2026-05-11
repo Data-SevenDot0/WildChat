@@ -90,6 +90,10 @@ _df: Optional[pd.DataFrame] = None
 _lock = threading.Lock()
 _stats_cache: dict = {}
 
+# Separate lazy cache for topics-by-country so it never blocks the main stats load
+_tbc_cache: dict = {}
+_tbc_lock = threading.Lock()
+
 # Row-group index: maps conversation_hash → row-group number.
 # Built once on first detail request. Reading only the hash column (~20 MB)
 # across all row groups takes ~1-2 s and allows every subsequent detail lookup
@@ -325,37 +329,6 @@ def _get_stats() -> dict:
         {"day": _WEEKDAY_NAMES[int(d)], "count": int(c)} for d, c in day_dist.items()
     ]
 
-    # Topics by country — top 3 categories per country (cached once)
-    country_cat_counts: dict[str, dict[str, int]] = {}
-    country_conv_counts: dict[str, int] = {}
-    for country, tags_str in zip(df["country"].values, df["tags"].values):
-        country_conv_counts[country] = country_conv_counts.get(country, 0) + 1
-        if not isinstance(tags_str, str):
-            continue
-        try:
-            cats_seen: set = set()
-            for tag in json.loads(tags_str):
-                cat = _TAG_TO_CATEGORY.get(tag, "Other")
-                if cat not in cats_seen:
-                    cats_seen.add(cat)
-                    if country not in country_cat_counts:
-                        country_cat_counts[country] = {}
-                    country_cat_counts[country][cat] = country_cat_counts[country].get(cat, 0) + 1
-        except Exception:
-            pass
-    topics_by_country_list = []
-    for country, cat_counts in country_cat_counts.items():
-        total = max(country_conv_counts.get(country, 1), 1)
-        sorted_cats = sorted(cat_counts.items(), key=lambda x: -x[1])[:3]
-        topics_by_country_list.append({
-            "country": country,
-            "top_categories": [
-                {"category": cat, "count": cnt, "pct": round(cnt / total * 100, 1)}
-                for cat, cnt in sorted_cats
-            ],
-        })
-    _stats_cache["topics_by_country"] = topics_by_country_list
-
     # Conversation flags summary
     _stats_cache["conversation_flags"] = {
         "toxic_count": int(df["toxic"].sum()),
@@ -366,6 +339,65 @@ def _get_stats() -> dict:
     }
 
     return _stats_cache
+
+
+def _get_topics_by_country() -> list:
+    """Compute top-3 topic categories per country. Lazy, cached independently of _get_stats()."""
+    if "data" in _tbc_cache:
+        return _tbc_cache["data"]
+    with _tbc_lock:
+        if "data" in _tbc_cache:
+            return _tbc_cache["data"]
+
+        df = _load_df()
+
+        def parse_cats(tags_str: str) -> list:
+            try:
+                # One entry per category — set deduplicates multiple tags in the same category
+                return list({_TAG_TO_CATEGORY.get(t, "Other") for t in json.loads(tags_str)})
+            except Exception:
+                return []
+
+        tagged = df[df["tags"].notna()].copy()
+        tagged["_cats"] = tagged["tags"].map(parse_cats)
+
+        # Explode: one row per (conversation, category) — already deduplicated above
+        exploded = tagged[["conversation_hash", "country", "_cats"]].explode("_cats")
+        exploded = exploded[exploded["_cats"].notna() & (exploded["_cats"] != "")]
+        exploded = exploded.rename(columns={"_cats": "category"})
+
+        # Count conversations per (country, category)
+        cat_counts = (
+            exploded.groupby(["country", "category"], sort=False)
+            .size()
+            .reset_index(name="count")
+        )
+
+        # Percentages relative to total conversations per country
+        country_totals = df["country"].value_counts().rename("total")
+        cat_counts = cat_counts.join(country_totals, on="country")
+        cat_counts["pct"] = (cat_counts["count"] / cat_counts["total"] * 100).round(1)
+
+        # Top 3 per country by count
+        top3 = (
+            cat_counts.sort_values("count", ascending=False)
+            .groupby("country", sort=False)
+            .head(3)
+        )
+
+        result = [
+            {
+                "country": country,
+                "top_categories": [
+                    {"category": row["category"], "count": int(row["count"]), "pct": float(row["pct"])}
+                    for _, row in group.iterrows()
+                ],
+            }
+            for country, group in top3.groupby("country")
+        ]
+
+        _tbc_cache["data"] = result
+        return result
 
 
 # ── Endpoints ──────────────────────────────────────────────────────────────────
@@ -690,7 +722,7 @@ def get_graph_builder_data(
 
 @data_router.get("/topics-by-country")
 def get_topics_by_country():
-    return _get_stats()["topics_by_country"]
+    return _get_topics_by_country()
 
 
 @data_router.get("/tag-frequency")
