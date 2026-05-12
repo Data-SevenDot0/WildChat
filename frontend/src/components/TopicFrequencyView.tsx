@@ -12,7 +12,12 @@ const CATEGORY_COLORS: Record<string, number> = {
   "Other":           5,
 };
 
-export default function TopicFrequencyView() {
+interface Props {
+  onTopicFilter?: (tag: string) => void;
+  activeTopicFilter?: string;
+}
+
+export default function TopicFrequencyView({ onTopicFilter, activeTopicFilter }: Props) {
   const { colors } = useTheme();
   const [tags, setTags] = useState<TagFrequencyItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,7 +84,17 @@ export default function TopicFrequencyView() {
       {/* Search + table */}
       <div className="card p-4 flex flex-col gap-3">
         <div className="flex items-center justify-between gap-3">
-          <div className="label">Tag Frequency by Category</div>
+          <div className="flex items-center gap-3">
+            <div className="label">Tag Frequency by Category</div>
+            {activeTopicFilter && onTopicFilter && (
+              <button
+                className="text-xs text-text-secondary hover:text-accent-green"
+                onClick={() => onTopicFilter("")}
+              >
+                ✕ Clear: <span className="text-accent-green">{activeTopicFilter}</span>
+              </button>
+            )}
+          </div>
           <input
             className="input text-xs"
             style={{ width: 200 }}
@@ -132,28 +147,44 @@ export default function TopicFrequencyView() {
                   {/* Tag rows */}
                   {isExpanded && (
                     <div className="flex flex-col gap-0.5 mt-1 ml-4">
-                      {(search ? items : items.slice(0, PREVIEW)).map((item) => (
-                        <div key={item.tag} className="group">
-                          <div className="flex items-center gap-2 py-1 px-1 rounded hover:bg-bg-hover">
-                            <span className="text-xs text-text-primary flex-1 truncate">{item.tag}</span>
-                            <span className="text-xs font-mono text-text-secondary w-20 text-right">
-                              {item.count.toLocaleString()}
-                            </span>
-                            <span className="text-xs font-mono w-12 text-right" style={{ color }}>
-                              {item.pct}%
-                            </span>
+                      {(search ? items : items.slice(0, PREVIEW)).map((item) => {
+                        const isActive = activeTopicFilter === item.tag;
+                        return (
+                          <div
+                            key={item.tag}
+                            className="group cursor-pointer rounded"
+                            style={{
+                              borderLeft: isActive ? `2px solid ${color}` : "2px solid transparent",
+                              background: isActive ? `${color}14` : undefined,
+                            }}
+                            onClick={() => onTopicFilter && onTopicFilter(isActive ? "" : item.tag)}
+                          >
+                            <div className="flex items-center gap-2 py-1 px-1 rounded hover:bg-bg-hover">
+                              <span
+                                className="text-xs flex-1 truncate"
+                                style={{ color: isActive ? color : colors.textPrimary }}
+                              >
+                                {item.tag}
+                              </span>
+                              <span className="text-xs font-mono text-text-secondary w-20 text-right">
+                                {item.count.toLocaleString()}
+                              </span>
+                              <span className="text-xs font-mono w-12 text-right" style={{ color }}>
+                                {item.pct}%
+                              </span>
+                            </div>
+                            <div className="bar-track mx-1">
+                              <div
+                                className="bar-fill"
+                                style={{
+                                  width: `${(item.count / maxCount) * 100}%`,
+                                  background: isActive ? color : `linear-gradient(90deg, ${color}88, ${color})`,
+                                }}
+                              />
+                            </div>
                           </div>
-                          <div className="bar-track mx-1">
-                            <div
-                              className="bar-fill"
-                              style={{
-                                width: `${(item.count / maxCount) * 100}%`,
-                                background: `linear-gradient(90deg, ${color}88, ${color})`,
-                              }}
-                            />
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                       {!search && items.length > PREVIEW && (
                         <button
                           className="text-xs text-text-secondary hover:text-accent-green text-left px-1 py-0.5 mt-0.5"

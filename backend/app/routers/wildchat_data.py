@@ -491,7 +491,10 @@ def get_conversations(
     if search:
         df = df[df["conversation_hash"].str.contains(search, case=False, na=False)]
     if topic_filter:
+        # Accept either a category name (all tags within it) or an individual tag name
         category_tags = set(TOPIC_CATEGORIES.get(topic_filter, []))
+        if not category_tags and topic_filter in _TAG_TO_CATEGORY:
+            category_tags = {topic_filter}
         if category_tags:
             def has_topic(tags_str):
                 if not tags_str: return False

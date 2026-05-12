@@ -437,7 +437,10 @@ export default function App() {
 
             {/* Topic frequency view */}
             {view === "topic-freq" && (
-              <TopicFrequencyView />
+              <TopicFrequencyView
+                onTopicFilter={handleTopicFilter}
+                activeTopicFilter={filters.topicFilter}
+              />
             )}
 
             {/* Conversation patterns view */}
