@@ -7,6 +7,7 @@ import {
   updateUserTag as apiUpdateTag,
   deleteUserTag as apiDeleteTag,
   fetchTagHashes,
+  rematchUserTag,
 } from "../api";
 import type { TagPayload } from "../api";
 
@@ -26,6 +27,7 @@ interface TagContextValue {
   createTag: (name: string, color: string, keywords: string[]) => Promise<UserTag>;
   updateTag: (id: string, payload: Partial<TagPayload>) => Promise<void>;
   deleteTag: (id: string) => Promise<void>;
+  rematchTag: (id: string) => Promise<void>;
   loadTagHashes: (tagId: string) => Promise<void>;
   getConvTags: (convHash: string) => UserTag[];
   getTagById: (id: string) => UserTag | undefined;
@@ -49,6 +51,17 @@ export function TagProvider({ children }: { children: ReactNode }) {
     try {
       const fetched = await fetchUserTags(token);
       setTags(fetched);
+      if (fetched.length > 0) {
+        const results = await Promise.all(
+          fetched.map(tag => fetchTagHashes(tag.id, token).then(hashes => ({ id: tag.id, hashes })))
+        );
+        const hashMap: Record<string, Set<string>> = {};
+        for (const { id, hashes } of results) {
+          hashMap[id] = new Set(hashes);
+          loadedTagIds.current.add(id);
+        }
+        setTagHashes(hashMap);
+      }
     } finally {
       setLoading(false);
     }
@@ -74,7 +87,11 @@ export function TagProvider({ children }: { children: ReactNode }) {
   }
 
   async function refreshTags() {
-    if (user?.token) await loadTags(user.token);
+    if (user?.token) {
+      loadedTagIds.current.clear();
+      setTagHashes({});
+      await loadTags(user.token);
+    }
   }
 
   async function createTag(name: string, color: string, keywords: string[]): Promise<UserTag> {
@@ -122,6 +139,19 @@ export function TagProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  async function rematchTag(id: string): Promise<void> {
+    if (!user?.token) throw new Error("Not authenticated");
+    setSaving(true);
+    try {
+      const updated = await rematchUserTag(id, user.token);
+      setTags(prev => prev.map(t => t.id === id ? updated : t));
+      loadedTagIds.current.delete(id);
+      await loadTagHashes(id);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   function getConvTags(convHash: string): UserTag[] {
     return tags.filter(t => tagHashes[t.id]?.has(convHash));
   }
@@ -142,7 +172,7 @@ export function TagProvider({ children }: { children: ReactNode }) {
   return (
     <TagContext.Provider value={{
       tags, loading, saving,
-      createTag, updateTag, deleteTag, loadTagHashes,
+      createTag, updateTag, deleteTag, rematchTag, loadTagHashes,
       getConvTags, getTagById, isHashInTag, getTagHashes, refreshTags,
     }}>
       {children}

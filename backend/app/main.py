@@ -29,13 +29,12 @@ def create_tables():
 
 
 @app.on_event("startup")
-def warm_text_index():
-    """Build the conversation text index in the background so it's ready before
-    the user creates their first keyword tag. The server stays responsive during
-    the build; tag operations fall back to metadata-only matching until done."""
-    import threading
-    from app.routers.wildchat_data import _get_text_index
-    threading.Thread(target=_get_text_index, daemon=True, name="text-index-builder").start()
+def seed_conversation_metadata():
+    """ETL parquet conversation metadata into Postgres so keyword tag matching
+    runs via SQL instead of in-memory parquet scans. Skips automatically on
+    subsequent startups once the table is populated."""
+    from app.db.etl import start_etl_background
+    start_etl_background()
 
 origins = [
     "http://localhost:8001",

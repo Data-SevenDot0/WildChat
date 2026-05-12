@@ -4,6 +4,7 @@ from .etl_run import EtlRun
 from .annotation import Annotation
 from .note import Note
 from .tag import Tag, UserTagAssignment
+from .wildchat_conversation import WildchatConversation
 
 __all__ = [
     "User",
@@ -13,4 +14,5 @@ __all__ = [
     "Note",
     "Tag",
     "UserTagAssignment",
+    "WildchatConversation",
 ]

@@ -41,8 +41,11 @@ def set_assignments(db: Session, tag_id: int, hashes: list[str]) -> int:
     """Replace all assignments for a tag with the given conversation hashes."""
     unique_hashes = list(dict.fromkeys(hashes))
     db.query(UserTagAssignment).filter(UserTagAssignment.tag_id == tag_id).delete()
-    for h in unique_hashes:
-        db.add(UserTagAssignment(tag_id=tag_id, conversation_hash=h))
+    if unique_hashes:
+        db.execute(
+            UserTagAssignment.__table__.insert(),
+            [{"tag_id": tag_id, "conversation_hash": h} for h in unique_hashes],
+        )
     db.commit()
     return len(unique_hashes)
 

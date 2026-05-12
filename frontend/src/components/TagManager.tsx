@@ -4,7 +4,7 @@ import { useTheme } from "../context/ThemeContext";
 
 export default function TagManager() {
   const { colors } = useTheme();
-  const { tags, saving, createTag, updateTag, deleteTag } = useTagContext();
+  const { tags, saving, createTag, updateTag, deleteTag, rematchTag } = useTagContext();
 
   // ── Create form state ────────────────────────────────────────────────────────
   const [name, setName] = useState("");
@@ -289,6 +289,13 @@ export default function TagManager() {
                           style={{ color: colors.textMuted }}
                           onClick={() => startEdit(tag)}
                         >Edit</button>
+                        <button
+                          className="text-xs"
+                          style={{ color: colors.textMuted }}
+                          onClick={() => rematchTag(tag.id)}
+                          disabled={saving}
+                          title="Re-run keyword matching against all conversations"
+                        >Rematch</button>
                         <button
                           className="text-xs"
                           style={{ color: "#ef4444" }}

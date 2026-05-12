@@ -14,60 +14,46 @@ def _parse_keywords(raw: str) -> list[str]:
     return [k.strip() for k in raw.split(",") if k.strip()]
 
 
-def _match_keywords(keywords: list[str]) -> list[str]:
+def _match_keywords(keywords: list[str], db: Session) -> list[str]:
     """
-    Find conversation_hashes that whole-word match any keyword across:
-      - conversation text (all message content, joined)
-      - existing topic tags, country, language, model (metadata columns)
+    Find conversation hashes where any keyword matches model, language, country,
+    or topic tags. Queries the wildchat_conversation Postgres table — no parquet
+    scan, no warmup delay.
 
-    Conversation text index is built lazily on first call (~30-60 s) then cached.
-    Subsequent calls are fast (in-memory regex over cached text).
+    Returns an empty list (with a logged warning) if the ETL hasn't finished yet.
     """
-    from app.routers.wildchat_data import _load_df, get_text_index_nowait
-    import json as _json
-    import re as _re
-    import pandas as pd
+    from sqlalchemy import func, or_
+    from app.models.wildchat_conversation import WildchatConversation
+    from app.db.etl import etl_ready
 
     if not keywords:
         return []
 
-    df = _load_df()
-    # Non-blocking: if the background index build isn't done yet, text_index is
-    # an empty dict and the text-search loop below simply produces no hits.
-    # Metadata matching still runs, so results are immediately useful.
-    text_index = get_text_index_nowait()
-    combined_mask = pd.Series(False, index=df.index)
+    if not etl_ready.is_set():
+        import logging
+        logging.getLogger(__name__).warning(
+            "Tag keyword matching requested before conversation ETL finished — "
+            "returning empty. Try again in a moment or click Rematch once the "
+            "server finishes loading."
+        )
+        return []
 
-    # Compile all patterns up front
-    compiled = []
+    conditions = []
     for kw in keywords:
-        kw_lower = kw.lower().strip()
-        if kw_lower:
-            compiled.append((kw_lower, _re.compile(r"\b" + _re.escape(kw_lower) + r"\b")))
+        pat = f"%{kw.strip().lower()}%"
+        conditions.extend([
+            func.lower(WildchatConversation.model).like(pat),
+            func.lower(WildchatConversation.language).like(pat),
+            func.lower(WildchatConversation.country).like(pat),
+            WildchatConversation.tags_text.like(pat),
+        ])
 
-    for kw_lower, pattern in compiled:
-        # ── Conversation text ────────────────────────────────────────────────
-        text_hits = {h for h, text in text_index.items() if pattern.search(text)}
-        text_mask = df["conversation_hash"].isin(text_hits)
-
-        # ── Topic tags (JSON-parsed, whole-word per tag name) ────────────────
-        def _tag_hit(tags_val, p=pattern):
-            if not tags_val:
-                return False
-            try:
-                tag_list = _json.loads(tags_val) if isinstance(tags_val, str) else tags_val
-                return any(p.search(str(t).lower()) for t in tag_list)
-            except Exception:
-                return bool(p.search(str(tags_val).lower()))
-
-        tag_mask      = df["tags"].apply(_tag_hit)
-        country_mask  = df["country"].str.contains(pattern.pattern, na=False, regex=True, case=False)
-        language_mask = df["language"].str.contains(pattern.pattern, na=False, regex=True, case=False)
-        model_mask    = df["model"].str.contains(pattern.pattern, na=False, regex=True, case=False)
-
-        combined_mask |= text_mask | tag_mask | country_mask | language_mask | model_mask
-
-    return df.loc[combined_mask, "conversation_hash"].tolist()
+    rows = (
+        db.query(WildchatConversation.conversation_hash)
+        .filter(or_(*conditions))
+        .all()
+    )
+    return [r[0] for r in rows]
 
 
 def _tag_to_out(tag, db: Session) -> TagOut:
@@ -109,7 +95,7 @@ def create_tag(
         keywords=body.keywords,
     )
 
-    hashes = _match_keywords(body.keywords)
+    hashes = _match_keywords(body.keywords, db)
     crud_tag.set_assignments(db, tag.tag_id, hashes)
 
     return _tag_to_out(tag, db)
@@ -135,7 +121,7 @@ def update_tag(
 
     # Re-run matching whenever keywords change
     if body.keywords is not None:
-        hashes = _match_keywords(body.keywords)
+        hashes = _match_keywords(body.keywords, db)
         crud_tag.set_assignments(db, tag_id, hashes)
 
     return _tag_to_out(tag, db)
@@ -163,6 +149,22 @@ def get_tag_hashes(
     if not tag:
         raise HTTPException(status_code=404, detail="Tag not found.")
     return crud_tag.get_assignment_hashes(db, tag_id)
+
+
+@tag_router.post("/{tag_id}/rematch", response_model=TagOut)
+def rematch_tag(
+    tag_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Re-run keyword matching for a tag. Useful when the text index wasn't ready at creation time."""
+    tag = crud_tag.get_tag(db, tag_id, current_user.user_id)
+    if not tag:
+        raise HTTPException(status_code=404, detail="Tag not found.")
+    keywords = _parse_keywords(tag.keywords or "")
+    hashes = _match_keywords(keywords, db)
+    crud_tag.set_assignments(db, tag_id, hashes)
+    return _tag_to_out(tag, db)
 
 
 @tag_router.get("/for-conversation/{conversation_hash}", response_model=list[TagOut])
