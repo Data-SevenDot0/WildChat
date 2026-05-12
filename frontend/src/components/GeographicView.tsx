@@ -43,6 +43,8 @@ interface Props {
   onCountryClick?: (country: string) => void;
   activeCountry?: string;
   topicsByCountry?: Record<string, { category: string; pct: number }[]>;
+  topicCountryPct?: Record<string, number>;
+  topicFilterCategory?: string;
 }
 
 export default function GeographicView({
@@ -52,6 +54,8 @@ export default function GeographicView({
   onCountryClick,
   activeCountry,
   topicsByCountry,
+  topicCountryPct,
+  topicFilterCategory,
 }: Props) {
   const { colors } = useTheme();
   const max = countries[0]?.pct ?? 1;
@@ -134,6 +138,8 @@ export default function GeographicView({
         topicsByCountry={topicsByCountry}
         onTopicDrop={(cat) => onFilterChange("topicFilter", cat)}
         activeTopicFilter={filters.topicFilter}
+        topicCountryPct={topicCountryPct}
+        topicFilterCategory={topicFilterCategory}
       />
 
       {drilldownCountry && (

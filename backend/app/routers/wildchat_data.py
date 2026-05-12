@@ -77,6 +77,10 @@ TOPIC_CATEGORIES: dict[str, list[str]] = {
     "Math / science": [
         "math algebra calculus", "science biology physics chemistry",
     ],
+    "Other": [
+        "combat fighting scenarios", "hypnosis power dynamic roleplay",
+        "adult nsfw content", "untagged",
+    ],
 }
 
 # Build reverse lookup once

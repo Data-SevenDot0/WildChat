@@ -21,6 +21,7 @@ import {
   fetchSummary,
   fetchModelTopicMatrix,
   fetchTopicsByCountry,
+  fetchTopicCountries,
 } from "./api";
 
 import Sidebar from "./components/Sidebar";
@@ -114,6 +115,8 @@ export default function App() {
   const [modelTopicMatrix, setModelTopicMatrix] = useState<ModelTopicMatrixItem[]>([]);
   const [loadingMatrix, setLoadingMatrix] = useState(true);
   const [topicsByCountry, setTopicsByCountry] = useState<Record<string, { category: string; pct: number }[]>>({});
+  const [topicCountryPct, setTopicCountryPct] = useState<Record<string, number>>({});
+  const [topicFilterCategory, setTopicFilterCategory] = useState<string>("");
   const [loadingOverview, setLoadingOverview] = useState(true);
   const [loadingTopics, setLoadingTopics] = useState(true);
   const [selectedConv, setSelectedConv] = useState<ConversationRow | null>(null);
@@ -280,6 +283,20 @@ export default function App() {
       .catch(() => {});
   }, [filters.dateFrom, filters.dateTo]);
 
+  useEffect(() => {
+    if (!filters.topicFilter) {
+      setTopicCountryPct({});
+      setTopicFilterCategory("");
+      return;
+    }
+    fetchTopicCountries(filters.topicFilter).then(({ category, items }) => {
+      const map: Record<string, number> = {};
+      items.forEach((r) => { map[r.country] = r.pct; });
+      setTopicCountryPct(map);
+      setTopicFilterCategory(category);
+    }).catch(() => {});
+  }, [filters.topicFilter]);
+
   return (
     <AuthProvider>
     <TagProvider>
@@ -328,6 +345,8 @@ export default function App() {
                     topicsByCountry={topicsByCountry}
                     onTopicDrop={handleTopicFilter}
                     activeTopicFilter={filters.topicFilter}
+                    topicCountryPct={topicCountryPct}
+                    topicFilterCategory={topicFilterCategory}
                   />
                   <TopicClustering
                     topics={topics}
@@ -376,6 +395,8 @@ export default function App() {
                   onCountryClick={handleCountryFilter}
                   activeCountry={filters.country}
                   topicsByCountry={topicsByCountry}
+                  topicCountryPct={topicCountryPct}
+                  topicFilterCategory={topicFilterCategory}
                 />
               </>
             )}

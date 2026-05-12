@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import {
   ComposableMap,
   Geographies,
@@ -6,7 +6,6 @@ import {
   Sphere,
 } from "react-simple-maps";
 import type { CountryItem } from "../types";
-import { fetchTopicCountries } from "../api";
 import { useTheme } from "../context/ThemeContext";
 
 const GEO_URL =
@@ -112,6 +111,10 @@ interface Props {
   topicsByCountry?: Record<string, { category: string; pct: number }[]>;
   onTopicDrop?: (category: string) => void;
   activeTopicFilter?: string;
+  /** Pre-fetched country percentages for the active topic/tag filter */
+  topicCountryPct?: Record<string, number>;
+  /** Parent category of the active filter (used for heatmap color) */
+  topicFilterCategory?: string;
 }
 
 type ViewMode = "volume" | "language" | "model" | "topic";
@@ -123,31 +126,14 @@ export default function WorldMap({
   topicsByCountry,
   onTopicDrop,
   activeTopicFilter,
+  topicCountryPct = {},
+  topicFilterCategory = "",
 }: Props) {
   const { colors } = useTheme();
   const [viewMode, setViewMode] = useState<ViewMode>("volume");
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const dragCounter = useRef(0);
-
-  // Per-topic country percentages — fetched whenever activeTopicFilter changes.
-  // Works for both category names ("Coding / tech") and individual tags ("python code").
-  const [topicCountryPct, setTopicCountryPct] = useState<Record<string, number>>({});
-  const [topicFilterCategory, setTopicFilterCategory] = useState<string>("");
-
-  useEffect(() => {
-    if (!activeTopicFilter) {
-      setTopicCountryPct({});
-      setTopicFilterCategory("");
-      return;
-    }
-    fetchTopicCountries(activeTopicFilter).then(({ category, items }) => {
-      const map: Record<string, number> = {};
-      items.forEach((r) => { map[r.country] = r.pct; });
-      setTopicCountryPct(map);
-      setTopicFilterCategory(category);
-    }).catch(() => {});
-  }, [activeTopicFilter]);
 
   const nameToItem: Record<string, CountryItem> = {};
   countries.forEach((item) => { nameToItem[item.country] = item; });
@@ -229,10 +215,9 @@ export default function WorldMap({
         e.preventDefault();
         dragCounter.current = 0;
         setIsDragOver(false);
-        const cat =
-          e.dataTransfer.getData("application/x-wc-topic") ||
-          e.dataTransfer.getData("text/plain");
-        if (cat && KNOWN_CATEGORIES.has(cat) && onTopicDrop) onTopicDrop(cat);
+        // Trust the custom MIME type — only set by TopicClustering pill drags
+        const cat = e.dataTransfer.getData("application/x-wc-topic");
+        if (cat && onTopicDrop) onTopicDrop(cat);
       }}
     >
       {/* Drop zone overlay */}

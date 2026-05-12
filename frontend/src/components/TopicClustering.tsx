@@ -165,10 +165,15 @@ export default function TopicClustering({ topics, loading, onTopicFilter, active
                           return (
                             <div
                               key={t.tag}
-                              className="rounded cursor-pointer hover:bg-bg-hover px-1 py-0.5"
+                              className="rounded cursor-grab hover:bg-bg-hover px-1 py-0.5"
                               style={{
                                 background: isTagActive ? `${color}20` : undefined,
                                 borderLeft: isTagActive ? `2px solid ${color}` : "2px solid transparent",
+                              }}
+                              draggable
+                              onDragStart={(e) => {
+                                e.dataTransfer.setData("application/x-wc-topic", t.tag);
+                                e.dataTransfer.effectAllowed = "copy";
                               }}
                               onClick={() => onTopicFilter && onTopicFilter(isTagActive ? "" : t.tag)}
                             >
