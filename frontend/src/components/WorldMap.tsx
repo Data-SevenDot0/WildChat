@@ -110,11 +110,14 @@ interface Props {
   activeCountry?: string;
   topicsByCountry?: Record<string, { category: string; pct: number }[]>;
   onTopicDrop?: (category: string) => void;
+  onTagDrop?: (tagId: string) => void;
   activeTopicFilter?: string;
   /** Pre-fetched country percentages for the active topic/tag filter */
   topicCountryPct?: Record<string, number>;
   /** Parent category of the active filter (used for heatmap color) */
   topicFilterCategory?: string;
+  /** Display name for an active user-created tag filter (shown in legend) */
+  activeTagLabel?: string;
 }
 
 type ViewMode = "volume" | "language" | "model" | "topic";
@@ -125,10 +128,13 @@ export default function WorldMap({
   activeCountry,
   topicsByCountry,
   onTopicDrop,
+  onTagDrop,
   activeTopicFilter,
   topicCountryPct = {},
   topicFilterCategory = "",
+  activeTagLabel = "",
 }: Props) {
+  const heatmapActive = !!activeTopicFilter || !!activeTagLabel;
   const { colors } = useTheme();
   const [viewMode, setViewMode] = useState<ViewMode>("volume");
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
@@ -166,11 +172,11 @@ export default function WorldMap({
     const item = countryName ? nameToItem[countryName] : undefined;
     if (!item) return colors.mapNoData;
 
-    // Active topic filter overrides view mode — paint a heatmap for that topic/tag's share per country
-    if (activeTopicFilter) {
+    // Active topic/tag filter overrides view mode — paint a heatmap for that filter's share per country
+    if (heatmapActive) {
       const pct = topicCountryPct[countryName];
       if (pct === undefined) return colors.mapNoData;
-      const base = getCategoryColor(topicFilterCategory || activeTopicFilter);
+      const base = getCategoryColor(topicFilterCategory || activeTopicFilter || "");
       const alpha = Math.round((0.25 + Math.min(pct / 40, 1) * 0.75) * 255);
       return base + alpha.toString(16).padStart(2, "0");
     }
@@ -215,9 +221,10 @@ export default function WorldMap({
         e.preventDefault();
         dragCounter.current = 0;
         setIsDragOver(false);
-        // Trust the custom MIME type — only set by TopicClustering pill drags
         const cat = e.dataTransfer.getData("application/x-wc-topic");
-        if (cat && onTopicDrop) onTopicDrop(cat);
+        if (cat && onTopicDrop) { onTopicDrop(cat); return; }
+        const tagId = e.dataTransfer.getData("application/x-wc-user-tag");
+        if (tagId && onTagDrop) onTagDrop(tagId);
       }}
     >
       {/* Drop zone overlay */}
@@ -310,18 +317,18 @@ export default function WorldMap({
       </div>
 
       {/* Legend */}
-      {activeTopicFilter ? (
+      {heatmapActive ? (
         <div className="flex items-center gap-2 mt-1">
           <span className="text-text-secondary text-xs">less</span>
           <div
             className="flex-1 h-2 rounded"
             style={{
-              background: `linear-gradient(90deg, ${getCategoryColor(activeTopicFilter)}40, ${getCategoryColor(activeTopicFilter)})`,
+              background: `linear-gradient(90deg, ${getCategoryColor(topicFilterCategory || activeTopicFilter || "")}40, ${getCategoryColor(topicFilterCategory || activeTopicFilter || "")})`,
             }}
           />
           <span className="text-text-secondary text-xs">more</span>
-          <span className="text-xs font-semibold ml-1" style={{ color: getCategoryColor(activeTopicFilter) }}>
-            {activeTopicFilter}
+          <span className="text-xs font-semibold ml-1" style={{ color: getCategoryColor(topicFilterCategory || activeTopicFilter || "") }}>
+            {activeTopicFilter || activeTagLabel}
           </span>
         </div>
       ) : viewMode === "volume" ? (

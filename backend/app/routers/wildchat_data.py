@@ -15,7 +15,7 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.compute as pc
 import pyarrow.parquet as pq
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Body, HTTPException, Query
 
 from app.db.session import SessionLocal
 from app.models.etl_run import EtlRun
@@ -779,6 +779,37 @@ def get_topic_countries(topic: str = Query(..., description="Category name or in
         result = {"category": category, "items": items}
         _tcc_cache[topic] = result
         return result
+
+
+@data_router.post("/hashes-to-countries")
+def hashes_to_countries(hashes: list[str] = Body(...)):
+    """
+    Given a list of full conversation hashes (from a user-created keyword tag),
+    returns what % of each country's conversations are in that set.
+    """
+    df = _load_df()
+    if not hashes:
+        return {"items": []}
+
+    hash_set = set(hashes)
+    filtered = df[df["conversation_hash"].isin(hash_set)]
+
+    if len(filtered) == 0:
+        return {"items": []}
+
+    total_by_country = df["country"].value_counts()
+    tag_counts = filtered["country"].value_counts()
+
+    items = []
+    for country, count in tag_counts.items():
+        total = int(total_by_country.get(country, 1))
+        items.append({
+            "country": str(country),
+            "count": int(count),
+            "pct": round(int(count) / total * 100, 1),
+        })
+    items.sort(key=lambda x: -x["pct"])
+    return {"items": items}
 
 
 @data_router.get("/topics-by-country")

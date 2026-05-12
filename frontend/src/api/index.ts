@@ -258,6 +258,13 @@ export async function fetchTopicCountries(
   return data;
 }
 
+export async function fetchHashesToCountries(
+  hashes: string[]
+): Promise<{ items: { country: string; count: number; pct: number }[] }> {
+  const { data } = await api.post("/data/hashes-to-countries", hashes);
+  return data;
+}
+
 export async function fetchTagFrequency(): Promise<TagFrequencyItem[]> {
   const { data } = await api.get("/data/tag-frequency");
   return data;

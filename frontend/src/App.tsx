@@ -22,6 +22,8 @@ import {
   fetchModelTopicMatrix,
   fetchTopicsByCountry,
   fetchTopicCountries,
+  fetchTagHashes,
+  fetchHashesToCountries,
 } from "./api";
 
 import Sidebar from "./components/Sidebar";
@@ -47,8 +49,8 @@ import TagManager from "./components/TagManager";
 import TopicFrequencyView from "./components/TopicFrequencyView";
 import ConversationPatterns from "./components/ConversationPatterns";
 import { useTheme } from "./context/ThemeContext";
-import { AuthProvider } from "./context/AuthContext";
-import { TagProvider } from "./context/TagContext";        // Fix 5
+import { AuthProvider, useAuth } from "./context/AuthContext";
+import { TagProvider, useTagContext } from "./context/TagContext";
 
 type View = "overview" | "explorer" | "notes" | "geographic" | "language" | "model" | "etl" | "turns" | "matrix" | "continent" | "graph" | "tags" | "topic-freq" | "patterns";
 
@@ -102,8 +104,10 @@ function LoadingBanner() {
   );
 }
 
-export default function App() {
+function AppInner() {
   const { colors } = useTheme();
+  const { user } = useAuth();
+  const { tags } = useTagContext();
   const [view, setView] = useState<View>("overview");
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [overview, setOverview] = useState<Overview | null>(null);
@@ -283,23 +287,35 @@ export default function App() {
       .catch(() => {});
   }, [filters.dateFrom, filters.dateTo]);
 
+  const activeTagLabel = filters.tagFilter
+    ? (tags.find((t) => t.id === filters.tagFilter)?.name ?? "")
+    : "";
+
   useEffect(() => {
-    if (!filters.topicFilter) {
+    if (filters.topicFilter) {
+      fetchTopicCountries(filters.topicFilter).then(({ category, items }) => {
+        const map: Record<string, number> = {};
+        items.forEach((r) => { map[r.country] = r.pct; });
+        setTopicCountryPct(map);
+        setTopicFilterCategory(category);
+      }).catch(() => {});
+    } else if (filters.tagFilter && user?.token) {
+      fetchTagHashes(filters.tagFilter, user.token)
+        .then((hashes) => fetchHashesToCountries(hashes))
+        .then(({ items }) => {
+          const map: Record<string, number> = {};
+          items.forEach((r) => { map[r.country] = r.pct; });
+          setTopicCountryPct(map);
+          setTopicFilterCategory("");
+        })
+        .catch(() => {});
+    } else {
       setTopicCountryPct({});
       setTopicFilterCategory("");
-      return;
     }
-    fetchTopicCountries(filters.topicFilter).then(({ category, items }) => {
-      const map: Record<string, number> = {};
-      items.forEach((r) => { map[r.country] = r.pct; });
-      setTopicCountryPct(map);
-      setTopicFilterCategory(category);
-    }).catch(() => {});
-  }, [filters.topicFilter]);
+  }, [filters.topicFilter, filters.tagFilter, user?.token]);
 
   return (
-    <AuthProvider>
-    <TagProvider>
     <div className="flex flex-col h-screen overflow-hidden">
       {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} />}
       {loadingOverview && <LoadingBanner />}
@@ -344,15 +360,19 @@ export default function App() {
                     activeCountry={filters.country}
                     topicsByCountry={topicsByCountry}
                     onTopicDrop={handleTopicFilter}
+                    onTagDrop={(id) => handleFilterChange("tagFilter", id)}
                     activeTopicFilter={filters.topicFilter}
                     topicCountryPct={topicCountryPct}
                     topicFilterCategory={topicFilterCategory}
+                    activeTagLabel={activeTagLabel}
                   />
                   <TopicClustering
                     topics={topics}
                     loading={loadingTopics}
                     onTopicFilter={handleTopicFilter}
                     activeTopicFilter={filters.topicFilter}
+                    onTagFilter={(id) => handleFilterChange("tagFilter", id)}
+                    activeTagFilter={filters.tagFilter}
                   />
                 </div>
                 <ConversationList
@@ -397,6 +417,8 @@ export default function App() {
                   topicsByCountry={topicsByCountry}
                   topicCountryPct={topicCountryPct}
                   topicFilterCategory={topicFilterCategory}
+                  activeTagLabel={activeTagLabel}
+                  onTagDrop={(id) => handleFilterChange("tagFilter", id)}
                 />
               </>
             )}
@@ -482,7 +504,15 @@ export default function App() {
         />
       </div>
     </div>
-    </TagProvider>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <TagProvider>
+        <AppInner />
+      </TagProvider>
     </AuthProvider>
   );
 }

@@ -2,12 +2,16 @@ import { useEffect, useState } from "react";
 import type { TopicItem, TagFrequencyItem } from "../types";
 import { fetchTagFrequency } from "../api";
 import { useTheme } from "../context/ThemeContext";
+import { useTagContext } from "../context/TagContext";
+import { useAuth } from "../context/AuthContext";
 
 interface Props {
   topics: TopicItem[];
   loading: boolean;
   onTopicFilter?: (category: string) => void;
   activeTopicFilter?: string;
+  onTagFilter?: (tagId: string) => void;
+  activeTagFilter?: string;
 }
 
 const CATEGORY_INDICES: Record<string, number> = {
@@ -19,8 +23,10 @@ const CATEGORY_INDICES: Record<string, number> = {
   "Other":           5, // chartMuted
 };
 
-export default function TopicClustering({ topics, loading, onTopicFilter, activeTopicFilter }: Props) {
+export default function TopicClustering({ topics, loading, onTopicFilter, activeTopicFilter, onTagFilter, activeTagFilter }: Props) {
   const { colors } = useTheme();
+  const { user } = useAuth();
+  const { tags: userTags } = useTagContext();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [tagsByCategory, setTagsByCategory] = useState<Record<string, TagFrequencyItem[]>>({});
 
@@ -210,6 +216,72 @@ export default function TopicClustering({ topics, loading, onTopicFilter, active
           })}
         </div>
       )}
+
+      {/* My Tags section */}
+      {user && userTags.length > 0 && (() => {
+        const sortedTags = [...userTags].sort((a, b) => b.matchCount - a.matchCount);
+        const maxCount = Math.max(...sortedTags.map((t) => t.matchCount), 1);
+        return (
+          <div>
+            <div style={{ borderTop: `1px solid ${colors.borderBase}` }} className="mt-1 mb-2" />
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium" style={{ color: colors.textSecondary }}>My Tags</span>
+              {activeTagFilter && onTagFilter && (
+                <button
+                  className="text-xs text-text-secondary hover:text-accent-green"
+                  onClick={() => onTagFilter("")}
+                >
+                  ✕ Clear
+                </button>
+              )}
+            </div>
+            <div className="flex flex-col gap-1">
+              {sortedTags.map((tag) => {
+                const isActive = activeTagFilter === tag.id;
+                return (
+                  <div
+                    key={tag.id}
+                    className="rounded cursor-grab hover:bg-bg-hover px-1 py-0.5"
+                    style={{
+                      background: isActive ? `${tag.color}20` : undefined,
+                      borderLeft: isActive ? `3px solid ${tag.color}` : "3px solid transparent",
+                    }}
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData("application/x-wc-user-tag", tag.id);
+                      e.dataTransfer.effectAllowed = "copy";
+                    }}
+                    onClick={() => onTagFilter && onTagFilter(isActive ? "" : tag.id)}
+                  >
+                    <div className="flex items-center justify-between mb-0.5 px-0.5">
+                      <span className="flex items-center gap-1.5 text-xs" style={{ color: isActive ? tag.color : colors.textPrimary }}>
+                        <span
+                          className="inline-block w-2 h-2 rounded-full flex-shrink-0"
+                          style={{ background: tag.color }}
+                        />
+                        {tag.name}
+                      </span>
+                      <span className="font-mono" style={{ color: isActive ? tag.color : colors.textMuted, fontSize: 10 }}>
+                        {tag.matchCount.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="bar-track" style={{ height: 2 }}>
+                      <div
+                        style={{
+                          height: 2,
+                          width: `${(tag.matchCount / maxCount) * 100}%`,
+                          background: isActive ? tag.color : `${tag.color}88`,
+                          borderRadius: 1,
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
