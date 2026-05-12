@@ -9,27 +9,27 @@ interface Props {
 }
 
 const NAV: { label: string; view: View }[] = [
-  { label: "Overview",               view: "overview"   },
-  { label: "Conversation explorer",  view: "explorer"   },
-  { label: "Notes",                  view: "notes"      },
-  { label: "Geographic breakdown",   view: "geographic" },
-  { label: "Continent drill-down",   view: "continent"  },
-  { label: "Language analysis",      view: "language"   },
-  { label: "Model comparison",       view: "model"      },
-  { label: "Model × topic matrix",   view: "matrix"     },
-  { label: "ETL run log",            view: "etl"        },
-  { label: "Turn depth compare",     view: "turns"      },
+  { label: "Overview",        view: "overview"   },
+  { label: "Explorer",        view: "explorer"   },
+  { label: "Notes",           view: "notes"      },
+  { label: "Geographic",      view: "geographic" },
+  { label: "Continents",      view: "continent"  },
+  { label: "Languages",       view: "language"   },
+  { label: "Models",          view: "model"      },
+  { label: "Model × Topic",   view: "matrix"     },
+  { label: "ETL Log",         view: "etl"        },
+  { label: "Turn Depth",      view: "turns"      },
 ];
 
 const TOOLS: { label: string; view: View }[] = [
-  { label: "Topic clustering",       view: "overview"     },
-  { label: "Interactive map",        view: "geographic"   },
-  { label: "Time / date slider",     view: "geographic"   },
-  { label: "Search refinement",      view: "explorer"     },
-  { label: "Graph builder",          view: "graph"        },
-  { label: "Manage tags",            view: "tags"         },
-  { label: "Topic frequency",        view: "topic-freq"  },
-  { label: "Conversation patterns",  view: "patterns"     },
+  { label: "Topics",          view: "overview"   },
+  { label: "Map",             view: "geographic" },
+  { label: "Date Range",      view: "geographic" },
+  { label: "Search",          view: "explorer"   },
+  { label: "Graph Builder",   view: "graph"      },
+  { label: "My Tags",         view: "tags"       },
+  { label: "Topic Frequency", view: "topic-freq" },
+  { label: "Patterns",        view: "patterns"   },
 ];
 
 export default function Sidebar({ activeView, onSelect }: Props) {
