@@ -287,9 +287,9 @@ function AppInner() {
       .catch(() => {});
   }, [filters.dateFrom, filters.dateTo]);
 
-  const activeTagLabel = filters.tagFilter
-    ? (tags.find((t) => t.id === filters.tagFilter)?.name ?? "")
-    : "";
+  const activeUserTag = filters.tagFilter ? tags.find((t) => t.id === filters.tagFilter) : undefined;
+  const activeTagLabel = activeUserTag?.name ?? "";
+  const activeTagColor = activeUserTag?.color ?? "";
 
   useEffect(() => {
     if (filters.topicFilter) {
@@ -365,6 +365,7 @@ function AppInner() {
                     topicCountryPct={topicCountryPct}
                     topicFilterCategory={topicFilterCategory}
                     activeTagLabel={activeTagLabel}
+                    heatmapColor={activeTagColor}
                   />
                   <TopicClustering
                     topics={topics}
@@ -418,6 +419,7 @@ function AppInner() {
                   topicCountryPct={topicCountryPct}
                   topicFilterCategory={topicFilterCategory}
                   activeTagLabel={activeTagLabel}
+                  heatmapColor={activeTagColor}
                   onTagDrop={(id) => handleFilterChange("tagFilter", id)}
                 />
               </>

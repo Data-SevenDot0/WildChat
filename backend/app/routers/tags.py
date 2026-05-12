@@ -16,44 +16,53 @@ def _parse_keywords(raw: str) -> list[str]:
 
 def _match_keywords(keywords: list[str]) -> list[str]:
     """
-    Find conversation_hashes whose metadata matches any of the given keywords.
+    Find conversation_hashes that whole-word match any keyword across:
+      - conversation text (all message content, joined)
+      - existing topic tags, country, language, model (metadata columns)
 
-    Searches (case-insensitive substring) across:
-      - existing topic tags  (the 'tags' column from tagger.py)
-      - country, language, model  (all already in the in-memory slim DataFrame)
-
-    All data is in-memory so this runs in ~1-3 s for 838 K rows.
+    Conversation text index is built lazily on first call (~30-60 s) then cached.
+    Subsequent calls are fast (in-memory regex over cached text).
     """
-    # Import here to avoid circular imports; _load_df is cached after first call
-    from app.routers.wildchat_data import _load_df
+    from app.routers.wildchat_data import _load_df, _get_text_index
+    import json as _json
+    import re as _re
     import pandas as pd
 
     if not keywords:
         return []
 
     df = _load_df()
+    text_index = _get_text_index()
     combined_mask = pd.Series(False, index=df.index)
 
+    # Compile all patterns up front
+    compiled = []
     for kw in keywords:
         kw_lower = kw.lower().strip()
-        if not kw_lower:
-            continue
+        if kw_lower:
+            compiled.append((kw_lower, _re.compile(r"\b" + _re.escape(kw_lower) + r"\b")))
 
-        # Existing topic tags — stored as a Python list per row
-        def _tag_hit(tags):
-            if not tags:
+    for kw_lower, pattern in compiled:
+        # ── Conversation text ────────────────────────────────────────────────
+        text_hits = {h for h, text in text_index.items() if pattern.search(text)}
+        text_mask = df["conversation_hash"].isin(text_hits)
+
+        # ── Topic tags (JSON-parsed, whole-word per tag name) ────────────────
+        def _tag_hit(tags_val, p=pattern):
+            if not tags_val:
                 return False
-            if isinstance(tags, list):
-                return any(kw_lower in str(t).lower() for t in tags)
-            return kw_lower in str(tags).lower()
+            try:
+                tag_list = _json.loads(tags_val) if isinstance(tags_val, str) else tags_val
+                return any(p.search(str(t).lower()) for t in tag_list)
+            except Exception:
+                return bool(p.search(str(tags_val).lower()))
 
-        tag_mask = df["tags"].apply(_tag_hit)
+        tag_mask      = df["tags"].apply(_tag_hit)
+        country_mask  = df["country"].str.contains(pattern.pattern, na=False, regex=True, case=False)
+        language_mask = df["language"].str.contains(pattern.pattern, na=False, regex=True, case=False)
+        model_mask    = df["model"].str.contains(pattern.pattern, na=False, regex=True, case=False)
 
-        country_mask  = df["country"].str.lower().str.contains(kw_lower, na=False, regex=False)
-        language_mask = df["language"].str.lower().str.contains(kw_lower, na=False, regex=False)
-        model_mask    = df["model"].str.lower().str.contains(kw_lower, na=False, regex=False)
-
-        combined_mask |= tag_mask | country_mask | language_mask | model_mask
+        combined_mask |= text_mask | tag_mask | country_mask | language_mask | model_mask
 
     return df.loc[combined_mask, "conversation_hash"].tolist()
 

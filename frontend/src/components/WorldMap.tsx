@@ -118,6 +118,8 @@ interface Props {
   topicFilterCategory?: string;
   /** Display name for an active user-created tag filter (shown in legend) */
   activeTagLabel?: string;
+  /** Explicit heatmap color override (used for user tag colors) */
+  heatmapColor?: string;
 }
 
 type ViewMode = "volume" | "language" | "model" | "topic";
@@ -133,6 +135,7 @@ export default function WorldMap({
   topicCountryPct = {},
   topicFilterCategory = "",
   activeTagLabel = "",
+  heatmapColor,
 }: Props) {
   const heatmapActive = !!activeTopicFilter || !!activeTagLabel;
   const { colors } = useTheme();
@@ -149,6 +152,8 @@ export default function WorldMap({
     if (idx === undefined || idx === 5) return colors.chartMuted;
     return colors.chart[idx] ?? colors.chartMuted;
   }
+
+  const resolvedHeatmapColor = heatmapColor || getCategoryColor(topicFilterCategory || activeTopicFilter || "");
 
   function getVolumeColor(pct: number): string {
     const s = colors.mapScale;
@@ -176,7 +181,7 @@ export default function WorldMap({
     if (heatmapActive) {
       const pct = topicCountryPct[countryName];
       if (pct === undefined) return colors.mapNoData;
-      const base = getCategoryColor(topicFilterCategory || activeTopicFilter || "");
+      const base = resolvedHeatmapColor;
       const alpha = Math.round((0.25 + Math.min(pct / 40, 1) * 0.75) * 255);
       return base + alpha.toString(16).padStart(2, "0");
     }
@@ -323,11 +328,11 @@ export default function WorldMap({
           <div
             className="flex-1 h-2 rounded"
             style={{
-              background: `linear-gradient(90deg, ${getCategoryColor(topicFilterCategory || activeTopicFilter || "")}40, ${getCategoryColor(topicFilterCategory || activeTopicFilter || "")})`,
+              background: `linear-gradient(90deg, ${resolvedHeatmapColor}40, ${resolvedHeatmapColor})`,
             }}
           />
           <span className="text-text-secondary text-xs">more</span>
-          <span className="text-xs font-semibold ml-1" style={{ color: getCategoryColor(topicFilterCategory || activeTopicFilter || "") }}>
+          <span className="text-xs font-semibold ml-1" style={{ color: resolvedHeatmapColor }}>
             {activeTopicFilter || activeTagLabel}
           </span>
         </div>

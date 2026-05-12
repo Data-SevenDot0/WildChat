@@ -46,6 +46,7 @@ interface Props {
   topicCountryPct?: Record<string, number>;
   topicFilterCategory?: string;
   activeTagLabel?: string;
+  heatmapColor?: string;
   onTagDrop?: (tagId: string) => void;
 }
 
@@ -59,6 +60,7 @@ export default function GeographicView({
   topicCountryPct,
   topicFilterCategory,
   activeTagLabel,
+  heatmapColor,
   onTagDrop,
 }: Props) {
   const { colors } = useTheme();
@@ -145,6 +147,7 @@ export default function GeographicView({
         topicCountryPct={topicCountryPct}
         topicFilterCategory={topicFilterCategory}
         activeTagLabel={activeTagLabel}
+        heatmapColor={heatmapColor}
         onTagDrop={onTagDrop}
       />
 

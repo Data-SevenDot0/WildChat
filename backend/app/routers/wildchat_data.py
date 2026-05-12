@@ -109,6 +109,13 @@ _tcc_lock = threading.Lock()
 _hash_to_rg: dict[str, int] = {}
 _rg_lock = threading.Lock()
 
+# Full-text index: maps conversation_hash → lowercase flattened message text.
+# Built lazily on first keyword-tag creation. Reads conversation_hash + conversation
+# columns only (column projection); cached for the lifetime of the process so
+# subsequent tag creates/updates are fast.
+_text_index: dict[str, str] = {}
+_text_index_lock = threading.Lock()
+
 
 def _build_rg_index() -> None:
     """Populate _hash_to_rg lazily (thread-safe, runs once)."""
@@ -125,6 +132,43 @@ def _build_rg_index() -> None:
             for h in batch.column("conversation_hash").to_pylist():
                 index[h] = rg_idx
         _hash_to_rg = index
+
+
+def _get_text_index() -> dict[str, str]:
+    """
+    Build and cache a hash → lowercase-flattened-message-text mapping.
+    Only reads conversation_hash + conversation columns (column projection),
+    so it avoids pulling metadata already in the slim DataFrame.
+    First call takes ~30-60 s; all subsequent calls return instantly.
+    """
+    global _text_index
+    if _text_index:
+        return _text_index
+    with _text_index_lock:
+        if _text_index:
+            return _text_index
+        pf = pq.ParquetFile(PARQUET_PATH)
+        index: dict[str, str] = {}
+        for rg_idx in range(pf.metadata.num_row_groups):
+            batch = pf.read_row_group(rg_idx, columns=["conversation_hash", "conversation"])
+            hashes = batch.column("conversation_hash").to_pylist()
+            convs  = batch.column("conversation").to_pylist()
+            for h, conv in zip(hashes, convs):
+                if not conv:
+                    index[h] = ""
+                    continue
+                parts: list[str] = []
+                items = conv if isinstance(conv, list) else []
+                for msg in items:
+                    if isinstance(msg, dict):
+                        content = msg.get("content") or ""
+                    else:
+                        content = str(msg) if msg else ""
+                    if content:
+                        parts.append(str(content))
+                index[h] = " ".join(parts).lower()
+        _text_index = index
+        return _text_index
 
 
 def _record_etl_run(rows: int, status: str, errors: int, duration: float, notes: str = "") -> None:
