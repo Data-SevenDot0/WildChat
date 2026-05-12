@@ -251,6 +251,13 @@ export async function fetchTopicsByCountry(): Promise<CountryTopicBreakdown[]> {
   return data;
 }
 
+export async function fetchTopicCountries(
+  topic: string
+): Promise<{ category: string; items: { country: string; count: number; pct: number }[] }> {
+  const { data } = await api.get(`/data/topic-countries?topic=${encodeURIComponent(topic)}`);
+  return data;
+}
+
 export async function fetchTagFrequency(): Promise<TagFrequencyItem[]> {
   const { data } = await api.get("/data/tag-frequency");
   return data;

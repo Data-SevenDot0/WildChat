@@ -94,6 +94,10 @@ _stats_cache: dict = {}
 _tbc_cache: dict = {}
 _tbc_lock = threading.Lock()
 
+# Per-topic country breakdown cache (keyed by topic/tag name)
+_tcc_cache: dict = {}
+_tcc_lock = threading.Lock()
+
 # Row-group index: maps conversation_hash → row-group number.
 # Built once on first detail request. Reading only the hash column (~20 MB)
 # across all row groups takes ~1-2 s and allows every subsequent detail lookup
@@ -721,6 +725,56 @@ def get_graph_builder_data(
         }
         for _, row in grouped.iterrows()
     ]
+
+
+@data_router.get("/topic-countries")
+def get_topic_countries(topic: str = Query(..., description="Category name or individual tag name")):
+    """
+    Returns what % of each country's conversations contain this topic or tag.
+    Results are cached per topic name — first call may take ~1-2 s; subsequent calls are instant.
+    """
+    if topic in _tcc_cache:
+        return _tcc_cache[topic]
+    with _tcc_lock:
+        if topic in _tcc_cache:
+            return _tcc_cache[topic]
+
+        df = _load_df()
+
+        # Resolve to the set of tag strings to match
+        category_tags = set(TOPIC_CATEGORIES.get(topic, []))
+        if not category_tags and topic in _TAG_TO_CATEGORY:
+            category_tags = {topic}
+        if not category_tags:
+            _tcc_cache[topic] = {"category": "Other", "items": []}
+            return _tcc_cache[topic]
+
+        # Vectorized substring match — each tag is stored as a JSON string element,
+        # so searching for the JSON-encoded form (with quotes) avoids partial matches.
+        import re as _re
+        pattern = "|".join(_re.escape(json.dumps(t)) for t in category_tags)
+        mask = df["tags"].str.contains(pattern, na=False, regex=True)
+        filtered = df[mask]
+
+        total_by_country = df["country"].value_counts()
+        topic_counts = filtered["country"].value_counts()
+
+        items = []
+        for country, count in topic_counts.items():
+            total = int(total_by_country.get(country, 1))
+            items.append({
+                "country": str(country),
+                "count": int(count),
+                "pct": round(int(count) / total * 100, 1),
+            })
+        items.sort(key=lambda x: -x["pct"])
+
+        # Determine the parent category for color lookup in the frontend
+        category = topic if topic in TOPIC_CATEGORIES else _TAG_TO_CATEGORY.get(topic, "Other")
+
+        result = {"category": category, "items": items}
+        _tcc_cache[topic] = result
+        return result
 
 
 @data_router.get("/topics-by-country")

@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ComposableMap,
   Geographies,
@@ -6,6 +6,7 @@ import {
   Sphere,
 } from "react-simple-maps";
 import type { CountryItem } from "../types";
+import { fetchTopicCountries } from "../api";
 import { useTheme } from "../context/ThemeContext";
 
 const GEO_URL =
@@ -127,9 +128,26 @@ export default function WorldMap({
   const [viewMode, setViewMode] = useState<ViewMode>("volume");
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
-  // Counts nested dragenter/dragleave pairs so moving over SVG child elements
-  // (each <Geography> is a separate <path>) doesn't spuriously clear the drop zone.
   const dragCounter = useRef(0);
+
+  // Per-topic country percentages — fetched whenever activeTopicFilter changes.
+  // Works for both category names ("Coding / tech") and individual tags ("python code").
+  const [topicCountryPct, setTopicCountryPct] = useState<Record<string, number>>({});
+  const [topicFilterCategory, setTopicFilterCategory] = useState<string>("");
+
+  useEffect(() => {
+    if (!activeTopicFilter) {
+      setTopicCountryPct({});
+      setTopicFilterCategory("");
+      return;
+    }
+    fetchTopicCountries(activeTopicFilter).then(({ category, items }) => {
+      const map: Record<string, number> = {};
+      items.forEach((r) => { map[r.country] = r.pct; });
+      setTopicCountryPct(map);
+      setTopicFilterCategory(category);
+    }).catch(() => {});
+  }, [activeTopicFilter]);
 
   const nameToItem: Record<string, CountryItem> = {};
   countries.forEach((item) => { nameToItem[item.country] = item; });
@@ -162,14 +180,12 @@ export default function WorldMap({
     const item = countryName ? nameToItem[countryName] : undefined;
     if (!item) return colors.mapNoData;
 
-    // Active topic filter overrides view mode — paint a heatmap for that topic's share per country
+    // Active topic filter overrides view mode — paint a heatmap for that topic/tag's share per country
     if (activeTopicFilter) {
-      const cats = topicsByCountry?.[countryName];
-      const match = cats?.find((c) => c.category === activeTopicFilter);
-      if (!match) return colors.mapNoData;
-      const base = getCategoryColor(activeTopicFilter);
-      // Opacity: 25% floor → 100% at 40%+ share
-      const alpha = Math.round((0.25 + Math.min(match.pct / 40, 1) * 0.75) * 255);
+      const pct = topicCountryPct[countryName];
+      if (pct === undefined) return colors.mapNoData;
+      const base = getCategoryColor(topicFilterCategory || activeTopicFilter);
+      const alpha = Math.round((0.25 + Math.min(pct / 40, 1) * 0.75) * 255);
       return base + alpha.toString(16).padStart(2, "0");
     }
 
