@@ -205,9 +205,9 @@ export default function WorldMap({
 
   const viewModes: { key: ViewMode; label: string }[] = [
     { key: "volume", label: "Volume" },
-    { key: "language", label: "Language" },
-    { key: "model", label: "Model" },
     { key: "topic", label: "Topic" },
+    { key: "model", label: "Model" },
+    { key: "language", label: "Language" },
   ];
 
   return (
