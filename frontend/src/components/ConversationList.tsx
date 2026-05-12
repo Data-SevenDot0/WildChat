@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { ConversationRow, ConversationsResponse, Filters } from "../types";
-import { fetchConversations } from "../api";
+import { fetchConversations, fetchConversationsByHashes } from "../api";
 import { useTheme } from "../context/ThemeContext";
-// Fix 5 — read tag assignments to show pills and support tag filtering
 import { useTagContext } from "../context/TagContext";
 
 const TOPIC_CATEGORIES: Record<string, string[]> = {
@@ -35,55 +34,79 @@ function StatusCell({ row }: { row: ConversationRow }) {
 
 export default function ConversationList({ filters, onSelect, selectedHash, onFilterChange }: Props) {
   const { colors } = useTheme();
-  // Fix 5 — tag context for pills and filtering
-  const { tags, getConvTags, loadTagHashes, isHashInTag } = useTagContext();
+  const { tags, getConvTags, loadTagHashes, isHashInTag, getTagHashes } = useTagContext();
 
   const [data, setData] = useState<ConversationsResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [inputVal, setInputVal] = useState(filters.search || "");
   const [topicOpen, setTopicOpen] = useState(false);
-  // Fix 5 — tag filter dropdown state
   const [tagOpen, setTagOpen] = useState(false);
   const topicRef = useRef<HTMLDivElement>(null);
   const tagRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const load = useCallback(async (p: number, f: Filters) => {
+  const activeTag = filters.tagFilter ? tags.find(t => t.id === filters.tagFilter) : null;
+
+  // Ensure hashes are loaded for the active tag.
+  useEffect(() => {
+    if (activeTag) loadTagHashes(activeTag.id);
+  }, [activeTag?.id]);
+
+  const tagHashes = activeTag ? getTagHashes(activeTag.id) : null;
+  // undefined = still loading; string[] = ready (may be empty)
+  const tagHashesReady = activeTag ? tagHashes !== undefined : true;
+
+  const load = useCallback(async (p: number, f: Filters, hashes: string[] | null) => {
     setLoading(true);
     try {
-      const res = await fetchConversations({
-        page: p,
-        per_page: 20,
-        model: f.model || undefined,
-        language: f.language || undefined,
-        country: f.country || undefined,
-        redacted_only: f.redactedOnly || undefined,
-        search: f.search || undefined,
-        date_from: f.dateFrom || undefined,
-        date_to: f.dateTo || undefined,
-        topic_filter: f.topicFilter || undefined,
-        turn_min: f.turnMin > 0 ? f.turnMin : undefined,
-        turn_max: f.turnMax > 0 ? f.turnMax : undefined,
-        // tagFilter is client-side only — not sent to server
-      });
+      let res: ConversationsResponse;
+      if (hashes !== null) {
+        res = await fetchConversationsByHashes(hashes, p, 20);
+      } else {
+        res = await fetchConversations({
+          page: p,
+          per_page: 20,
+          model: f.model || undefined,
+          language: f.language || undefined,
+          country: f.country || undefined,
+          redacted_only: f.redactedOnly || undefined,
+          search: f.search || undefined,
+          date_from: f.dateFrom || undefined,
+          date_to: f.dateTo || undefined,
+          topic_filter: f.topicFilter || undefined,
+          turn_min: f.turnMin > 0 ? f.turnMin : undefined,
+          turn_max: f.turnMax > 0 ? f.turnMax : undefined,
+        });
+      }
       setData(res);
     } finally {
       setLoading(false);
     }
   }, []);
 
+  // When non-tag filters change, reset to page 1.
   useEffect(() => {
+    if (!tagHashesReady) return;
     setPage(1);
-    load(1, filters);
+    load(1, filters, tagHashes ?? null);
   }, [
     filters.model, filters.language, filters.country, filters.redactedOnly,
     filters.search, filters.dateFrom, filters.dateTo, filters.topicFilter,
     filters.turnMin, filters.turnMax,
   ]);
 
+  // When tag filter changes (new tag selected, or tag hashes just became ready), reload.
   useEffect(() => {
-    load(page, filters);
+    if (!tagHashesReady) return;
+    setPage(1);
+    load(1, filters, tagHashes ?? null);
+  }, [filters.tagFilter, tagHashesReady]);
+
+  // Page changes.
+  useEffect(() => {
+    if (!tagHashesReady) return;
+    load(page, filters, tagHashes ?? null);
   }, [page]);
 
   // Close dropdowns on outside click
@@ -104,19 +127,7 @@ export default function ConversationList({ filters, onSelect, selectedHash, onFi
     }, 300);
   }
 
-  const activeTag = filters.tagFilter
-    ? tags.find(t => t.id === filters.tagFilter)
-    : null;
-
-  // Lazily load hashes for the active tag so the filter works client-side.
-  useEffect(() => {
-    if (activeTag) loadTagHashes(activeTag.id);
-  }, [activeTag?.id]);
-
-  // Filter current page rows by hash membership when a tag filter is active.
-  const displayRows = activeTag
-    ? (data?.data ?? []).filter((r: ConversationRow) => isHashInTag(r.full_hash, activeTag.id))
-    : (data?.data ?? []);
+  const displayRows = data?.data ?? [];
 
   const hasChips = filters.model || filters.language || filters.country || filters.redactedOnly || filters.topicFilter || filters.dateFrom || filters.dateTo || filters.tagFilter;
 
@@ -243,7 +254,7 @@ export default function ConversationList({ filters, onSelect, selectedHash, onFi
                   </button>
                 ))}
                 <div className="px-3 py-1.5 text-xs border-t" style={{ color: colors.textMuted, borderColor: colors.borderBase }}>
-                  Filters current page only
+                  Filters all conversations
                 </div>
               </div>
             )}
@@ -251,8 +262,8 @@ export default function ConversationList({ filters, onSelect, selectedHash, onFi
         )}
 
         <span className="text-text-secondary text-xs whitespace-nowrap">
-          {activeTag
-            ? `${displayRows.length} matched this page`
+          {!tagHashesReady
+            ? "Loading tag…"
             : data ? `${data.total.toLocaleString()} records` : ""}
         </span>
       </div>
@@ -324,14 +335,14 @@ export default function ConversationList({ filters, onSelect, selectedHash, onFi
 
       {/* Rows */}
       <div className="overflow-y-auto flex-1" style={{ maxHeight: 340 }}>
-        {loading ? (
+        {loading || !tagHashesReady ? (
           <div className="flex items-center justify-center py-12">
             <div className="spinner" />
           </div>
         ) : displayRows.length === 0 ? (
           <div className="text-text-secondary text-center py-12 text-xs">
             {activeTag
-              ? `No conversations tagged "${activeTag.name}" yet. Select a conversation and assign this tag from the right panel.`
+              ? `No conversations matched "${activeTag.name}". Try editing the tag's keywords.`
               : "No conversations match the current filters."}
           </div>
         ) : (
@@ -384,8 +395,8 @@ export default function ConversationList({ filters, onSelect, selectedHash, onFi
         )}
       </div>
 
-      {/* Pagination — hidden when tag filter is active since results come from local store */}
-      {!activeTag && data && data.total_pages > 1 && (
+      {/* Pagination */}
+      {data && data.total_pages > 1 && (
         <div className="flex items-center justify-between px-4 py-2 border-t border-border-subtle">
           <button
             className="filter-btn text-xs disabled:opacity-40"

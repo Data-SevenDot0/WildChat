@@ -310,3 +310,12 @@ export async function fetchTagHashes(tagId: string, token: string): Promise<stri
   const { data } = await api.get(`/tags/${tagId}/hashes`, authHeaders(token));
   return data as string[];
 }
+
+export async function fetchConversationsByHashes(
+  hashes: string[],
+  page: number,
+  perPage: number
+): Promise<ConversationsResponse> {
+  const { data } = await api.post("/data/conversations-by-hashes", { hashes, page, per_page: perPage });
+  return data;
+}

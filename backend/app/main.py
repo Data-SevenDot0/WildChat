@@ -27,6 +27,16 @@ app = FastAPI()
 def create_tables():
     Base.metadata.create_all(bind=engine)
 
+
+@app.on_event("startup")
+def warm_text_index():
+    """Build the conversation text index in the background so it's ready before
+    the user creates their first keyword tag. The server stays responsive during
+    the build; tag operations fall back to metadata-only matching until done."""
+    import threading
+    from app.routers.wildchat_data import _get_text_index
+    threading.Thread(target=_get_text_index, daemon=True, name="text-index-builder").start()
+
 origins = [
     "http://localhost:8001",
     "http://127.0.0.1:8001",

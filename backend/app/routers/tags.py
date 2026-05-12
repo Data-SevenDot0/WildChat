@@ -23,7 +23,7 @@ def _match_keywords(keywords: list[str]) -> list[str]:
     Conversation text index is built lazily on first call (~30-60 s) then cached.
     Subsequent calls are fast (in-memory regex over cached text).
     """
-    from app.routers.wildchat_data import _load_df, _get_text_index
+    from app.routers.wildchat_data import _load_df, get_text_index_nowait
     import json as _json
     import re as _re
     import pandas as pd
@@ -32,7 +32,10 @@ def _match_keywords(keywords: list[str]) -> list[str]:
         return []
 
     df = _load_df()
-    text_index = _get_text_index()
+    # Non-blocking: if the background index build isn't done yet, text_index is
+    # an empty dict and the text-search loop below simply produces no hits.
+    # Metadata matching still runs, so results are immediately useful.
+    text_index = get_text_index_nowait()
     combined_mask = pd.Series(False, index=df.index)
 
     # Compile all patterns up front

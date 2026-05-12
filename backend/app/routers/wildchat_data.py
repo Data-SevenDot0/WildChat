@@ -16,6 +16,7 @@ import pyarrow as pa
 import pyarrow.compute as pc
 import pyarrow.parquet as pq
 from fastapi import APIRouter, Body, HTTPException, Query
+from pydantic import BaseModel
 
 from app.db.session import SessionLocal
 from app.models.etl_run import EtlRun
@@ -137,9 +138,10 @@ def _build_rg_index() -> None:
 def _get_text_index() -> dict[str, str]:
     """
     Build and cache a hash → lowercase-flattened-message-text mapping.
-    Only reads conversation_hash + conversation columns (column projection),
-    so it avoids pulling metadata already in the slim DataFrame.
-    First call takes ~30-60 s; all subsequent calls return instantly.
+    Only reads conversation_hash + conversation columns (column projection).
+    Intended to be called from a background thread at startup so the index
+    is warm before any tag operations are requested.
+    First build takes ~30-60 s; all subsequent calls return instantly.
     """
     global _text_index
     if _text_index:
@@ -169,6 +171,14 @@ def _get_text_index() -> dict[str, str]:
                 index[h] = " ".join(parts).lower()
         _text_index = index
         return _text_index
+
+
+def get_text_index_nowait() -> dict[str, str]:
+    """Return the text index immediately without blocking.
+    Returns an empty dict if the background build hasn't finished yet,
+    in which case callers should fall back to metadata-only matching.
+    """
+    return _text_index
 
 
 def _record_etl_run(rows: int, status: str, errors: int, duration: float, notes: str = "") -> None:
@@ -854,6 +864,52 @@ def hashes_to_countries(hashes: list[str] = Body(...)):
         })
     items.sort(key=lambda x: -x["pct"])
     return {"items": items}
+
+
+class _HashConvRequest(BaseModel):
+    hashes: list[str]
+    page: int = 1
+    per_page: int = 20
+
+
+@data_router.post("/conversations-by-hashes")
+def conversations_by_hashes(body: _HashConvRequest):
+    """Return paginated conversations filtered to a specific set of hashes (for user tag filtering)."""
+    df = _load_df()
+    if not body.hashes:
+        return {"total": 0, "page": 1, "per_page": body.per_page, "total_pages": 1, "data": []}
+
+    hash_set = set(body.hashes)
+    filtered = df[df["conversation_hash"].isin(hash_set)]
+    total = len(filtered)
+    per_page = max(1, min(body.per_page, 100))
+    start = (body.page - 1) * per_page
+    page_df = filtered.iloc[start : start + per_page]
+
+    records = [
+        {
+            "conversation_hash": row["conversation_hash"][:8] + "...",
+            "full_hash": row["conversation_hash"],
+            "model": row["model"],
+            "language": row["language"],
+            "turns": int(row["turn"]),
+            "country": row["country"],
+            "state": row["state"] if pd.notna(row["state"]) else "",
+            "redacted": bool(row["redacted"]),
+            "toxic": bool(row["toxic"]),
+            "timestamp": row["timestamp"].isoformat() if pd.notna(row["timestamp"]) else None,
+            "tags": json.loads(row["tags"]) if row["tags"] else [],
+        }
+        for _, row in page_df.iterrows()
+    ]
+
+    return {
+        "total": total,
+        "page": body.page,
+        "per_page": per_page,
+        "total_pages": max(1, (total + per_page - 1) // per_page),
+        "data": records,
+    }
 
 
 @data_router.get("/topics-by-country")

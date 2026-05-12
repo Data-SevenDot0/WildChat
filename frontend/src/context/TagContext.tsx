@@ -30,6 +30,7 @@ interface TagContextValue {
   getConvTags: (convHash: string) => UserTag[];
   getTagById: (id: string) => UserTag | undefined;
   isHashInTag: (convHash: string, tagId: string) => boolean;
+  getTagHashes: (tagId: string) => string[] | undefined;
   refreshTags: () => Promise<void>;
 }
 
@@ -133,11 +134,16 @@ export function TagProvider({ children }: { children: ReactNode }) {
     return tagHashes[tagId]?.has(convHash) ?? false;
   }
 
+  function getTagHashes(tagId: string): string[] | undefined {
+    if (!loadedTagIds.current.has(tagId)) return undefined;
+    return [...(tagHashes[tagId] ?? new Set())];
+  }
+
   return (
     <TagContext.Provider value={{
       tags, loading, saving,
       createTag, updateTag, deleteTag, loadTagHashes,
-      getConvTags, getTagById, isHashInTag, refreshTags,
+      getConvTags, getTagById, isHashInTag, getTagHashes, refreshTags,
     }}>
       {children}
     </TagContext.Provider>
