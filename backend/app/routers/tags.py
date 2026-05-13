@@ -167,6 +167,44 @@ def rematch_tag(
     return _tag_to_out(tag, db)
 
 
+@tag_router.get("/{tag_id}/countries")
+def get_tag_countries(
+    tag_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    tag = crud_tag.get_tag(db, tag_id, current_user.user_id)
+    if not tag:
+        raise HTTPException(status_code=404, detail="Tag not found.")
+
+    hashes = crud_tag.get_assignment_hashes(db, tag_id)
+    if not hashes:
+        return {"items": []}
+
+    from app.routers.wildchat_data import _load_df
+
+    df = _load_df()
+    hash_set = set(hashes)
+    filtered = df[df["conversation_hash"].isin(hash_set)]
+
+    if len(filtered) == 0:
+        return {"items": []}
+
+    total_by_country = df["country"].value_counts()
+    tag_counts = filtered["country"].value_counts()
+
+    items = []
+    for country, count in tag_counts.items():
+        total = int(total_by_country.get(country, 1))
+        items.append({
+            "country": str(country),
+            "count": int(count),
+            "pct": round(int(count) / total * 100, 1),
+        })
+    items.sort(key=lambda x: -x["pct"])
+    return {"items": items}
+
+
 @tag_router.get("/for-conversation/{conversation_hash}", response_model=list[TagOut])
 def tags_for_conversation(
     conversation_hash: str,

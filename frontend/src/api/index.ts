@@ -311,6 +311,14 @@ export async function fetchTagHashes(tagId: string, token: string): Promise<stri
   return data as string[];
 }
 
+export async function fetchTagCountries(
+  tagId: string,
+  token: string
+): Promise<{ items: { country: string; count: number; pct: number }[] }> {
+  const { data } = await api.get(`/tags/${tagId}/countries`, authHeaders(token));
+  return data;
+}
+
 export async function rematchUserTag(tagId: string, token: string): Promise<UserTag> {
   const { data } = await api.post(`/tags/${tagId}/rematch`, {}, authHeaders(token));
   return tagFromApi(data);

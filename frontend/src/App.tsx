@@ -22,8 +22,7 @@ import {
   fetchModelTopicMatrix,
   fetchTopicsByCountry,
   fetchTopicCountries,
-  fetchTagHashes,
-  fetchHashesToCountries,
+  fetchTagCountries,
 } from "./api";
 
 import Sidebar from "./components/Sidebar";
@@ -300,8 +299,7 @@ function AppInner() {
         setTopicFilterCategory(category);
       }).catch(() => {});
     } else if (filters.tagFilter && user?.token) {
-      fetchTagHashes(filters.tagFilter, user.token)
-        .then((hashes) => fetchHashesToCountries(hashes))
+      fetchTagCountries(filters.tagFilter, user.token)
         .then(({ items }) => {
           const map: Record<string, number> = {};
           items.forEach((r) => { map[r.country] = r.pct; });
