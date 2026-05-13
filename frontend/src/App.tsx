@@ -347,7 +347,7 @@ function AppInner() {
                     Wild<span style={{ color: colors.logoAccent, fontWeight: 400 }}>chat</span> Lens
                   </span>
                   <span style={{ fontSize: 13, color: colors.textSecondary, letterSpacing: "0.04em" }}>
-                    conversation analytics
+                    Insights without borders
                   </span>
                 </div>
                 <StatCards overview={overview} loading={loadingOverview} />

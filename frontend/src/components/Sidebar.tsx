@@ -47,7 +47,7 @@ export default function Sidebar({ activeView, onSelect }: Props) {
             Wild<span style={{ color: colors.logoAccent, fontWeight: 400 }}>chat</span> Lens
           </div>
           <div style={{ fontSize: "0.7rem", color: colors.textSecondary, letterSpacing: "0.04em" }}>
-            conversation analytics
+            Insights without borders
           </div>
         </div>
       </div>
