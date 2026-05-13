@@ -1,0 +1,960 @@
+"""
+WildChat data endpoints — reads combined_data_tagged.parquet.
+Slim DataFrame (no conversation text) is loaded once at first request and cached.
+Individual conversation detail is fetched on-demand via a row-group index that maps
+each conversation_hash to its row group, so only 1/14th of the file is read per
+detail lookup instead of the entire 3 GB file.
+"""
+import json
+import threading
+import time
+from pathlib import Path
+from typing import Optional
+
+import pandas as pd
+import pyarrow as pa
+import pyarrow.compute as pc
+import pyarrow.parquet as pq
+from fastapi import APIRouter, Body, HTTPException, Query
+from pydantic import BaseModel
+
+from app.db.session import SessionLocal
+from app.models.etl_run import EtlRun
+
+data_router = APIRouter(prefix="/data", tags=["wildchat-data"])
+
+# ── Paths ──────────────────────────────────────────────────────────────────────
+
+def _find_parquet() -> Path:
+    root = Path(__file__).parents[3]
+    candidates = [
+        root / "data"       / "WildChatData" / "combined_data_tagged.parquet",
+        root / "Step_0_Data" / "WildChatData" / "combined_data_tagged.parquet",
+    ]
+    for p in candidates:
+        if p.exists():
+            return p
+    return candidates[0]  # let the later open() surface a clear FileNotFoundError
+
+PARQUET_PATH = _find_parquet()
+
+SLIM_COLS = [
+    "conversation_hash", "model", "timestamp", "turn",
+    "language", "toxic", "redacted", "state", "country", "tags",
+]
+
+TOPIC_CATEGORIES: dict[str, list[str]] = {
+    "Coding / tech": [
+        "python code", "javascript frontend", "lua roblox scripting",
+        "cpp java systems code", "sql database", "cybersecurity",
+        "data science ml ai", "excel powerbi data tools", "cloud devops",
+        "api rest integration", "networking sysadmin it", "software architecture",
+        "coding interview prep", "json data formats", "midjourney image generation",
+        "chatbot persona setup", "chatgpt jailbreak",
+    ],
+    "Writing": [
+        "fiction short stories", "sports creative writing", "ddlc fanfiction",
+        "world building lore", "summarize paraphrase rewrite", "youtube content creation",
+        "marketing seo copywriting", "dialogue scripts screenplays",
+        "social media reply generation", "email business writing", "essay academic writing",
+        "etsy ecommerce listings", "grammar proofreading", "resume cv job application",
+        "anime manga fanfiction", "western media fanfiction",
+    ],
+    "Research / info": [
+        "history civilizations", "philosophy ethics", "psychology behavior",
+        "politics current events", "health medical", "mental health therapy",
+        "nutrition fitness diet", "travel tourism geography", "food recipes cooking",
+        "finance investing crypto", "legal contracts compliance",
+        "education curriculum teaching", "career development workplace",
+        "religion spirituality", "image generation art design", "photography editing",
+        "music lyrics production", "video games", "tabletop rpg dnd",
+        "relationship dating social", "greeting casual chat",
+        "productivity self improvement", "ai model identity questions",
+        "astrology tarot esoteric", "parenting children education",
+    ],
+    "Translation": [
+        "translation multilingual", "language learning", "language simplification",
+    ],
+    "Math / science": [
+        "math algebra calculus", "science biology physics chemistry",
+    ],
+    "Other": [
+        "combat fighting scenarios", "hypnosis power dynamic roleplay",
+        "adult nsfw content", "untagged",
+    ],
+}
+
+# Build reverse lookup once
+_TAG_TO_CATEGORY: dict[str, str] = {
+    tag: cat for cat, tags in TOPIC_CATEGORIES.items() for tag in tags
+}
+
+# ── Data cache ─────────────────────────────────────────────────────────────────
+
+_df: Optional[pd.DataFrame] = None
+_lock = threading.Lock()
+_stats_cache: dict = {}
+
+# Separate lazy cache for topics-by-country so it never blocks the main stats load
+_tbc_cache: dict = {}
+_tbc_lock = threading.Lock()
+
+# Per-topic country breakdown cache (keyed by topic/tag name)
+_tcc_cache: dict = {}
+_tcc_lock = threading.Lock()
+
+# Row-group index: maps conversation_hash → row-group number.
+# Built once on first detail request. Reading only the hash column (~20 MB)
+# across all row groups takes ~1-2 s and allows every subsequent detail lookup
+# to read exactly ONE row group (1/14th of the file) instead of all 14.
+_hash_to_rg: dict[str, int] = {}
+_rg_lock = threading.Lock()
+
+# Full-text index: maps conversation_hash → lowercase flattened message text.
+# Built lazily on first keyword-tag creation. Reads conversation_hash + conversation
+# columns only (column projection); cached for the lifetime of the process so
+# subsequent tag creates/updates are fast.
+_text_index: dict[str, str] = {}
+_text_index_lock = threading.Lock()
+
+
+def _build_rg_index() -> None:
+    """Populate _hash_to_rg lazily (thread-safe, runs once)."""
+    global _hash_to_rg
+    if _hash_to_rg:
+        return
+    with _rg_lock:
+        if _hash_to_rg:
+            return
+        pf = pq.ParquetFile(PARQUET_PATH)
+        index: dict[str, int] = {}
+        for rg_idx in range(pf.metadata.num_row_groups):
+            batch = pf.read_row_group(rg_idx, columns=["conversation_hash"])
+            for h in batch.column("conversation_hash").to_pylist():
+                index[h] = rg_idx
+        _hash_to_rg = index
+
+
+def _get_text_index() -> dict[str, str]:
+    """
+    Build and cache a hash → lowercase-flattened-message-text mapping.
+    Only reads conversation_hash + conversation columns (column projection).
+    Intended to be called from a background thread at startup so the index
+    is warm before any tag operations are requested.
+    First build takes ~30-60 s; all subsequent calls return instantly.
+    """
+    global _text_index
+    if _text_index:
+        return _text_index
+    with _text_index_lock:
+        if _text_index:
+            return _text_index
+        pf = pq.ParquetFile(PARQUET_PATH)
+        index: dict[str, str] = {}
+        for rg_idx in range(pf.metadata.num_row_groups):
+            batch = pf.read_row_group(rg_idx, columns=["conversation_hash", "conversation"])
+            hashes = batch.column("conversation_hash").to_pylist()
+            convs  = batch.column("conversation").to_pylist()
+            for h, conv in zip(hashes, convs):
+                if not conv:
+                    index[h] = ""
+                    continue
+                parts: list[str] = []
+                items = conv if isinstance(conv, list) else []
+                for msg in items:
+                    if isinstance(msg, dict):
+                        content = msg.get("content") or ""
+                    else:
+                        content = str(msg) if msg else ""
+                    if content:
+                        parts.append(str(content))
+                index[h] = " ".join(parts).lower()
+        _text_index = index
+        return _text_index
+
+
+def get_text_index_nowait() -> dict[str, str]:
+    """Return the text index immediately without blocking.
+    Returns an empty dict if the background build hasn't finished yet,
+    in which case callers should fall back to metadata-only matching.
+    """
+    return _text_index
+
+
+def _record_etl_run(rows: int, status: str, errors: int, duration: float, notes: str = "") -> None:
+    """Persist an ETL run record to SQLite (fire-and-forget, never raises)."""
+    try:
+        db = SessionLocal()
+        try:
+            db.add(EtlRun(
+                rows_processed=rows,
+                status=status,
+                errors=errors,
+                duration_seconds=round(duration, 2),
+                notes=notes,
+            ))
+            db.commit()
+        finally:
+            db.close()
+    except Exception:
+        pass  # Never let logging break the data load
+
+
+def _load_df() -> pd.DataFrame:
+    global _df
+    if _df is None:
+        with _lock:
+            if _df is None:
+                t0 = time.perf_counter()
+                try:
+                    _df = pd.read_parquet(PARQUET_PATH, columns=SLIM_COLS)
+                    # Timestamps in the parquet are naive (no timezone) — keep them as-is
+                    _df["timestamp"] = pd.to_datetime(_df["timestamp"])
+                    duration = time.perf_counter() - t0
+                    _record_etl_run(
+                        rows=len(_df),
+                        status="success",
+                        errors=0,
+                        duration=duration,
+                        notes=f"Loaded {PARQUET_PATH.name}",
+                    )
+                except Exception as exc:
+                    duration = time.perf_counter() - t0
+                    _record_etl_run(
+                        rows=0,
+                        status="error",
+                        errors=1,
+                        duration=duration,
+                        notes=str(exc)[:500],
+                    )
+                    raise
+    return _df
+
+
+def _get_stats() -> dict:
+    """Compute and cache all aggregated stats (runs once)."""
+    if "model_topic_matrix" in _stats_cache:
+        return _stats_cache
+
+    df = _load_df()
+    total = len(df)
+
+    # Overview
+    lang_counts = df["language"].value_counts()
+    _stats_cache["overview"] = {
+        "total_conversations": total,
+        "total_languages": int(df["language"].nunique()),
+        "avg_turns": round(float(df["turn"].mean()), 1),
+        "max_turns": int(df["turn"].max()),
+        "redacted_count": int(df["redacted"].sum()),
+        "redacted_pct": round(float(df["redacted"].mean()) * 100, 2),
+        "total_models": int(df["model"].nunique()),
+        "total_countries": int(df["country"].nunique()),
+        "date_from": df["timestamp"].min().isoformat(),
+        "date_to": df["timestamp"].max().isoformat(),
+        "top_language": str(lang_counts.index[0]),
+        "top_language_pct": round(float(lang_counts.iloc[0]) / total * 100, 1),
+    }
+
+    # Topics
+    cat_counts: dict[str, int] = {c: 0 for c in TOPIC_CATEGORIES}
+    cat_counts["Other"] = 0
+    for tags_str in df["tags"].dropna():
+        for tag in json.loads(tags_str):
+            cat_counts[_TAG_TO_CATEGORY.get(tag, "Other")] += 1
+    topic_total = sum(cat_counts.values())
+    _stats_cache["topics"] = [
+        {"category": cat, "count": cnt, "pct": round(cnt / topic_total * 100, 1)}
+        for cat, cnt in sorted(cat_counts.items(), key=lambda x: -x[1])
+    ]
+
+    # Languages
+    _stats_cache["languages"] = [
+        {"language": lang, "count": int(c), "pct": round(c / total * 100, 1)}
+        for lang, c in lang_counts.items()
+    ]
+
+    # Models
+    model_stats = (
+        df.groupby("model")
+        .agg(count=("turn", "count"), avg_turns=("turn", "mean"))
+        .reset_index()
+        .sort_values("count", ascending=False)
+    )
+    _stats_cache["models"] = [
+        {
+            "model": row["model"],
+            "count": int(row["count"]),
+            "pct": round(row["count"] / total * 100, 1),
+            "avg_turns": round(float(row["avg_turns"]), 1),
+        }
+        for _, row in model_stats.iterrows()
+    ]
+
+    # Countries — include dominant language and model for map coloring
+    country_counts = df["country"].value_counts()
+    dom_lang = df.groupby("country")["language"].agg(lambda x: x.value_counts().index[0])
+    dom_model = df.groupby("country")["model"].agg(lambda x: x.value_counts().index[0])
+    _stats_cache["countries"] = [
+        {
+            "country": c,
+            "count": int(n),
+            "pct": round(n / total * 100, 1),
+            "dominant_language": str(dom_lang.get(c, "")),
+            "dominant_model": str(dom_model.get(c, "")),
+        }
+        for c, n in country_counts.items()
+    ]
+
+    # Summary stats
+    gpt35_mask = df["model"].str.startswith("gpt-3.5")
+    gpt4_mask = df["model"].str.startswith("gpt-4")
+    en_pct = round(float((df["language"] == "English").mean()) * 100, 1)
+    us_pct = round(float((df["country"] == "United States").mean()) * 100, 1)
+    _stats_cache["summary"] = {
+        "gpt35_avg_turns": round(float(df.loc[gpt35_mask, "turn"].mean()), 1),
+        "gpt4_avg_turns": round(float(df.loc[gpt4_mask, "turn"].mean()), 1),
+        "english_share_pct": en_pct,
+        "us_share_pct": us_pct,
+    }
+
+    # Model × Topic matrix (top 10 models)
+    all_cats = list(TOPIC_CATEGORIES.keys()) + ["Other"]
+    top_models = df["model"].value_counts().head(10).index.tolist()
+    model_totals_dict = df["model"].value_counts().to_dict()
+    df_top = df[df["model"].isin(top_models)]
+    matrix: dict[str, dict[str, int]] = {m: {c: 0 for c in all_cats} for m in top_models}
+    for model, tags_str in zip(df_top["model"].values, df_top["tags"].values):
+        if not tags_str or not isinstance(tags_str, str):
+            continue
+        try:
+            seen: set = set()
+            for tag in json.loads(tags_str):
+                cat = _TAG_TO_CATEGORY.get(tag, "Other")
+                if cat not in seen:
+                    seen.add(cat)
+                    matrix[model][cat] += 1
+        except Exception:
+            pass
+    matrix_records = []
+    for model in top_models:
+        mtotal = model_totals_dict[model]
+        for cat in all_cats:
+            count = matrix[model][cat]
+            matrix_records.append({
+                "model": model,
+                "topic": cat,
+                "count": count,
+                "row_pct": round(count / mtotal * 100, 1) if mtotal > 0 else 0.0,
+            })
+    _stats_cache["model_topic_matrix"] = matrix_records
+
+    # Individual tag frequency
+    tag_freq: dict[str, int] = {}
+    for tags_str in df["tags"].dropna():
+        try:
+            for tag in json.loads(tags_str):
+                tag_freq[tag] = tag_freq.get(tag, 0) + 1
+        except Exception:
+            pass
+    tag_total = max(sum(tag_freq.values()), 1)
+    _stats_cache["tag_frequency"] = [
+        {
+            "tag": tag,
+            "category": _TAG_TO_CATEGORY.get(tag, "Other"),
+            "count": cnt,
+            "pct": round(cnt / tag_total * 100, 2),
+        }
+        for tag, cnt in sorted(tag_freq.items(), key=lambda x: -x[1])
+    ]
+
+    # Turn distribution (turns 1-20, then 20+ bucket)
+    MAX_TURNS_SHOWN = 20
+    turn_series = df["turn"]
+    dist_raw = turn_series[turn_series <= MAX_TURNS_SHOWN].value_counts().sort_index()
+    overflow = int((turn_series > MAX_TURNS_SHOWN).sum())
+    turn_dist = [{"turns": int(t), "count": int(c)} for t, c in dist_raw.items()]
+    if overflow:
+        turn_dist.append({"turns": MAX_TURNS_SHOWN + 1, "count": overflow})
+    _stats_cache["turn_distribution"] = turn_dist
+
+    # Hourly distribution (UTC hour 0-23)
+    hour_dist = df["timestamp"].dt.hour.value_counts().sort_index()
+    _stats_cache["hourly_distribution"] = [
+        {"hour": int(h), "count": int(c)} for h, c in hour_dist.items()
+    ]
+
+    # Day-of-week distribution
+    _WEEKDAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    day_dist = df["timestamp"].dt.dayofweek.value_counts().sort_index()
+    _stats_cache["weekday_distribution"] = [
+        {"day": _WEEKDAY_NAMES[int(d)], "count": int(c)} for d, c in day_dist.items()
+    ]
+
+    # Conversation flags summary
+    _stats_cache["conversation_flags"] = {
+        "toxic_count": int(df["toxic"].sum()),
+        "toxic_pct": round(float(df["toxic"].mean()) * 100, 2),
+        "redacted_count": int(df["redacted"].sum()),
+        "redacted_pct": round(float(df["redacted"].mean()) * 100, 2),
+        "total": len(df),
+    }
+
+    return _stats_cache
+
+
+def _get_topics_by_country() -> list:
+    """Compute top-3 topic categories per country. Lazy, cached independently of _get_stats()."""
+    if "data" in _tbc_cache:
+        return _tbc_cache["data"]
+    with _tbc_lock:
+        if "data" in _tbc_cache:
+            return _tbc_cache["data"]
+
+        df = _load_df()
+
+        def parse_cats(tags_str: str) -> list:
+            try:
+                # One entry per category — set deduplicates multiple tags in the same category
+                return list({_TAG_TO_CATEGORY.get(t, "Other") for t in json.loads(tags_str)})
+            except Exception:
+                return []
+
+        tagged = df[df["tags"].notna()].copy()
+        tagged["_cats"] = tagged["tags"].map(parse_cats)
+
+        # Explode: one row per (conversation, category) — already deduplicated above
+        exploded = tagged[["conversation_hash", "country", "_cats"]].explode("_cats")
+        exploded = exploded[exploded["_cats"].notna() & (exploded["_cats"] != "")]
+        exploded = exploded.rename(columns={"_cats": "category"})
+
+        # Count conversations per (country, category)
+        cat_counts = (
+            exploded.groupby(["country", "category"], sort=False)
+            .size()
+            .reset_index(name="count")
+        )
+
+        # Percentages relative to total conversations per country
+        country_totals = df["country"].value_counts().rename("total")
+        cat_counts = cat_counts.join(country_totals, on="country")
+        cat_counts["pct"] = (cat_counts["count"] / cat_counts["total"] * 100).round(1)
+
+        # Top 3 per country by count
+        top3 = (
+            cat_counts.sort_values("count", ascending=False)
+            .groupby("country", sort=False)
+            .head(3)
+        )
+
+        result = [
+            {
+                "country": country,
+                "top_categories": [
+                    {"category": row["category"], "count": int(row["count"]), "pct": float(row["pct"])}
+                    for _, row in group.iterrows()
+                ],
+            }
+            for country, group in top3.groupby("country")
+        ]
+
+        _tbc_cache["data"] = result
+        return result
+
+
+# ── Endpoints ──────────────────────────────────────────────────────────────────
+
+@data_router.get("/overview")
+def get_overview():
+    return _get_stats()["overview"]
+
+
+@data_router.get("/topics")
+def get_topics():
+    return _get_stats()["topics"]
+
+
+@data_router.get("/languages")
+def get_languages(limit: int = Query(20, ge=1, le=100)):
+    return _get_stats()["languages"][:limit]
+
+
+@data_router.get("/models")
+def get_models():
+    return _get_stats()["models"]
+
+
+@data_router.get("/countries")
+def get_countries(
+    limit: int = Query(50, ge=1, le=250),
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+):
+    if not date_from and not date_to:
+        return _get_stats()["countries"][:limit]
+
+    # Filter the slim df by date range and recompute country counts
+    df = _load_df().copy()
+    if date_from:
+        df = df[df["timestamp"] >= pd.Timestamp(date_from)]
+    if date_to:
+        df = df[df["timestamp"] <= pd.Timestamp(date_to)]
+
+    total = max(len(df), 1)
+    country_counts = df["country"].value_counts()
+    dom_lang = df.groupby("country")["language"].agg(lambda x: x.value_counts().index[0])
+    dom_model = df.groupby("country")["model"].agg(lambda x: x.value_counts().index[0])
+    return [
+        {
+            "country": c,
+            "count": int(n),
+            "pct": round(n / total * 100, 1),
+            "dominant_language": str(dom_lang.get(c, "")),
+            "dominant_model": str(dom_model.get(c, "")),
+        }
+        for c, n in country_counts.items()
+    ][:limit]
+
+
+@data_router.get("/summary")
+def get_summary():
+    return _get_stats()["summary"]
+
+
+@data_router.get("/conversations")
+def get_conversations(
+    page: int = Query(1, ge=1),
+    per_page: int = Query(20, ge=1, le=100),
+    model: Optional[str] = None,
+    language: Optional[str] = None,
+    country: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    redacted_only: bool = False,
+    search: Optional[str] = None,
+    topic_filter: Optional[str] = None,
+    turn_min: Optional[int] = None,
+    turn_max: Optional[int] = None,
+):
+    df = _load_df()
+
+    if model:
+        df = df[df["model"] == model]
+    if language:
+        df = df[df["language"] == language]
+    if country:
+        df = df[df["country"] == country]
+    if redacted_only:
+        df = df[df["redacted"]]
+    if date_from:
+        df = df[df["timestamp"] >= pd.Timestamp(date_from)]
+    if date_to:
+        df = df[df["timestamp"] <= pd.Timestamp(date_to)]
+    if search:
+        df = df[df["conversation_hash"].str.contains(search, case=False, na=False)]
+    if topic_filter:
+        # Accept either a category name (all tags within it) or an individual tag name
+        category_tags = set(TOPIC_CATEGORIES.get(topic_filter, []))
+        if not category_tags and topic_filter in _TAG_TO_CATEGORY:
+            category_tags = {topic_filter}
+        if category_tags:
+            def has_topic(tags_str):
+                if not tags_str: return False
+                try: return bool(set(json.loads(tags_str)) & category_tags)
+                except: return False
+            df = df[df["tags"].apply(has_topic)]
+    if turn_min is not None and turn_min > 0:
+        df = df[df["turn"] >= turn_min]
+    if turn_max is not None and turn_max > 0:
+        df = df[df["turn"] <= turn_max]
+
+    total = len(df)
+    start = (page - 1) * per_page
+    page_df = df.iloc[start : start + per_page]
+
+    records = [
+        {
+            "conversation_hash": row["conversation_hash"][:8] + "...",
+            "full_hash": row["conversation_hash"],
+            "model": row["model"],
+            "language": row["language"],
+            "turns": int(row["turn"]),
+            "country": row["country"],
+            "state": row["state"] if pd.notna(row["state"]) else "",
+            "redacted": bool(row["redacted"]),
+            "toxic": bool(row["toxic"]),
+            "timestamp": row["timestamp"].isoformat() if pd.notna(row["timestamp"]) else None,
+            "tags": json.loads(row["tags"]) if row["tags"] else [],
+        }
+        for _, row in page_df.iterrows()
+    ]
+
+    return {
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "total_pages": max(1, (total + per_page - 1) // per_page),
+        "data": records,
+    }
+
+
+@data_router.get("/conversations/{hash}")
+def get_conversation(hash: str):
+    # Build the row-group index on first call (~1-2 s, then cached forever).
+    _build_rg_index()
+
+    rg_idx = _hash_to_rg.get(hash)
+    if rg_idx is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    try:
+        DETAIL_COLS = [
+            "conversation_hash", "conversation", "model", "language",
+            "turn", "country", "redacted", "toxic", "timestamp", "tags",
+        ]
+        pf = pq.ParquetFile(PARQUET_PATH)
+        # Read only the single row group that contains this hash (~35 MB vs ~490 MB).
+        table = pf.read_row_group(rg_idx, columns=DETAIL_COLS)
+        # Narrow to the exact row by converting to pandas for filtering.
+        df_detail = table.to_pandas()
+        df_detail = df_detail[df_detail["conversation_hash"] == hash]
+
+        if len(df_detail) == 0:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+
+        row = df_detail.iloc[0]
+        conv_raw = row["conversation"]
+        if hasattr(conv_raw, "tolist"):
+            conv_raw = conv_raw.tolist()
+
+        messages = []
+        if conv_raw is not None and len(conv_raw) > 0:
+            for msg in conv_raw:
+                role = msg.get("role", "") if isinstance(msg, dict) else ""
+                content = msg.get("content", "") if isinstance(msg, dict) else str(msg)
+                messages.append({"role": role, "content": content or ""})
+
+        ts = row["timestamp"]
+        return {
+            "conversation_hash": row["conversation_hash"],
+            "full_hash": row["conversation_hash"],
+            "model": row["model"],
+            "language": row["language"],
+            "turns": int(row["turn"]),
+            "country": row["country"],
+            "redacted": bool(row["redacted"]),
+            "toxic": bool(row["toxic"]),
+            "timestamp": ts.isoformat() if hasattr(ts, "isoformat") else str(ts) if ts else None,
+            "tags": (json.loads(row["tags"]) if isinstance(row["tags"], str) else list(row["tags"]) if row["tags"] is not None else []),
+            "messages": messages,
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        import traceback
+        raise HTTPException(status_code=500, detail=f"{type(exc).__name__}: {exc}\n{traceback.format_exc()}") from exc
+
+
+@data_router.get("/turn-depth")
+def get_turn_depth(dimension: str = Query("model", regex="^(model|language|country)$")):
+    df = _load_df()
+    grouped = df.groupby(dimension).agg(
+        avg_turns=("turn", "mean"),
+        count=("turn", "count")
+    ).reset_index().sort_values("avg_turns", ascending=False).head(20)
+    return [
+        {"dimension": row[dimension], "avg_turns": round(float(row["avg_turns"]), 2), "count": int(row["count"])}
+        for _, row in grouped.iterrows()
+    ]
+
+
+@data_router.get("/model-topic-matrix")
+def get_model_topic_matrix():
+    return _get_stats()["model_topic_matrix"]
+
+
+
+# ── Fix 3: Geographic drill-down endpoint ─────────────────────────────────────
+
+@data_router.get("/geographic-drilldown")
+def get_geographic_drilldown(
+    country: str = Query(..., description="Country name to drill into"),
+    state: Optional[str] = Query(None, description="State name for city-level (not yet available)"),
+):
+    """
+    Returns state-level aggregation for a country.
+    If state is provided, returns a message that city-level data is not in this dataset.
+    """
+    df = _load_df()
+    df_country = df[df["country"] == country]
+
+    if len(df_country) == 0:
+        return {"level": "state", "items": [], "message": f"No data found for '{country}'"}
+
+    if state is not None:
+        # City-level data is not available in the dataset
+        return {
+            "level": "city",
+            "items": [],
+            "message": "City-level data is not available in this dataset",
+        }
+
+    # Filter to rows that have a non-empty state value
+    state_df = df_country[df_country["state"].notna() & (df_country["state"].astype(str).str.strip() != "")]
+
+    if len(state_df) == 0:
+        return {"level": "state", "items": [], "message": f"Sub-national data is not available for {country}"}
+
+    total_country = len(df_country)
+    grouped = (
+        state_df.groupby("state")
+        .agg(count=("turn", "count"), avg_turns=("turn", "mean"))
+        .reset_index()
+        .sort_values("count", ascending=False)
+        .head(30)
+    )
+
+    items = []
+    for _, row in grouped.iterrows():
+        state_rows = state_df[state_df["state"] == row["state"]]
+        model_counts = state_rows["model"].value_counts()
+        lang_counts = state_rows["language"].value_counts()
+        items.append({
+            "name": str(row["state"]),
+            "count": int(row["count"]),
+            "pct": round(row["count"] / total_country * 100, 1),
+            "avg_turns": round(float(row["avg_turns"]), 1),
+            "dominant_model": str(model_counts.index[0]) if len(model_counts) > 0 else "",
+            "dominant_language": str(lang_counts.index[0]) if len(lang_counts) > 0 else "",
+        })
+
+    return {"level": "state", "items": items, "total_country": total_country}
+
+
+# ── Fix 4: Graph builder data endpoint ───────────────────────────────────────
+
+@data_router.get("/graph-builder")
+def get_graph_builder_data(
+    x_axis: str = Query("model", regex="^(model|language|country|turn_depth)$"),
+    y_axis: str = Query("conversation_count", regex="^(conversation_count|avg_turn_depth)$"),
+    model: Optional[str] = None,
+    language: Optional[str] = None,
+    country: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+):
+    """
+    Returns aggregated data for the graph builder.
+    Supports optional filter scoping so graphs can be built on a data subset.
+    """
+    df = _load_df()
+
+    # Apply optional filters to scope the graph data
+    if model:
+        df = df[df["model"] == model]
+    if language:
+        df = df[df["language"] == language]
+    if country:
+        df = df[df["country"] == country]
+    if date_from:
+        df = df[df["timestamp"] >= pd.Timestamp(date_from)]
+    if date_to:
+        df = df[df["timestamp"] <= pd.Timestamp(date_to)]
+
+    total = len(df)
+    if total == 0:
+        return []
+
+    dim_col = "model" if x_axis == "turn_depth" else x_axis
+    grouped = (
+        df.groupby(dim_col)
+        .agg(count=("turn", "count"), avg_turns=("turn", "mean"))
+        .reset_index()
+        .sort_values("count", ascending=False)
+        .head(20)
+    )
+
+    return [
+        {
+            "dimension": str(row[dim_col]),
+            "conversation_count": int(row["count"]),
+            "avg_turn_depth": round(float(row["avg_turns"]), 1),
+            "pct": round(row["count"] / total * 100, 1),
+        }
+        for _, row in grouped.iterrows()
+    ]
+
+
+@data_router.get("/topic-countries")
+def get_topic_countries(topic: str = Query(..., description="Category name or individual tag name")):
+    """
+    Returns what % of each country's conversations contain this topic or tag.
+    Results are cached per topic name — first call may take ~1-2 s; subsequent calls are instant.
+    """
+    if topic in _tcc_cache:
+        return _tcc_cache[topic]
+    with _tcc_lock:
+        if topic in _tcc_cache:
+            return _tcc_cache[topic]
+
+        df = _load_df()
+
+        # Resolve to the set of tag strings to match
+        category_tags = set(TOPIC_CATEGORIES.get(topic, []))
+        if not category_tags and topic in _TAG_TO_CATEGORY:
+            category_tags = {topic}
+        if not category_tags:
+            _tcc_cache[topic] = {"category": "Other", "items": []}
+            return _tcc_cache[topic]
+
+        # Vectorized substring match — each tag is stored as a JSON string element,
+        # so searching for the JSON-encoded form (with quotes) avoids partial matches.
+        import re as _re
+        pattern = "|".join(_re.escape(json.dumps(t)) for t in category_tags)
+        mask = df["tags"].str.contains(pattern, na=False, regex=True)
+        filtered = df[mask]
+
+        total_by_country = df["country"].value_counts()
+        topic_counts = filtered["country"].value_counts()
+
+        items = []
+        for country, count in topic_counts.items():
+            total = int(total_by_country.get(country, 1))
+            items.append({
+                "country": str(country),
+                "count": int(count),
+                "pct": round(int(count) / total * 100, 1),
+            })
+        items.sort(key=lambda x: -x["pct"])
+
+        # Determine the parent category for color lookup in the frontend
+        category = topic if topic in TOPIC_CATEGORIES else _TAG_TO_CATEGORY.get(topic, "Other")
+
+        result = {"category": category, "items": items}
+        _tcc_cache[topic] = result
+        return result
+
+
+@data_router.post("/hashes-to-countries")
+def hashes_to_countries(hashes: list[str] = Body(...)):
+    """
+    Given a list of full conversation hashes (from a user-created keyword tag),
+    returns what % of each country's conversations are in that set.
+    """
+    df = _load_df()
+    if not hashes:
+        return {"items": []}
+
+    hash_set = set(hashes)
+    filtered = df[df["conversation_hash"].isin(hash_set)]
+
+    if len(filtered) == 0:
+        return {"items": []}
+
+    total_by_country = df["country"].value_counts()
+    tag_counts = filtered["country"].value_counts()
+
+    items = []
+    for country, count in tag_counts.items():
+        total = int(total_by_country.get(country, 1))
+        items.append({
+            "country": str(country),
+            "count": int(count),
+            "pct": round(int(count) / total * 100, 1),
+        })
+    items.sort(key=lambda x: -x["pct"])
+    return {"items": items}
+
+
+class _HashConvRequest(BaseModel):
+    hashes: list[str]
+    page: int = 1
+    per_page: int = 20
+
+
+@data_router.post("/conversations-by-hashes")
+def conversations_by_hashes(body: _HashConvRequest):
+    """Return paginated conversations filtered to a specific set of hashes (for user tag filtering)."""
+    df = _load_df()
+    if not body.hashes:
+        return {"total": 0, "page": 1, "per_page": body.per_page, "total_pages": 1, "data": []}
+
+    hash_set = set(body.hashes)
+    filtered = df[df["conversation_hash"].isin(hash_set)]
+    total = len(filtered)
+    per_page = max(1, min(body.per_page, 100))
+    start = (body.page - 1) * per_page
+    page_df = filtered.iloc[start : start + per_page]
+
+    records = [
+        {
+            "conversation_hash": row["conversation_hash"][:8] + "...",
+            "full_hash": row["conversation_hash"],
+            "model": row["model"],
+            "language": row["language"],
+            "turns": int(row["turn"]),
+            "country": row["country"],
+            "state": row["state"] if pd.notna(row["state"]) else "",
+            "redacted": bool(row["redacted"]),
+            "toxic": bool(row["toxic"]),
+            "timestamp": row["timestamp"].isoformat() if pd.notna(row["timestamp"]) else None,
+            "tags": json.loads(row["tags"]) if row["tags"] else [],
+        }
+        for _, row in page_df.iterrows()
+    ]
+
+    return {
+        "total": total,
+        "page": body.page,
+        "per_page": per_page,
+        "total_pages": max(1, (total + per_page - 1) // per_page),
+        "data": records,
+    }
+
+
+@data_router.get("/topics-by-country")
+def get_topics_by_country():
+    return _get_topics_by_country()
+
+
+@data_router.get("/tag-frequency")
+def get_tag_frequency():
+    return _get_stats()["tag_frequency"]
+
+
+@data_router.get("/conversation-patterns")
+def get_conversation_patterns():
+    stats = _get_stats()
+    return {
+        "turn_distribution": stats["turn_distribution"],
+        "hourly_distribution": stats["hourly_distribution"],
+        "weekday_distribution": stats["weekday_distribution"],
+        "conversation_flags": stats["conversation_flags"],
+    }
+
+
+@data_router.get("/etl-runs")
+def get_etl_runs(limit: int = Query(20, ge=1, le=100)):
+    """Return the most recent ETL run records from the database."""
+    db = SessionLocal()
+    try:
+        runs = (
+            db.query(EtlRun)
+            .order_by(EtlRun.ran_at.desc())
+            .limit(limit)
+            .all()
+        )
+        return [
+            {
+                "id": r.id,
+                "ran_at": r.ran_at.isoformat(),
+                "rows_processed": r.rows_processed,
+                "status": r.status,
+                "errors": r.errors,
+                "duration_seconds": r.duration_seconds,
+                "notes": r.notes,
+            }
+            for r in runs
+        ]
+    finally:
+        db.close()

@@ -75,8 +75,7 @@ docs/_build/
 .pybuilder/
 target/
 
-# Jupyter Notebook
-.ipynb_checkpoints
+
 
 # IPython
 profile_default/
@@ -217,4 +216,9 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
+# Project-specific
 data/
+Data/
+Step_0_Data/
+node_modules/
+*.db
