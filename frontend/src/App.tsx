@@ -346,7 +346,7 @@ function AppInner() {
                   <span style={{ fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif", fontSize: 22, fontWeight: 600, letterSpacing: "0.01em", color: colors.textPrimary }}>
                     Wild<span style={{ color: colors.logoAccent, fontWeight: 400 }}>chat</span> Lens
                   </span>
-                  <span style={{ fontSize: 13, color: colors.textSecondary, letterSpacing: "0.04em" }}>
+                  <span style={{ fontSize: 17, color: colors.textSecondary, letterSpacing: "0.04em" }}>
                     Insights without borders
                   </span>
                 </div>
